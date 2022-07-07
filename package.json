@@ -1,0 +1,21 @@
+{
+    "name": "@pushcorn/nit",
+    "version": "0.9.0",
+    "main": "lib/nit.js",
+    "description": "A toolbox for building CLI and web apps in a modular way.",
+    "license": "ISC",
+    "files": [
+        "exts/**",
+        "lib/**",
+        "public/**",
+        "resources/**"
+    ],
+    "scripts": {
+        "lint": "eslint 'public/**/*.js' 'lib/**/*.js' 'exts/**/*.js' 'test/**/*.js'",
+        "test": "jest --verbose --coverage"
+    },
+    "devDependencies": {
+        "eslint": "8.17.0",
+        "jest": "28.1.1"
+    }
+}
