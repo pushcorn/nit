@@ -574,7 +574,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return true;
         }
 
-        if (nit.is.obj (v))
+        if (nit.is.pojo (v) || v instanceof nit.object)
         {
             for (var i in v)
             {
@@ -1488,21 +1488,25 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             if (exp)
             {
-                exp = ".." + exp;
                 k = k.slice (0, match.index);
 
                 // do not expand
-                if (match[2] != "!")
+                if (match[2] == "!")
                 {
-                    v = nit.expandArg (match[1], v, cfg);
+                    exp = ".." + exp;
                 }
-
-                if (v instanceof Promise)
+                else
                 {
-                    return v.then (function (v)
+                    exp = "";
+                    v = nit.expandArg (match[1], v, cfg);
+
+                    if (v instanceof Promise)
                     {
-                        nit.config (k, v);
-                    });
+                        return v.then (function (v)
+                        {
+                            nit.config (k, v);
+                        });
+                    }
                 }
             }
 
@@ -4018,12 +4022,18 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
-    nit.importClass = function (builder)
+    nit.invokeNitCallback = function (cb)
     {
-        var argNames = nit.funcArgNames (builder);
+        var argNames = nit.funcArgNames (cb);
         var args = argNames.map (function (n) { return n.match (/^[a-z]/) ? nit.initNamespace (n) : undefined; });
 
-        return builder.apply (global, args);
+        return cb.apply (global, args);
+    };
+
+
+    nit.importClass = function (builder)
+    {
+        return nit.invokeNitCallback (builder);
     };
 }
 ,
