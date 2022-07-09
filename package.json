@@ -1,6 +1,6 @@
 {
     "name": "@pushcorn/nit",
-    "version": "0.9.5",
+    "version": "0.9.6",
     "main": "lib/nit.js",
     "description": "A toolbox for building CLI and web apps in a modular way.",
     "license": "ISC",
@@ -17,8 +17,7 @@
     "devDependencies": {
         "eslint": "8.17.0",
         "jest": "28.1.1"
-    }
-    ,
+    },
     "jest": {
         "setupFilesAfterEnv": [
             "./test/setup.js"
