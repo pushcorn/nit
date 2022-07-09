@@ -4022,18 +4022,18 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
-    nit.invokeNitCallback = function (cb)
+    nit.nsInvoke = function (func)
     {
-        var argNames = nit.funcArgNames (cb);
+        var argNames = nit.funcArgNames (func);
         var args = argNames.map (function (n) { return n.match (/^[a-z]/) ? nit.initNamespace (n) : undefined; });
 
-        return cb.apply (global, args);
+        return func.apply (global, args);
     };
 
 
     nit.importClass = function (builder)
     {
-        return nit.invokeNitCallback (builder);
+        return nit.nsInvoke (builder);
     };
 }
 ,
