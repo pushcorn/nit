@@ -21,7 +21,7 @@
             configurable: true,
             set: function (builder)
             {
-                nit.importClass (builder);
+                nit.ns.invoke (builder);
             }
         });
     }
@@ -2379,6 +2379,21 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    nit.ns.init = function (name) // initialize top-level namespace only
+    {
+        return (nit.NS[name] = nit.NS[name] || nit.createFunction (name));
+    };
+
+
+    nit.ns.invoke = function (func)
+    {
+        var argNames = nit.funcArgNames (func);
+        var args = argNames.map (function (n) { return n.match (/^[a-z]/) ? nit.ns.init (n) : undefined; });
+
+        return func.apply (global, args);
+    };
+
+
     nit.ns.export = function ()
     {
         nit.assign (global, nit.NS);
@@ -4016,24 +4031,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     ;
 
 
-    nit.initNamespace = function (name) // initialize top-level namespace only
+    nit.ns.init = function (name)
     {
         return (nit.NS[name] = nit.NS[name] || nit.defineClass (name));
-    };
-
-
-    nit.nsInvoke = function (func)
-    {
-        var argNames = nit.funcArgNames (func);
-        var args = argNames.map (function (n) { return n.match (/^[a-z]/) ? nit.initNamespace (n) : undefined; });
-
-        return func.apply (global, args);
-    };
-
-
-    nit.importClass = function (builder)
-    {
-        return nit.nsInvoke (builder);
     };
 }
 ,
