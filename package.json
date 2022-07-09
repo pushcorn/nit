@@ -18,4 +18,13 @@
         "eslint": "8.17.0",
         "jest": "28.1.1"
     }
+    ,
+    "jest": {
+        "setupFilesAfterEnv": [
+            "./test/setup.js"
+        ],
+        "testMatch": [
+            "**/test/tests/**/*.js"
+        ]
+    }
 }

@@ -105,7 +105,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         CLASS_REF_PATTERN: /^@([a-zA-Z][a-zA-Z0-9]*\.)*([A-Z][a-z0-9]*)+$/,
         CONFIG: {},
         ENV: {},
-        EXPANDABLE_ARG_PATTERN: /\.\.([a-z][a-z0-9_$]+)(!?)$/i,
+        EXPANDABLE_ARG_PATTERN: /\.\.(([a-z][a-z0-9_$]+)(\|[a-z][a-z0-9_$]+)*)(!?)$/i,
         NS: { nit: nit }
 
     }, true, false);
@@ -1497,16 +1497,32 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 }
                 else
                 {
-                    exp = "";
-                    v = nit.expandArg (match[1], v, cfg);
-
-                    if (v instanceof Promise)
+                    var expanders = exp.split ("|");
+                    var expand = function (v)
                     {
-                        return v.then (function (v)
+                        if (expanders.length)
+                        {
+                            v = nit.expandArg (expanders.shift (), v, cfg);
+
+                            if (v instanceof Promise)
+                            {
+                                return v.then (function (v)
+                                {
+                                    return expand (v);
+                                });
+                            }
+                            else
+                            {
+                                return expand (v);
+                            }
+                        }
+                        else
                         {
                             nit.config (k, v);
-                        });
-                    }
+                        }
+                    };
+
+                    return expand (v);
                 }
             }
 
@@ -2531,15 +2547,48 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     });
 
 
-    nit.registerArgExpander ("tplVal", function (tmpl, owner)
+    nit.registerArgExpander ("val", function (str)
     {
-        return nit.toVal (nit.Template.render (tmpl, owner));
+        return nit.toVal (str);
     });
 
 
     nit.registerArgExpander ("env", function (key)
     {
         return nit.trim (nit.get (nit.ENV, key));
+    });
+
+
+    nit.registerArgExpander ("envMap", function (key)
+    {
+        var arr = nit.kvSplit (key, " ");
+        var from = arr[0];
+        var to = arr[1] || "";
+        var map = {};
+
+        if (from.slice (-1) != "_")
+        {
+            from += "_";
+        }
+
+        if (to && to.slice (-1) != ".")
+        {
+            to += ".";
+        }
+
+        for (var k in nit.ENV)
+        {
+            if (k.indexOf (from) === 0)
+            {
+                var v = nit.ENV[k];
+                k = k.slice (from.length);
+                k = k.replace (/_/g, ".").toLowerCase ();
+
+                nit.set (map, to + k, v);
+            }
+        }
+
+        return map;
     });
 
 
