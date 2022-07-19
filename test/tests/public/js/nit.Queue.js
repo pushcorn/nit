@@ -52,3 +52,43 @@ test ("nit.Queue", async () =>
         })
     ;
 });
+
+
+test ("nit.Queue - invoke run before completion", async () =>
+{
+    let queue = nit.Queue ();
+    let jobs = [];
+
+    queue.push (async function ()
+    {
+        await nit.sleep (10);
+        jobs.push (1);
+    });
+
+    queue.push (async function ()
+    {
+        await nit.sleep (20);
+        jobs.push (2);
+    });
+
+    let p = queue.run (async function ()
+    {
+        await nit.sleep (5);
+        jobs.push (3);
+    });
+
+    queue.push (async function ()
+    {
+        await nit.sleep (2);
+        jobs.push (4);
+    });
+
+    queue.run (function ()
+    {
+        jobs.push (5);
+    });
+
+    expect (jobs).toEqual ([]);
+    await p;
+    expect (jobs).toEqual ([1, 2, 4, 5]);
+});

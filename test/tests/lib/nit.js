@@ -215,6 +215,32 @@ test ("nit.require ()", async () =>
 });
 
 
+test ("nit.require () - async classes", async () =>
+{
+    let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");
+    process.env.NIT_PROJECT_PATHS = testProjectPath;
+
+    jest.resetModules ();
+    let nit = require (test.HOME);
+
+    let a = await nit.new ("AsyncA");
+
+    expect (a).toBeInstanceOf (nit.NS.AsyncA);
+    expect (a.ab).toBeInstanceOf (nit.NS.AsyncB);
+});
+
+
+test ("nit.resolvePath ()", () =>
+{
+    let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");
+    process.env.NIT_PROJECT_PATHS = testProjectPath;
+
+    jest.resetModules ();
+    let nit = require (test.HOME);
+    expect (nit.resolvePath ("Work.js")).toBe (no_path.join (testProjectPath, "lib/Work.js"));
+});
+
+
 test ("nit.requireAll ()", async () =>
 {
     let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");

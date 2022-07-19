@@ -2622,12 +2622,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         function (obj, args)
         {
             nit.dpv (obj, "tasks", [].concat (ARRAY (args)), true, false);
+            nit.dpv (obj, "running", false, true, false);
         })),
         function (Queue)
         {
             nit.dpvs (Queue.prototype,
             {
                 tasks: [],
+                running: false,
+                done: undefined,
                 push: function (tasks)
                 {
                     var self = this;
@@ -2654,17 +2657,27 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 ,
                 run: function (done, ctx) // eslint-disable-line no-unused-vars
                 {
-                    var cfg = nit.typedArgsToObj (arguments,
+                    var self  = this;
+                    var argv = nit.typedArgsToObj (arguments,
                     {
                         done: "function",
                         ctx: "object"
                     });
 
-                    var self  = this;
+                    if (argv.done)
+                    {
+                        self.done = argv.done;
+                    }
+
+                    if (self.running)
+                    {
+                        return;
+                    }
+
+                    self.running = true;
                     var result;
 
-                    done = cfg.done;
-                    ctx = cfg.ctx || { result: undefined };
+                    ctx = argv.ctx || { result: undefined };
                     ctx.queue = self;
 
                     function run ()
@@ -2689,8 +2702,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                                 return run ();
                             }
                         }
+                        else
+                        if (self.done)
+                        {
+                            self.tasks.push (self.done);
+                            delete self.done;
 
-                        result = nit.is.func (done) ? done (ctx) : result;
+                            return run ();
+                        }
+
+                        self.running = false;
 
                         return result === undefined ? ctx.result : result;
                     }
@@ -3069,7 +3090,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             var fqn = self.name + "." + cfg.name;
 
-            cfg.superclass = cfg.superclass || self.name;
+            cfg.superclass = cfg.superclass || self.INNER_CLASS_TYPE;
             superclass = nit.lookupClass (cfg.superclass);
 
             if (!superclass)
@@ -3390,6 +3411,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         })
 
         .constant ("PROPERTY_TYPE", "nit.Object.Property")
+        .constant ("INNER_CLASS_TYPE", "nit.Object")
         .staticProperty (nit.Object.kDefvals, "object", {}, false, false)
         .staticGetter ("superclass", true, false, function ()
         {
@@ -3399,7 +3421,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             var self = this;
 
-            if (!(nit.lookupClass (name)))
+            if (!nit.lookupClass (name))
             {
                 self.throw ("error.dependency_not_met", { name: name });
             }
@@ -3584,6 +3606,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 {
                     obj[n] = v;
                     v = obj[n];
+                    params[n] = v;
+
+                    if (v instanceof Promise)
+                    {
+                        return resolve ();
+                    }
                 }
 
                 return v;
@@ -4059,6 +4087,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .m ("error.no_field_defined", "No field was defined.")
         .categorize ()
         .constant ("PROPERTY_TYPE", "nit.Field")
+        .constant ("INNER_CLASS_TYPE", "nit.Class")
         .staticMethod ("ns", function (name)
         {
             var cls = this;
