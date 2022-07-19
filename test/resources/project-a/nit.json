@@ -1,0 +1,18 @@
+{
+    "env": "test",
+    "@00-common":
+    {
+        "max.upload.size": "10MB"
+    }
+    ,
+    "@02-client":
+    {
+        "max.upload.files": 5
+    }
+    ,
+    "@01-server":
+    {
+        "max.upload.size": "20MB",
+        "max.upload.files": 1
+    }
+}

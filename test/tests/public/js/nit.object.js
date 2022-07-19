@@ -471,7 +471,7 @@ test ("nit.Object.defineInnerClass ()", () =>
     function D () {}
 
     nit.registerClass (D);
-    nit.Object.defineInnerClass ("DD", "D")
+    nit.Object.defineInnerClass ("DD", "D");
     expect (nit.getSuperclass (nit.Object.DD)).toBe (D);
     expect (nit.CLASSES["nit.Object.DD"]).toBe (nit.Object.DD);
 
@@ -571,7 +571,7 @@ test ("nit.Object.memo ()", () =>
 
 test ("nit.Object.categorize ()", () =>
 {
-    let Task = nit.Object.defineSubclass ("nit.Task").categorize ();
+    nit.Object.defineSubclass ("nit.Task").categorize ();
 
     expect (nit.defineTask).toBeInstanceOf (Function);
     expect (() => nit.defineTask ("Subtask", "Suptask")).toThrow (/superclass.*not defined/);
@@ -584,19 +584,13 @@ test ("nit.Object.categorize ()", () =>
 test ("nit.Object.ClassTypeParser.cast ()", () =>
 {
     let Shape = nit.Object.defineSubclass ("Shape");
-    let parser = new nit.Object.ClassTypeParser ()
+    let parser = new nit.Object.ClassTypeParser ();
 
     expect (() => parser.cast ("@Shape")).toThrow (/class name cannot be empty/);
     expect (() => parser.cast ("@Shape", "Circle")).toThrow (/class.*circle.*not defined/i);
 
     let Circle = Shape.defineSubclass ("Circle");
     expect (parser.cast ("@Circle", "Shape")).toBeInstanceOf (Shape);
-
-});
-
-
-test ("nit.Object.superclass", () =>
-{
     expect (Circle.superclass).toBe (Shape);
 });
 
@@ -777,7 +771,7 @@ test ("nit.Object.buildConstructorParams ()", async () =>
 
     let prepareCalled = false;
 
-    nit.User.prepareConstructorParams (function (params, obj)
+    nit.User.prepareConstructorParams (function ()
     {
         prepareCalled = true;
     });
@@ -789,7 +783,6 @@ test ("nit.Object.buildConstructorParams ()", async () =>
 
 test ("nit.Object.constructObject ()", () =>
 {
-    let props = nit.User.getProperties ();
     let preConstructCalled = false;
     let postConstructCalled = false;
 
@@ -806,7 +799,7 @@ test ("nit.Object.constructObject ()", () =>
         })
     ;
 
-    let user = new nit.User;
+    let user = new nit.User; // eslint-disable-line no-unused-vars
     expect (preConstructCalled).toBe (true);
     expect (postConstructCalled).toBe (true);
 });

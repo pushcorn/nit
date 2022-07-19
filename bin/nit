@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+SOURCE=${BASH_SOURCE[0]}
+
+while [ -h "$SOURCE" ]
+do
+    BIN_DIR=$(cd $(dirname "$SOURCE") && pwd -P)
+    SOURCE=$(readlink "$SOURCE")
+    [[ $SOURCE != /* ]] && SOURCE="$BIN_DIR/$SOURCE"
+done
+
+export NIT_HOME=$(dirname $(cd $(dirname "$SOURCE") && pwd -P))
+
+/usr/bin/env node --preserve-symlinks "$NIT_HOME" "$@"

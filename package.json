@@ -3,6 +3,7 @@
     "version": "0.9.6",
     "main": "lib/nit.js",
     "description": "A toolbox for building CLI and web apps in a modular way.",
+    "bin": "./bin/nit",
     "license": "ISC",
     "files": [
         "exts/**",

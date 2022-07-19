@@ -1,5 +1,3 @@
-const oldNit = global.nit;
-
 test ("new nit () returns an empty object.", () =>
 {
     expect (new nit ()).toEqual ({});

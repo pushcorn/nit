@@ -14,11 +14,7 @@ test ("nit.config ()", async () =>
     nit.config ("file..env!", "file");
     expect (nit.CONFIG.file).toEqual ({ "": { env: "file" } });
 
-    nit.Template.registerTransform ("getMyIp", async () =>
-    {
-        return "127.0.0.3";
-    });
-
+    nit.Template.registerTransform ("getMyIp", async () => "127.0.0.3");
 
     nit.config ("my.ip..tpl", "{{|getMyIp}}");
     expect (nit.CONFIG.my).toBeUndefined ();

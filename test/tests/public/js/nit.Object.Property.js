@@ -56,7 +56,7 @@ test ("nit.Object.Property", () =>
     a.email = undefined;
     expect (a.email).toBe ("");
 
-    let field = nit.Field ("email", "string"); // calls prop.get.setDescriptor ()
+    nit.Field ("email", "string"); // calls prop.get.setDescriptor ()
 
     expect (() => nit.Object.Property.createFor (A)).toThrow (/name.*is required/);
     expect (() => nit.Object.Property.createFor (A, "n", "unkown")).toThrow (/assigned to an invalid type/);

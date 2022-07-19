@@ -1,9 +1,13 @@
 test.nit = function ()
 {
     const path = require ("path");
+    const home = path.dirname (__dirname);
 
-    process.chdir (path.dirname (__dirname));
+    process.chdir (home);
     jest.resetModules ();
+
+    test.HOME = home;
+    test.PUBLIC_NIT_PATH = path.join (home, "public/js/nit.js");
 
     return require (process.cwd ());
 };
