@@ -12,29 +12,28 @@ test ("nit getters", () =>
 
 test ("nit.PROJECT_PATHS", () =>
 {
-    jest.resetModules ();
+    let nit = test.reloadNit ("test/resources");
 
-    let testResourcesPath = no_path.join (test.HOME, "test/resources");
-    process.env.NIT_PROJECT_PATHS = testResourcesPath;
+    expect (nit.PROJECT_PATHS).toEqual ([
+        no_path.join (test.HOME, "test/resources/home/test/.nit"),
+        nit.path.join (test.HOME, "test/resources"),
+        test.HOME
+    ]);
 
-    let nit = require (test.HOME);
-    expect (nit.PROJECT_PATHS).toEqual ([test.HOME, testResourcesPath]);
     delete process.env.NIT_PROJECT_PATHS;
 });
 
 
-test ("nit.PACKAGE_PATHS", () =>
+test ("nit.ASSET_PATHS", () =>
 {
-    jest.resetModules ();
-
     let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");
-    process.env.NIT_PROJECT_PATHS = testProjectPath;
+    let nit = test.reloadNit (testProjectPath);
 
-    let nit = require (test.HOME);
-    expect (nit.PACKAGE_PATHS).toEqual ([
-        test.HOME,
+    expect (nit.ASSET_PATHS).toEqual ([
+        no_path.join (test.HOME, "test/resources/home/test/.nit"),
         testProjectPath,
-        no_path.join (testProjectPath, "packages/package-a")
+        no_path.join (testProjectPath, "packages/package-a"),
+        nit.NIT_HOME
     ]);
 
     delete process.env.NIT_PROJECT_PATHS;
@@ -152,14 +151,12 @@ test ("nit.classNameToPath ()", () =>
 });
 
 
-test ("nit.resolvePath ()", () =>
+test ("nit.resolveClass ()", () =>
 {
     let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");
-    process.env.NIT_PROJECT_PATHS = testProjectPath;
+    let nit = test.reloadNit (testProjectPath);
 
-    jest.resetModules ();
-    let nit = require (test.HOME);
-    expect (nit.resolvePath ("Work.js")).toBe (no_path.join (testProjectPath, "lib/Work.js"));
+    expect (nit.resolveClass ("Work.js")).toBe (no_path.join (testProjectPath, "lib/Work.js"));
 });
 
 
@@ -187,6 +184,17 @@ test ("nit.readFileAsync ()", async () =>
 });
 
 
+test ("nit.requireModule ()", () =>
+{
+    expect (nit.requireModule ("test/resources/test-config.json")).toEqual (
+    {
+        name: "test",
+        value: "a test value"
+    });
+
+});
+
+
 test ("nit.require ()", async () =>
 {
     let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");
@@ -198,12 +206,6 @@ test ("nit.require ()", async () =>
     expect (nit.require ("Work")).toBeInstanceOf (Function);
     expect (nit.require ("Work")).toBeInstanceOf (Function);
     expect (() => nit.require ("Work2")).toThrow (/file.*does not exist/);
-    expect (nit.require ("test/resources/test-config.json")).toEqual (
-    {
-        name: "test",
-        value: "a test value"
-    });
-
     expect (() => nit.require ("InvalidClass")).toThrow (/load error/);
 
     nit.require ("c");
@@ -227,17 +229,6 @@ test ("nit.require () - async classes", async () =>
 
     expect (a).toBeInstanceOf (nit.NS.AsyncA);
     expect (a.ab).toBeInstanceOf (nit.NS.AsyncB);
-});
-
-
-test ("nit.resolvePath ()", () =>
-{
-    let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");
-    process.env.NIT_PROJECT_PATHS = testProjectPath;
-
-    jest.resetModules ();
-    let nit = require (test.HOME);
-    expect (nit.resolvePath ("Work.js")).toBe (no_path.join (testProjectPath, "lib/Work.js"));
 });
 
 
@@ -281,7 +272,7 @@ test ("nit.requireModule ()", () =>
     let nit = require (test.HOME);
 
     expect (nit.requireModule ("hello")).toEqual ({ message: "hello" });
-    expect (() => nit.requireModule ("AB")).toThrow (/cannot find module 'AB'/i);
+    expect (() => nit.requireModule ("AB")).toThrow (/the module 'AB' was not found/i);
 });
 
 
@@ -293,7 +284,7 @@ test ("nit.lookupClass ()", () =>
     jest.resetModules ();
     let nit = require (test.HOME);
 
-    expect (() => nit.lookupClass ("d")).toThrow (/class 'd' is invalid/i);
+    expect (nit.lookupClass ("d")).toBeUndefined ();
 });
 
 
@@ -319,17 +310,14 @@ test ("nit.loadConfig ()", () =>
 
     expect (nit.loadConfig ("project-config.json")).toEqual ({ name: "project-a" });
     expect (nit.loadConfig ("project-config-not-found.json", true)).toBeUndefined ();
-    expect (() => nit.loadConfig ("project-config-not-found.json")).toThrow (/file.*project-config-not-found.*does not exist/);
+    expect (() => nit.loadConfig ("project-config-not-found.json")).toThrow (/module.*project-config-not-found.*was not found/);
 });
 
 
 test ("nit.loadConfigs ()", () =>
 {
     let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");
-    process.env.NIT_PROJECT_PATHS = testProjectPath;
-
-    jest.resetModules ();
-    let nit = require (test.HOME);
+    let nit = test.reloadNit (testProjectPath);
 
     expect (nit.CONFIG).toEqual (
     {
