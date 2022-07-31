@@ -1,0 +1,130 @@
+#!/bin/bash
+
+__nit_comp_regroup_words ()
+{
+    COMP_CUR=$2
+    COMP_PREV=$3
+
+    local words=($COMP_WORDS)
+    local i j k n word cword
+
+    if [ -n "$COMP_CUR" ]; then
+        for ((i = COMP_CWORD, j = i + 2; i < j; ++i))
+        do
+            if [ "${COMP_WORDS[i]}" = ":" ]; then
+                COMP_WORDS[i]=
+            fi
+        done
+
+        word=${COMP_WORDS[COMP_CWORD]}
+
+        if [[ "$word" =~ ^([\"\']) && "${COMP_CUR:0:1}" != "${BASH_REMATCH[1]}" ]]; then
+            COMP_CUR="${BASH_REMATCH[1]}$COMP_CUR"
+        fi
+
+        COMP_WORDS[COMP_CWORD]=$COMP_CUR
+    fi
+
+    for ((i = 1, n = ${#COMP_WORDS[@]}; i < n; ++i))
+    do
+        word=${COMP_WORDS[i]}
+        j=$((${#words[@]} - 1))
+        k=$i
+
+        while [[ $i -le $n && -n "$word" && -z "${word//:}" ]]
+        do
+            let ++i
+
+            words[j]+=$word
+            word=${COMP_WORDS[i]}
+        done
+
+        if [ $k != $i ]; then
+            words[j]+=$word
+        else
+            words+=("$word")
+        fi
+
+        if [[ -z "$cword" && $i -ge $COMP_CWORD ]]; then
+            cword=$((${#words[@]} - 1))
+        fi
+    done
+
+    COMP_WORDS=("${words[@]}")
+    COMP_CWORD=$cword
+    COMP_CUR=${COMP_CUR:+${COMP_WORDS[COMP_CWORD]}}
+    COMPREPLY=()
+
+    for k in $(compgen -v COMP_)
+    do
+        export $k
+    done
+
+    export COMP_NUM_WORDS=${#COMP_WORDS[@]}
+
+    for ((i = 0; i < COMP_NUM_WORDS; ++i))
+    do
+        k="COMP_WORD_$i"
+        printf -v "$k" "%s" "${COMP_WORDS[i]}"
+        export $k
+    done
+}
+
+
+__nit_completion ()
+{
+    __nit_comp_regroup_words "$@"
+
+    local cur=$COMP_CUR
+    local prev=$COMP_PREV
+    local quoted=false
+    local line action colon_prefix
+
+    if [ "${cur//:}" != "$cur" ]; then
+        colon_prefix=${cur%"${cur##*:}"}
+    fi
+
+    if [[ "$cur" =~ ^[\"\'] ]]; then
+        quoted=true
+    fi
+
+    while read -r line
+    do
+        if [ -z "$action" ]; then
+            action=$line
+
+            case "$line" in
+                FILE)
+                    compopt -o filenames 2>/dev/null || :
+
+                    if ! $quoted; then
+                        local redir="@(?(+([0-9])|{[a-zA-Z_]*([a-zA-Z_0-9])})@(>?([>|&])|<?([>&])|<<?([-<]))|&>?(>))" # from bash _init_completion
+
+                        if [[ $cur == $redir* || ${prev-} == $redir ]]; then
+                            cur=${cur##$redir}
+                        fi
+                    else
+                        cur=${cur:1}
+                    fi
+
+                    while read -r line
+                    do
+                        COMPREPLY+=("${line#$colon_prefix}")
+                    done < <(compgen -f -- "$cur")
+                    ;;
+                *)
+                    ;;
+            esac
+        else
+            COMPREPLY+=("${line#$colon_prefix}")
+        fi
+    done < <(nit nit "$cur" "$prev")
+
+    if [[ ($quoted != true || $COMP_POINT -lt ${#COMP_LINE}) && "$action" != "FILE" && ${#COMPREPLY[@]} -eq 1 ]]; then
+        compopt -o nospace 2>/dev/null || :
+        COMPREPLY[0]+=" ";
+    fi
+}
+
+
+complete -F __nit_completion nit

@@ -176,10 +176,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
-    nit.trim = function (s)
+    nit.trim = function (s, chars)
     {
-        return ((s === null || s === undefined ? "" : s) + "").trim ();
+        s = ((s === null || s === undefined ? "" : s) + "");
+
+        return s.replace (chars ? (chars instanceof RegExp ? chars : new RegExp ("^[" + chars + "]+|[" + chars + "]+$", "g")) : nit.trim.PATTERN, "");
     };
+
+
+    nit.trim.PATTERN = /^\s+|\s+$/g;
 
 
     nit.createFunction = function (name, body, argNames, context)
@@ -2468,6 +2473,32 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    nit.listSubclassesOf = function (superclass)
+    {
+        return nit.each (nit.CLASSES, function (cls)
+        {
+            return nit.is.subclassOf (cls, superclass) ? cls : nit.each.SKIP;
+        });
+    };
+
+
+    nit.lookupSubclassOf = function (superclass, name)
+    {
+        var simpleName = ~name.indexOf (".") ? "" : nit.pascalCase (name);
+
+        for (var n in nit.CLASSES)
+        {
+            var cls = nit.CLASSES[n];
+
+            if (nit.is.subclassOf (cls, superclass)
+                && (simpleName ? (n.split (".").pop () == simpleName) : (n == name)))
+            {
+                return cls;
+            }
+        }
+    };
+
+
     nit.new = function (cls, args)
     {
         if (nit.is.str (cls))
@@ -2535,6 +2566,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.registerArgExpander = function (name, expand)
     {
         nit.ARG_EXPANDERS[name] = expand;
+
+        return nit;
     };
 
 
@@ -2930,10 +2963,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     }
                 });
 
-                prop.get.setDescriptor = function (p)
+                nit.dpv (prop.get, "setDescriptor", function (p)
                 {
                     prop = p;
-                };
+
+                }, true, false);
 
                 if (!name)
                 {
@@ -3207,6 +3241,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return nit.dpv (this, name, method, true, false);
         }
         ,
+        staticAbstractMethod: function (name)
+        {
+            return this.staticMethod (name, function ()
+            {
+                var cls = this;
+
+                cls.throw ("error.static_method_not_implemented", { method: name, class: cls.name });
+            });
+        }
+        ,
         invokeParentStaticMethod: function (name, args)
         {
             var superclass = nit.getSuperclass (this);
@@ -3269,6 +3313,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return this;
         }
         ,
+        abstractMethod: function (name)
+        {
+            return this.method (name, function ()
+            {
+                var cls = this.constructor;
+
+                cls.throw ("error.instance_method_not_implemented", { method: name, class: cls.name });
+            });
+        }
+        ,
         categorize: function (prefix)
         {
             var self  = this;
@@ -3329,6 +3383,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .m ("error.multiple_positional_variadic_args", "Only one positional variadic argument can be defined. Either '%{firstArg}' or '%{secondArg}' must be removed.")
         .m ("error.required_arg_after_optional", "The optional positional argument '%{optionalArg}' cannot be followed by a required argument '%{requiredArg}'.")
         .m ("error.not_implemented", "Method not implemented!")
+        .m ("error.instance_method_not_implemented", "The instance method '%{method}' of '%{class}' was not implemented!")
+        .m ("error.static_method_not_implemented", "The static method '%{method}' of '%{class}' was not implemented!")
         .m ("error.dependency_not_met", "The dependency '%{name}' was not defined.")
         .m ("error.invoke_method_not_defined", "The invoke method for the type-checked method was not defined.")
         .m ("error.inner_class_name_required", "The inner class name is required.")
@@ -3828,7 +3884,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .m ("error.invalid_target_value_type", "The constraint value type '%{type} is invalid.")
         .m ("error.invalid_target_value", "The constraint cannot be applied to '%{value|nit.Object.serialize}'.")
         .constant ("VALIDATE_ALL", false)
-        .categorize ("constraints")
+        .categorize ("nit.constraints")
         .defineInnerClass ("ValidationContext", function (ValidationContext)
         {
             ValidationContext
@@ -4027,7 +4083,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .method ("addConstraint", function (name)
         {
             var self = this;
-            var cls = nit.ns ("constraints." + nit.pascalCase (name));
+            var cls = nit.lookupSubclassOf (nit.Constraint, name);
 
             if (!cls)
             {
@@ -4107,12 +4163,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             var self = this;
 
-            return nit.find (self.getProperties (self.prototype, nit.Field), "name", name);
+            return nit.find (self.getProperties (), "name", name);
         })
         .staticMethod ("constraint", function (name) // eslint-disable-line no-unused-vars
         {
             var self = this;
-            var field = self.getProperties (self.prototype).pop ();
+            var field = self.getProperties ().pop ();
 
             if (!field)
             {

@@ -281,7 +281,7 @@ test ("nit.requireModule ()", () =>
     let nit = require (test.HOME);
 
     expect (nit.requireModule ("hello")).toEqual ({ message: "hello" });
-    expect (() => nit.requireModule ("A")).toThrow (/cannot find module 'A'/i);
+    expect (() => nit.requireModule ("AB")).toThrow (/cannot find module 'AB'/i);
 });
 
 

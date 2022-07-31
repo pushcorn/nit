@@ -3,6 +3,7 @@ test.nit = function ()
     const path = require ("path");
     const home = path.dirname (__dirname);
 
+    process.argv = [];
     process.chdir (home);
     jest.resetModules ();
 
