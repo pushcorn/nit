@@ -503,6 +503,39 @@ test ("nit.Object.staticMemo ()", () =>
 });
 
 
+test ("nit.Object.staticAbstractMethod ()", () =>
+{
+    const A = nit.defineClass ("A")
+        .staticAbstractMethod ("doSomething")
+    ;
+
+    expect (() => A.doSomething ()).toThrow (/static method.*not implemented/);
+});
+
+
+test ("nit.Object.abstractMethod ()", () =>
+{
+    const A = nit.defineClass ("A")
+        .abstractMethod ("doSomething")
+    ;
+
+    expect (() => new A ().doSomething ()).toThrow (/instance method.*not implemented/);
+});
+
+
+test ("nit.listSubclassesOf ()", () =>
+{
+    expect (nit.listSubclassesOf (nit.Constraint).length).toBeGreaterThanOrEqual (4);
+});
+
+
+test ("nit.lookupSubclassOf ()", () =>
+{
+    expect (nit.lookupSubclassOf (nit.Constraint, "nit.constraints.Max")).toBe (nit.constraints.Max);
+    expect (nit.lookupSubclassOf (nit.Constraint, "max")).toBe (nit.constraints.Max);
+});
+
+
 test ("nit.Object.invokeParentStaticMethod ()", () =>
 {
     let parentMethodCalled = false;

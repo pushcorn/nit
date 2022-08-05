@@ -4,4 +4,5 @@ test ("nit.trim() removes the leading and trailing spaces from a string.", () =>
     expect (nit.trim ()).toBe ("");
     expect (nit.trim (null)).toBe ("");
     expect (nit.trim ("   a   ")).toBe ("a");
+    expect (nit.trim ("--a----", "-")).toBe ("a");
 });
