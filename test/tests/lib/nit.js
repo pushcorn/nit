@@ -10,9 +10,9 @@ test ("nit getters", () =>
 });
 
 
-test ("nit.PROJECT_PATHS", () =>
+test ("nit.PROJECT_PATHS", async () =>
 {
-    let nit = test.reloadNit ("test/resources");
+    let nit = await test.reloadNit ("test/resources");
 
     expect (nit.PROJECT_PATHS).toEqual ([
         no_path.join (test.HOME, "test/resources/home/test/.nit"),
@@ -24,10 +24,10 @@ test ("nit.PROJECT_PATHS", () =>
 });
 
 
-test ("nit.ASSET_PATHS", () =>
+test ("nit.ASSET_PATHS", async () =>
 {
     let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");
-    let nit = test.reloadNit (testProjectPath);
+    let nit = await test.reloadNit (testProjectPath);
 
     expect (nit.ASSET_PATHS).toEqual ([
         no_path.join (test.HOME, "test/resources/home/test/.nit"),
@@ -151,10 +151,10 @@ test ("nit.classNameToPath ()", () =>
 });
 
 
-test ("nit.resolveClass ()", () =>
+test ("nit.resolveClass ()", async () =>
 {
     let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");
-    let nit = test.reloadNit (testProjectPath);
+    let nit = await test.reloadNit (testProjectPath);
 
     expect (nit.resolveClass ("Work.js")).toBe (no_path.join (testProjectPath, "lib/Work.js"));
 });
@@ -214,6 +214,11 @@ test ("nit.require ()", async () =>
 
     nit.require ("A");
     expect (nit.require ("B")).toBeInstanceOf (Function);
+
+    expect (nit.require ("data.json")).toEqual (
+    {
+        "data key": "data value"
+    });
 });
 
 
@@ -314,10 +319,10 @@ test ("nit.loadConfig ()", () =>
 });
 
 
-test ("nit.loadConfigs ()", () =>
+test ("nit.loadConfigs ()", async () =>
 {
     let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");
-    let nit = test.reloadNit (testProjectPath);
+    let nit = await test.reloadNit (testProjectPath);
 
     expect (nit.CONFIG).toEqual (
     {
@@ -367,3 +372,165 @@ test ("nit.ready ()", async () =>
     await exp;
 });
 
+
+test ("nit.handlException ()", async () =>
+{
+    let logContent;
+
+    nit._log = nit.log;
+    nit.log = function ()
+    {
+        logContent = nit.array (arguments);
+    };
+
+    nit.handleException (new Error ("test error"));
+
+    expect (logContent).toEqual (["[ERROR]", "test error"]);
+
+    process.env.NIT_DEBUG = "true";
+    const _nit = await test.reloadNit ();
+
+    _nit.log = nit.log;
+    _nit.handleException (new Error ("test error 2"));
+
+    expect (logContent[0]).toBe ("[ERROR]");
+    expect (logContent[1]).toMatch (/error: test error 2/i);
+
+    nit.log = nit._log;
+});
+
+
+test ("nit.listComponentPaths", async () =>
+{
+    let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");
+    let nit = await test.reloadNit (testProjectPath);
+
+    expect (nit.listComponentPaths ("commands"))
+        .toEqual (
+        [
+        {
+            path: no_path.join (testProjectPath, "/lib/commands"),
+            classNamespace: "commands",
+            namespace: ""
+        }
+        ])
+    ;
+});
+
+
+test ("nit.listComponents", async () =>
+{
+    let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");
+    let nit = await test.reloadNit (testProjectPath);
+
+    expect (nit.listComponents ("apis"))
+        .toEqual (
+        [
+        {
+            className: "apis.TestApi",
+            cn: "test-api",
+            name: "test-api",
+            path: no_path.join (testProjectPath, "/lib/apis/TestApi.js"),
+            namespace: ""
+        }
+        ,
+        {
+            className: "pkga.apis.Hello",
+            cn: "pkga:hello",
+            name: "hello",
+            path: no_path.join (testProjectPath, "/packages/package-a/lib/pkga/apis/Hello.js"),
+            namespace: "pkga"
+        }
+        ])
+    ;
+});
+
+
+test ("nit.runCommand", async () =>
+{
+    function testRunCommand ()
+    {
+        const params = nit.typedArgsToObj (arguments,
+        {
+            command: "string",
+            projectPath: "string"
+        });
+
+        params.projectPath = params.projectPath || test.pathForProject ("project-a");
+
+        return nit.Queue ()
+            .push (async function (ctx)
+            {
+                try
+                {
+                    ctx.nit = await test.setupCliMode (params);
+                }
+                catch (e)
+                {
+                    ctx.error = e;
+                }
+            })
+        ;
+    }
+
+    await testRunCommand ("test-cmd")
+        .lpush (function (ctx)
+        {
+            ctx.log = test.mockConsoleLog ();
+        })
+        .run ((ctx) =>
+        {
+            expect (ctx.log.restore ()).toEqual (["This is the test command."]);
+        })
+    ;
+
+    await testRunCommand ()
+        .run ((ctx) =>
+        {
+            expect (ctx.error.message).toMatch (/please specify a command/i);
+        })
+    ;
+
+    await testRunCommand ("non-command")
+        .run ((ctx) =>
+        {
+            expect (ctx.error.message).toMatch (/command.*not found/i);
+        })
+    ;
+
+    await testRunCommand ("invalid-cmd")
+        .run ((ctx) =>
+        {
+            expect (ctx.error.message).toMatch (/command.*not an instance of nit.Command/i);
+        })
+    ;
+});
+
+
+test ("nit.beep ()", () =>
+{
+    function beep (times, cb)
+    {
+        const write = process.stderr.write;
+        let beeps;
+
+        process.stderr.write = function (b)
+        {
+            beeps = b;
+        };
+
+        nit.beep (times);
+        process.stderr.write = write;
+        cb (beeps);
+    }
+
+    beep (null, function (beeps)
+    {
+        expect (beeps === "\x07").toBe (true);
+    });
+
+    beep (3, function (beeps)
+    {
+        expect (beeps === "\x07".repeat (3)).toBe (true);
+    });
+});

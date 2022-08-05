@@ -180,7 +180,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     {
         s = ((s === null || s === undefined ? "" : s) + "");
 
-        return s.replace (chars ? (chars instanceof RegExp ? chars : new RegExp ("^[" + chars + "]+|[" + chars + "]+$", "g")) : nit.trim.PATTERN, "");
+        return s.replace (chars ? new RegExp ("^[" + chars + "]+|[" + chars + "]+$", "g") : nit.trim.PATTERN, "");
     };
 
 

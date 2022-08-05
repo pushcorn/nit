@@ -37,6 +37,7 @@ __nit_comp_regroup_words ()
 
             words[j]+=$word
             word=${COMP_WORDS[i]}
+            COMP_CUR=${COMP_CUR:--}
         done
 
         if [ $k != $i ]; then
@@ -73,6 +74,10 @@ __nit_comp_regroup_words ()
 
 __nit_completion ()
 {
+    local args=("$@")
+    local comp_words=("${COMP_WORDS[@]}")
+    local cword=$COMP_CWORD
+
     __nit_comp_regroup_words "$@"
 
     local cur=$COMP_CUR
@@ -88,7 +93,7 @@ __nit_completion ()
         quoted=true
     fi
 
-    while read -r line
+    while IFS= read -r line
     do
         if [ -z "$action" ]; then
             action=$line
@@ -107,7 +112,7 @@ __nit_completion ()
                         cur=${cur:1}
                     fi
 
-                    while read -r line
+                    while IFS= read -r line
                     do
                         COMPREPLY+=("${line#$colon_prefix}")
                     done < <(compgen -f -- "$cur")
@@ -124,6 +129,15 @@ __nit_completion ()
         compopt -o nospace 2>/dev/null || :
         COMPREPLY[0]+=" ";
     fi
+
+    local k
+
+    for k in $(compgen -v COMP_WORD_)
+    do
+        unset $k
+    done
+
+    unset COMP_CUR COMP_PREV COMP_NUM_WORDS
 }
 
 

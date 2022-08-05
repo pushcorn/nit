@@ -1,12 +1,11 @@
 test ("nit arg expander: configFile", () =>
 {
-    nit.config ("test.config..file", "test/resources/test-config.json");
+    nit.config ("test.config..configFile", "test/resources/test-config.json");
 
-    expect (nit.CONFIG.test.config).toBe (`{
-    "name": "test",
-    "value": "a test value"
-}
-`);
+    expect (nit.CONFIG.test.config).toEqual ({
+        "name": "test",
+        "value": "a test value"
+    });
 });
 
 test ("nit arg expander: file", () =>
