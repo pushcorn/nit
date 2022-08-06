@@ -6,6 +6,8 @@
     "bin": "./bin/nit",
     "license": "ISC",
     "files": [
+        "bin/**",
+        "contrib/**",
         "exts/**",
         "lib/**",
         "public/**",
@@ -16,8 +18,8 @@
         "test": "jest --verbose --coverage"
     },
     "devDependencies": {
-        "eslint": "8.17.0",
-        "jest": "28.1.1"
+        "eslint": "8.21.0",
+        "jest": "28.1.3"
     },
     "jest": {
         "setupFilesAfterEnv": [
