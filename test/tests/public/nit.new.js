@@ -19,5 +19,5 @@ test ("nit.new () creates an instance of object for specified class and construc
     let obj3 = nit.new ("MyClass", "d", 4);
     expect (obj3).toEqual ({ first: "d", sec: 4 });
 
-    expect (() => nit.new ("MyClass2", "d", 4)).toThrow (/MyClass2.*was not found/);
+    expect (() => nit.new ("MyClass2", "d", 4)).toThrow (/MyClass2.*was not defined/);
 });

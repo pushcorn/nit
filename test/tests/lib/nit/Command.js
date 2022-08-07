@@ -187,41 +187,7 @@ test ("nit.Command.InputBase.fromArgv ()", () =>
 });
 
 
-test ("nit.Command.ContextBase ()", () =>
-{
-    const Database = nit.defineClass ("org.postgresql.Database");
-    const DbUser = nit.defineClass ("org.postgresql.User");
-    const User = nit.defineClass ("User");
-    const Api = nit.defineClass ("Api")
-        .field ("<url>");
-
-    const Test = nit.defineClass ("Test", "nit.Command")
-        .defineContext (function (Context)
-        {
-            Context
-                .register ("org.postgresql.Database")
-                .register ("Api", function ()
-                {
-                    return new Api ("http://a.b.c");
-                })
-                .register (new User)
-            ;
-        })
-    ;
-
-    let context = new Test.Context ();
-    let dbUser;
-
-    expect (context.lookup ("Api")).toBeInstanceOf (Api);
-    expect (context.lookup ("User")).toBeInstanceOf (User);
-    expect (context.lookup ("org.postgresql.Database")).toBeInstanceOf (Database);
-    expect (context.lookup ("org.postgresql.User", true)).toBeUndefined ();
-    expect ((dbUser = context.lookup ("org.postgresql.User"))).toBeInstanceOf (DbUser);
-    expect (context.lookup ("org.postgresql.User")).toBe (dbUser);
-});
-
-
-test ("nit.Command.run ()", () =>
+test ("nit.Command.run ()", async () =>
 {
     const Test = nit.defineClass ("Test", "nit.Command")
         .method ("run", function ()
@@ -230,9 +196,9 @@ test ("nit.Command.run ()", () =>
         })
     ;
 
-    expect (Test.run ()).toBe (10);
+    expect (await Test.run ()).toBe (10);
 
     const Test2 = nit.defineClass ("Test2", "nit.Command");
 
-    expect (() => Test2.run ()).toThrow (/instance method.*not implemented/);
+    expect (async () => await Test2.run ()).rejects.toThrow (/instance method.*not implemented/);
 });

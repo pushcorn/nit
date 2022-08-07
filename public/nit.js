@@ -221,6 +221,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.constructObject = function (cls, obj, args)
     {
+        if (typeof cls == "object")
+        {
+            args = obj;
+            obj = cls;
+            cls = obj.constructor;
+        }
+        else
         if (!(obj instanceof cls))
         {
             obj = OBJECT_CREATE (cls.prototype);
@@ -228,7 +235,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         if (cls.constructObject)
         {
-            obj = cls.constructObject (obj, ARRAY (args)) || obj;
+            obj = cls.constructObject (obj, ARRAY (args || [])) || obj;
         }
 
         return obj;
@@ -2313,6 +2320,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.m.SCOPE_DELIMITER = "|";
     nit.m.MESSAGES = {};
 
+    nit.m ("error.class_not_defined", "The class '%{name}' was not defined.");
+
 
     nit.t = function () // (scope, key, args...) or (key, args...)
     {
@@ -2508,7 +2517,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             if (!cls)
             {
-                nit.throw ("The class '%{name}' was not found.", { name: name });
+                nit.throw ("error.class_not_defined", { name: name });
             }
         }
 

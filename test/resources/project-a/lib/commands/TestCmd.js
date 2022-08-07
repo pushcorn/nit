@@ -10,6 +10,7 @@ module.exports = function (nit)
                 .option ("service", "string")
                     .constraint ("choice", "srv1", "srv2")
                 .option ("base64", "boolean")
+                .option ("docIds...", "integer")
             ;
         })
         .method ("run", function ()

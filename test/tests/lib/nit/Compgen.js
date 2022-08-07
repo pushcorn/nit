@@ -230,11 +230,18 @@ test ("nit.Compgen.parseWords ()", async () =>
         })
     ;
 
+    await testParseWords ("nit test-cmd -xyd ")
+        .run (async ({ compgen, nit }) =>
+        {
+            expect (compgen.context.state).toBe (nit.Compgen.STATES.value);
+        })
+    ;
+
     await testParseWords ("nit test-cmd -b ")
         .run (async ({ compgen, nit }) =>
         {
             expect (compgen.context.state).toBe (nit.Compgen.STATES.option);
-            expect (await compgen.listCompletions ()).toEqual (["OPTION", "--file", "--choice", "--service"]);
+            expect (await compgen.listCompletions ()).toEqual (["OPTION", "--file", "--choice", "--service", "--doc-ids"]);
         })
     ;
 
@@ -242,7 +249,15 @@ test ("nit.Compgen.parseWords ()", async () =>
         .run (async ({ compgen, nit }) =>
         {
             expect (compgen.context.state).toBe (nit.Compgen.STATES.option);
-            expect (await compgen.listCompletions ()).toEqual (["OPTION", "--file", "--choice", "--base64"]);
+            expect (await compgen.listCompletions ()).toEqual (["OPTION", "--file", "--choice", "--base64", "--doc-ids"]);
+        })
+    ;
+
+    await testParseWords ("nit test-cmd --doc-ids 1 2 -s srv1 ")
+        .run (async ({ compgen, nit }) =>
+        {
+            expect (compgen.context.state).toBe (nit.Compgen.STATES.option);
+            expect (await compgen.listCompletions ()).toEqual (["OPTION", "--file", "--choice", "--base64", "--doc-ids"]);
         })
     ;
 
