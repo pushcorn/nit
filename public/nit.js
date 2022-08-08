@@ -167,12 +167,36 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.uuid = function (dashed)
     {
-        var a, b;
+        var uuid, f, a, c;
 
-        // https://gist.github.com/LeverOne/1308368
-        for(b=a='';a++<36;b+=a*51&52?(a^15?8^Math.random()*(a^20?16:4):4).toString(16):(dashed ? "-" : "")); // eslint-disable-line curly
+        if ((c = global.crypto))
+        {
+            if ((f = c.randomUUID))
+            {
+               uuid = f.call (c);
+            }
+            else
+            if ((f = c.getRandomValues) && typeof Uint8Array != undefined)
+            {
+                // https://stackoverflow.com/questions/105034/how-do-i-create-a-guid-uuid
 
-        return b;
+                uuid = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace (/[018]/g, function (c)
+                {
+                    return (c ^ f.call (c, new Uint8Array(1))[0] & 15 >> c / 4).toString (16);
+                });
+            }
+        }
+
+        if (!uuid)
+        {
+            a = Math;
+            f = a.random;
+
+            // https://gist.github.com/LeverOne/1308368
+            for(uuid=a='';a++<36;uuid+=a*51&52?(a^15?8^f()*(a^20?16:4):4).toString(16):"-"); // eslint-disable-line curly
+        }
+
+        return dashed ? uuid : uuid.replace (/-/g, "");
     };
 
 
@@ -591,7 +615,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             for (var i in v)
             {
-                return false;
+                return !i;
             }
 
             return true;
@@ -3893,7 +3917,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .m ("error.invalid_target_value_type", "The constraint value type '%{type} is invalid.")
         .m ("error.invalid_target_value", "The constraint cannot be applied to '%{value|nit.Object.serialize}'.")
         .constant ("VALIDATE_ALL", false)
-        .categorize ("nit.constraints")
+        .categorize ()
         .defineInnerClass ("ValidationContext", function (ValidationContext)
         {
             ValidationContext
@@ -3974,7 +3998,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     ;
 
 
-    nit.defineConstraint ("Exclusive")
+    nit.defineConstraint ("nit.constraints.Exclusive")
         .constant ("VALIDATE_ALL", true)
         .throws ("error.exclusive_fields_specified", "Exactly one of following fields must be specified: %{constraint.fields.join (', ')}. (%{specified} specified)")
         .property ("<fields...>")
@@ -3997,7 +4021,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         });
 
 
-    nit.defineConstraint ("Choice")
+    nit.defineConstraint ("nit.constraints.Choice")
         .throws ("error.invalid_choice", "The value of '%{property.name}' is not a valid choice. (Given: '%{value}', Allowed: %{constraint.choiceValues.join (', ')})")
         .property ("<choices...>", "any") // A choice can either be a value or an object a 'value' field.
         .getter ("choiceValues", function ()
@@ -4016,7 +4040,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         });
 
 
-    nit.defineConstraint ("Min")
+    nit.defineConstraint ("nit.constraints.Min")
         .throws ("error.less_than_min", "The minimum value of '%{property.name}' is '%{constraint.min}'.")
         .property ("<min>", "integer")
         .validate (function (value, ctx)
@@ -4025,7 +4049,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         });
 
 
-    nit.defineConstraint ("Subclass")
+    nit.defineConstraint ("nit.constraints.Subclass")
         .throws ("error.not_a_subclass", "The value of '%{property.name}' is not a subclass of '%{constraint.superclass}'.")
         .m ("error.invalid_superclass", "The superclass '%{superclass}' is invalid.")
         .property ("<superclass>", "string")
@@ -4586,28 +4610,28 @@ function getSubscript ()
 
       throw SyntaxError(msg + " `" + frag + "` at " + prev.length + ":" + last.length);
     },
-        longErr = function longErr(msg, frag, lines, last) {
-      if (msg === void 0) {
-        msg = 'Bad syntax';
-      }
+        // longErr = function longErr(msg, frag, lines, last) {
+      // if (msg === void 0) {
+        // msg = 'Bad syntax';
+      // }
 
-      if (frag === void 0) {
-        frag = cur[idx];
-      }
+      // if (frag === void 0) {
+        // frag = cur[idx];
+      // }
 
-      if (lines === void 0) {
-        lines = cur.slice(0, idx).split('\n');
-      }
+      // if (lines === void 0) {
+        // lines = cur.slice(0, idx).split('\n');
+      // }
 
-      if (last === void 0) {
-        last = lines.pop();
-      }
+      // if (last === void 0) {
+        // last = lines.pop();
+      // }
 
-      var before = cur.slice(idx - 10, idx).split('\n').pop();
-      var after = cur.slice(idx + 1, idx + 10).split('\n').shift();
-      var location = lines.length + ':' + last.length;
-      throw SyntaxError(msg + " at " + location + " `" + (before + frag + after) + "`\n" + ' '.repeat(18 + msg.length + location.length + before.length + 1) + "^");
-    },
+      // var before = cur.slice(idx - 10, idx).split('\n').pop();
+      // var after = cur.slice(idx + 1, idx + 10).split('\n').shift();
+      // var location = lines.length + ':' + last.length;
+      // throw SyntaxError(msg + " at " + location + " `" + (before + frag + after) + "`\n" + ' '.repeat(18 + msg.length + location.length + before.length + 1) + "^");
+    // },
         skip = function skip(is, from, l) {
       if (is === void 0) {
         is = 1;
@@ -4628,6 +4652,7 @@ function getSubscript ()
         prec = 0;
       }
 
+      var _ref;
       // chunk/token parser
       while ((cc = parse.space()) && ( // till not end
       // FIXME: extra work is happening here, when lookup bails out due to lower precedence -
@@ -4635,8 +4660,6 @@ function getSubscript ()
       newNode = (_ref = (fn = lookup[cc]) && fn(token, prec)) != null ? _ref : // if operator with higher precedence isn't found
       !token && parse.id() // parse literal or quit. token seqs are forbidden: `a b`, `a "b"`, `1.32 a`
       )) {
-        var _ref;
-
         token = newNode;
       } // check end character
       // FIXME: can't show "Unclose paren", because can be unknown operator within group as well
@@ -4654,14 +4677,14 @@ function getSubscript ()
     },
         // any non-ASCII
     // skip space chars, return first non-space character
-    space = parse.space = function (cc) {
+    space = function (cc) {
       while ((cc = cur.charCodeAt(idx)) <= SPACE) {
         idx++;
       }
 
       return cc;
     },
-        id = parse.id = function (n) {
+        id = function (n) {
       return skip(isId);
     },
         // operator/token lookup table
@@ -4715,6 +4738,8 @@ function getSubscript ()
       });
     }; // build optimized evaluator for the tree
 
+    parse.space = space;
+    parse.id = id;
 
     var compile = function compile(node) {
       return !Array.isArray(node) ? function (ctx) {

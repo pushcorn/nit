@@ -7,7 +7,7 @@ test ("nit.Constraint", () =>
     ;
 
     expect (() => Max.appliesTo ("magic")).toThrow (/constraint value type.*invalid/);
-    expect (Max.name).toBe ("nit.constraints.MaxInt");
+    expect (Max.name).toBe ("MaxInt");
     expect (Max.defaults ()).toEqual ({ code: "error.greater_than_max", applicableTypes: ["integer"] });
 
     let cons = new Max;

@@ -1,4 +1,4 @@
-test ("constraints.Choice", () =>
+test ("nit.constraints.Choice", () =>
 {
     let Shirt = nit.defineClass ("Shirt")
         .field ("<size>", "string")

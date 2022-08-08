@@ -1,4 +1,4 @@
-test ("constraints.Exclusive", () =>
+test ("nit.constraints.Exclusive", () =>
 {
     let Resolver = nit.defineClass ("Resolver")
         .field ("path", "string")
