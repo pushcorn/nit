@@ -473,6 +473,37 @@ test ("nit.runCommand", async () =>
         ;
     }
 
+    await testRunCommand ("test-cmd", test.pathForProject ("project-c"))
+        .lpush (function (ctx)
+        {
+            ctx.log = test.mockConsoleLog ();
+        })
+        .run ((ctx) =>
+        {
+            let nit = ctx.nit;
+
+            expect (ctx.log.restore ()).toEqual (["Test command for project-c."]);
+
+            Object.getOwnPropertyDescriptor (nit, "PROJECT_PATHS").get.reset ();
+
+            nit.dpg (nit, "NIT_HOME", nit.path.join (test.pathForProject ("project-c"), "node_modules/@pushcorn/nit"), true);
+
+            expect (nit.PROJECT_PATHS.filter (p => p.endsWith ("node_modules/@pushcorn/nit")).length).toBe (1);
+            expect (nit.PROJECT_PATHS.filter (p => p.endsWith ("node_modules/@pushcorn/ui")).length).toBe (1);
+        })
+    ;
+
+    await testRunCommand ("empty-result", test.pathForProject ("project-c"))
+        .lpush (function (ctx)
+        {
+            ctx.log = test.mockConsoleLog ();
+        })
+        .run ((ctx) =>
+        {
+            expect (ctx.log.restore ()).toEqual ([]);
+        })
+    ;
+
     await testRunCommand ("test-cmd")
         .lpush (function (ctx)
         {

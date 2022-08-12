@@ -411,6 +411,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         return indexed;
     };
 
+
     nit.assign = function (target)
     {
         target = target || {};
@@ -443,7 +444,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         var called = false;
         var result;
 
-        return function ()
+        function get ()
         {
             if (!called)
             {
@@ -460,7 +461,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             }
 
             return result;
+        }
+
+        get.reset = function ()
+        {
+            called = false;
+            result = undefined;
         };
+
+        return get;
     };
 
 
@@ -2955,7 +2964,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                         var isArr = nit.is.arr (v);
 
-                        if (isArr && !prop.array)
+                        if (isArr && !prop.array && prop.type != "any")
                         {
                             nit.throw.call (cls, { code: invalidValueCode, source: owner }, { value: v, property: prop });
                         }
@@ -2963,7 +2972,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         v = isArr ? v : nit.array (v);
                         v = v.map (function (v) { return prop.cast (v, owner); });
 
-                        if (prop.array)
+                        if (prop.array || (isArr && prop.type == "any"))
                         {
                             ["push", "unshift"].forEach (function (method)
                             {

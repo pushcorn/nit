@@ -62,4 +62,10 @@ test ("nit.Object.Property", () =>
     expect (() => nit.Object.Property.createFor (A, "n", "unkown")).toThrow (/assigned to an invalid type/);
 
     expect (nit.Object.Property.prototype.cast ()).toBeUndefined ();
+
+
+    let arrayProp = nit.Object.Property.createFor (A, "defval", "any");
+    nit.dp (A.prototype, arrayProp.name, arrayProp);
+    a.defval = [3, 4, 5];
+    expect (a.defval).toEqual ([3, 4, 5]);
 });

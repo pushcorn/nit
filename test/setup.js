@@ -45,7 +45,24 @@ test.reloadNit = async function (projectPath)
         process.env.NIT_PROJECT_PATHS = projectPath;
     }
 
-    return require (test.HOME);
+    const nit = await require (test.HOME);
+
+    if (projectPath)
+    {
+        const nitPackagesPaths = nit.PACKAGE_SUBDIRS.map (d => nit.path.join (test.HOME, d));
+
+        nit.arrayRemove (nit.ASSET_PATHS, function (p)
+        {
+            return nitPackagesPaths.some (pp => p.startsWith (pp));
+        });
+
+        nit.arrayRemove (nit.CLASS_PATHS, function (p)
+        {
+            return nitPackagesPaths.some (pp => p.startsWith (pp));
+        });
+    }
+
+    return nit;
 };
 
 
@@ -160,9 +177,7 @@ test.setupCliMode = async function ()
 
     process.argv = ["node", global.nit.NIT_HOME].concat (command || []);
 
-    const nit = await test.reloadNit (projectPath);
-
-    return nit;
+    return await test.reloadNit (projectPath);
 };
 
 

@@ -76,6 +76,14 @@ test ("nit.Command.InputBase.fromArgv ()", () =>
         paramD: ""
     });
 
+    expect (Test.Input.fromArgv (["--boolOpt"]).toPojo ()).toEqual (
+    {
+        boolOpt: true,
+        paramA: "",
+        paramB: 0,
+        paramD: ""
+    });
+
     expect (Test.Input.fromArgv (["-b"]).toPojo ()).toEqual (
     {
         boolOpt: true,

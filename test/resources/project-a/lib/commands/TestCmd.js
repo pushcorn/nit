@@ -15,7 +15,7 @@ module.exports = function (nit)
         })
         .method ("run", function ()
         {
-            console.log ("This is the test command.");
+            return "This is the test command.";
         })
     ;
 };

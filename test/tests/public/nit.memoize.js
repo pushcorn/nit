@@ -16,6 +16,10 @@ test ("nit.memoize () returns the same value after the initial invocation", asyn
     expect (memo ()).toBe (100);
     expect (callback.count).toBe (1);
 
+    memo.reset ();
+    expect (memo ()).toBe (100);
+    expect (callback.count).toBe (2);
+
     function pfunc ()
     {
         return Promise.resolve (10);
