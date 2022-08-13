@@ -99,8 +99,18 @@ __nit_completion ()
             action=$line
 
             case "$line" in
-                FILE)
-                    compopt -o filenames 2>/dev/null || :
+                FILE|DIR)
+                    local flags opt
+
+                    if [ "$line" = "FILE" ]; then
+                        flags="-f"
+                        opt="filenames"
+                    else
+                        flags="-d -S /"
+                        opt="dirnames"
+                    fi
+
+                    compopt -o $opt 2>/dev/null || :
 
                     if ! $quoted; then
                         local redir="@(?(+([0-9])|{[a-zA-Z_]*([a-zA-Z_0-9])})@(>?([>|&])|<?([>&])|<<?([-<]))|&>?(>))" # from bash _init_completion
@@ -115,7 +125,7 @@ __nit_completion ()
                     while IFS= read -r line
                     do
                         COMPREPLY+=("${line#$colon_prefix}")
-                    done < <(compgen -f -- "$cur")
+                    done < <(compgen $flags -- "$cur")
                     ;;
                 *)
                     ;;

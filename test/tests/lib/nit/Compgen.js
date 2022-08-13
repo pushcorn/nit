@@ -81,6 +81,30 @@ test ("nit.Compgen.dequote ()", async () =>
 
 test ("nit.Compgen.parseWords ()", async () =>
 {
+    await testParseWords ("nit list-files --dir ", test.pathForProject ("project-c"))
+        .run (async ({ compgen, nit }) =>
+        {
+            expect (compgen.context.state).toBe (nit.Compgen.STATES.value);
+            expect (await compgen.listCompletions ()).toEqual (["DIR"]);
+        })
+    ;
+
+    await testParseWords ("nit dump-file --file ", test.pathForProject ("project-c"))
+        .run (async ({ compgen, nit }) =>
+        {
+            expect (compgen.context.state).toBe (nit.Compgen.STATES.value);
+            expect (await compgen.listCompletions ()).toEqual (["FILE"]);
+        })
+    ;
+
+    await testParseWords ("nit test-cmd --dir ", test.pathForProject ("project-c"))
+        .run (async ({ compgen, nit }) =>
+        {
+            expect (compgen.context.state).toBe (nit.Compgen.STATES.value);
+            expect (await compgen.listCompletions ()).toEqual (["DIR"]);
+        })
+    ;
+
     await testParseWords ("nit test-cmd", 4)
         .run (async ({ compgen, nit }) =>
         {

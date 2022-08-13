@@ -2906,6 +2906,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     kind: cfg.kind || Property.prototype.kind,
                     setter: cfg.setter,
                     getter: cfg.getter,
+                    primitive: !classType,
 
                     cast: function (v, owner)
                     {
@@ -3441,6 +3442,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 nit.assign (obj, { type: args[0], defval: args[1], cast: args[2] });
             };
 
+
+            PrimitiveTypeParser.valueToString = function (v)
+            {
+                return typeof v == "object" || typeof v == "function" ? undefined : (v + "");
+            };
+
+
             PrimitiveTypeParser.prototype.supports = function (type)
             {
                 return type == this.type;
@@ -3496,7 +3504,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .do (function (Object)
         {
             Object
-                .registerTypeParser (new Object.PrimitiveTypeParser ("string", "", function (v) { return nit.is.undef (v) ? "" : (typeof v == "object" || typeof v == "function" ? undefined : (v + "")); }))
+                .registerTypeParser (new Object.PrimitiveTypeParser ("string", "", function (v) { return nit.is.undef (v) ? "" : Object.PrimitiveTypeParser.valueToString (v); }))
                 .registerTypeParser (new Object.PrimitiveTypeParser ("boolean", false, function (v) {  v += ""; return v == "true" ? true : (v == "false" ? false : undefined); }))
                 .registerTypeParser (new Object.PrimitiveTypeParser ("number", 0, function (v) { return nit.is.num (v) ? +v : undefined; }))
                 .registerTypeParser (new Object.PrimitiveTypeParser ("integer", 0, function (v) { return nit.is.int (v) ? +v : undefined; }))
@@ -4120,6 +4128,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .property ("getter", "function")
         .property ("setter", "function")
         .property ("cast", "function")
+        .property ("primitive", "boolean") // should not be set manually
         .property ("constraints...", "nit.Constraint")
 
         .method ("addConstraint", function (name)
