@@ -167,7 +167,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.uuid = function (dashed)
     {
-        var uuid, f, a, c;
+        var uuid, f, c;
 
         if ((c = global.crypto))
         {
@@ -189,11 +189,28 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         if (!uuid)
         {
-            a = Math;
-            f = a.random;
+            // https://stackoverflow.com/questions/105034/how-do-i-create-a-guid-uuid#answer-8809472
+            var d = Date.now ();
+            var d2 = ((typeof performance !== "undefined") && performance.now && (performance.now () * 1000)) || 0;
 
-            // https://gist.github.com/LeverOne/1308368
-            for(uuid=a='';a++<36;uuid+=a*51&52?(a^15?8^f()*(a^20?16:4):4).toString(16):"-"); // eslint-disable-line curly
+            f = global.Math.random;
+            uuid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace (/[xy]/g, function (c)
+            {
+                var r = f () * 16;
+
+                if (d > 0)
+                {
+                    r = (d + r) %16 | 0;
+                    d = Math.floor (d/16);
+                }
+                else
+                {
+                    r = (d2 + r) %16 | 0;
+                    d2 = Math.floor (d2/16);
+                }
+
+                return (c === "x" ? r : (r & 0x3 | 0x8)).toString (16);
+            });
         }
 
         return dashed ? uuid : uuid.replace (/-/g, "");

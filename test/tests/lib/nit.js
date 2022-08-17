@@ -428,7 +428,6 @@ test ("nit.listComponents", async () =>
         [
         {
             className: "apis.TestApi",
-            cn: "test-api",
             name: "test-api",
             path: no_path.join (testProjectPath, "/lib/apis/TestApi.js"),
             namespace: ""
@@ -436,8 +435,7 @@ test ("nit.listComponents", async () =>
         ,
         {
             className: "pkga.apis.Hello",
-            cn: "pkga:hello",
-            name: "hello",
+            name: "pkga:hello",
             path: no_path.join (testProjectPath, "/packages/package-a/lib/pkga/apis/Hello.js"),
             namespace: "pkga"
         }

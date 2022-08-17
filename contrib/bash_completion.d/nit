@@ -135,9 +135,16 @@ __nit_completion ()
         fi
     done < <(nit nit "$cur" "$prev")
 
-    if [[ ($quoted != true || $COMP_POINT -lt ${#COMP_LINE}) && "$action" != "FILE" && ${#COMPREPLY[@]} -eq 1 ]]; then
+
+    if [[ "$action" != "FILE" && ($quoted != true || $COMP_POINT -lt ${#COMP_LINE}) && ${#COMPREPLY[@]} -eq 1 ]]; then
+        local sp=" "
+
+        if [[ "$action" = "DIR" && -n "$(\ls -d "$COMPREPLY/"*/ 2> /dev/null)" ]]; then
+            sp=
+        fi
+
         compopt -o nospace 2>/dev/null || :
-        COMPREPLY[0]+=" ";
+        COMPREPLY[0]+=$sp
     fi
 
     local k

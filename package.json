@@ -13,20 +13,8 @@
         "public/**",
         "resources/**"
     ],
-    "scripts": {
-        "lint": "eslint 'public/**/*.js' 'lib/**/*.js' 'exts/**/*.js' 'test/**/*.js'",
-        "test": "jest --verbose --coverage"
-    },
     "devDependencies": {
         "eslint": "8.21.0",
         "jest": "28.1.3"
-    },
-    "jest": {
-        "setupFilesAfterEnv": [
-            "./test/setup.js"
-        ],
-        "testMatch": [
-            "**/test/tests/**/*.js"
-        ]
     }
 }
