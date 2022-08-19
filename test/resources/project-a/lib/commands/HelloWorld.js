@@ -4,7 +4,8 @@ module.exports = function (nit)
         .defineInput (function (Input)
         {
             Input
-                .option ("message")
+                .option ("[message]", "string", "The greeting message.")
+                .option ("color", "string", "The message color.", { autoShortFlag: false })
             ;
         })
     ;

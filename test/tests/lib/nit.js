@@ -12,11 +12,11 @@ test ("nit getters", () =>
 
 test ("nit.PROJECT_PATHS", async () =>
 {
-    let nit = await test.reloadNit ("test/resources");
+    let nit = await test.reloadNit (".");
 
     expect (nit.PROJECT_PATHS).toEqual ([
         no_path.join (test.HOME, "test/resources/home/test/.nit"),
-        nit.path.join (test.HOME, "test/resources"),
+        no_path.join (test.HOME, "test/resources"),
         test.HOME
     ]);
 
@@ -409,7 +409,13 @@ test ("nit.listComponentPaths", async () =>
         .toEqual (
         [
         {
-            path: no_path.join (testProjectPath, "/lib/commands"),
+            path: no_path.join (testProjectPath, "lib/commands"),
+            classNamespace: "commands",
+            namespace: ""
+        }
+        ,
+        {
+            path: no_path.join (nit.NIT_HOME, "lib/commands"),
             classNamespace: "commands",
             namespace: ""
         }
@@ -418,12 +424,12 @@ test ("nit.listComponentPaths", async () =>
 });
 
 
-test ("nit.listComponents", async () =>
+test ("nit.listComponents ()", async () =>
 {
     let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");
     let nit = await test.reloadNit (testProjectPath);
 
-    expect (nit.listComponents ("apis"))
+    expect (nit.clone (nit.listComponents ("apis")))
         .toEqual (
         [
         {
@@ -439,8 +445,36 @@ test ("nit.listComponents", async () =>
             path: no_path.join (testProjectPath, "/packages/package-a/lib/pkga/apis/Hello.js"),
             namespace: "pkga"
         }
+        ,
+        {
+            className: "pkga.apis.World",
+            name: "pkga:world",
+            path: no_path.join (testProjectPath, "/packages/package-a/lib/pkga/apis/World.js"),
+            namespace: "pkga"
+        }
         ])
     ;
+
+    expect (nit.listComponents ("apis", true)).toEqual (["test-api", "pkga:hello", "pkga:world"]);
+});
+
+
+test ("nit.listCommands ()", async () =>
+{
+    const nit = await test.reloadNit ("project-a");
+    let commands = nit.clone (nit.listCommands ());
+
+    expect (commands).toEqual (expect.arrayContaining (
+    [
+    {
+        path: test.pathForProject ("project-a/lib/commands/InvalidCmd.js"),
+        name: "invalid-cmd",
+        className: "commands.InvalidCmd",
+        namespace: ""
+    }
+    ]));
+
+    expect (nit.listCommands (true)).toEqual (expect.arrayContaining (["invalid-cmd"]));
 });
 
 
@@ -562,4 +596,50 @@ test ("nit.beep ()", () =>
     {
         expect (beeps === "\x07".repeat (3)).toBe (true);
     });
+});
+
+
+test ("nit.ComponentDescriptor", async () =>
+{
+    const nit = await test.setupCliMode ("", "project-a", true);
+    const TestCmd = nit.lookupCommand ("test-cmd");
+    const HelloWorld = nit.lookupCommand ("hello-world");
+
+    let cd1 = nit.getComponentDescriptor (TestCmd);
+    let cd2 = nit.getComponentDescriptor (HelloWorld);
+
+    expect (cd1.name).toBe ("test-cmd");
+    expect (cd1.compareTo (cd2)).toBe (1);
+    expect (cd1.compareTo (cd1)).toBe (0);
+
+    let apis = nit.listComponents ("apis");
+
+    let cd3 = nit.find (apis, "name", "pkga:hello");
+    let cd4 = nit.find (apis, "name", "pkga:world");
+
+    expect (cd4.compareTo (cd3)).toBe (1);
+    expect (cd4.compareTo (cd1)).toBe (1);
+
+    let cd5 = nit.getComponentDescriptor ("commands.TestCmd");
+
+    expect (cd5).toBe (cd1);
+});
+
+
+test ("nit.runCompgen ()", async () =>
+{
+    const log = test.mockConsoleLog ();
+    const nit = await test.setupCompletionMode ("project-a");
+
+    await nit.runCompgen ();
+
+    expect (log.restore ()).toEqual (["NONE"]);
+});
+
+
+test ("nit.lookupCommand ()", async () =>
+{
+    const nit = await test.reloadNit ("project-c");
+
+    expect (() => nit.lookupCommand ("error-cmd")).toThrow (/error loading command/);
 });

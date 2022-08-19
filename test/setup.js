@@ -22,27 +22,23 @@ test.nit = function ()
 };
 
 
+test.log = console.log.bind (console);
+
+
 test.pathForProject = function (name)
 {
-    return nit.path.join (test.HOME, "test/resources", name);
+    return nit.path.isAbsolute (name) ? name : nit.path.join (test.HOME, "test/resources", name);
 };
 
 
 test.reloadNit = async function (projectPath)
 {
-    const path = require ("path");
-
     jest.resetModules ();
     process.env.NIT_PROJECT_PATHS = "";
 
     if (projectPath)
     {
-        if (projectPath[0] != path.sep)
-        {
-            projectPath = path.join (test.HOME, projectPath);
-        }
-
-        process.env.NIT_PROJECT_PATHS = projectPath;
+        process.env.NIT_PROJECT_PATHS = test.pathForProject (projectPath);
     }
 
     const nit = await require (test.HOME);
@@ -170,15 +166,30 @@ test.setupCompletionMode = async function ()
 
 test.setupCliMode = async function ()
 {
-    let { command, projectPath } = global.nit.typedArgsToObj (arguments,
+    let { command, projectPath, initOnly } = global.nit.typedArgsToObj (arguments,
     {
         command: "string",
-        projectPath: "string"
+        projectPath: "string",
+        initOnly: "boolean"
     });
 
-    process.argv = ["node", global.nit.NIT_HOME].concat (command || []);
+    if (!initOnly)
+    {
+        process.argv = ["node", global.nit.NIT_HOME].concat (command || []);
+    }
+    else
+    {
+        process.argv = [];
+    }
 
-    return await test.reloadNit (projectPath);
+    const nit = await test.reloadNit (projectPath);
+
+    if (initOnly)
+    {
+        nit.require ("nit.Command");
+    }
+
+    return nit;
 };
 
 

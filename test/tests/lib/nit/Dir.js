@@ -1,8 +1,14 @@
 test ("nit.Dir", async () =>
 {
     let prefix = nit.uuid ();
-    let dir = nit.new ("nit.Dir", nit.path.join (nit.os.tmpdir (), prefix, "a/nested/dir"));
+    let path;
+    let dir = nit.new ("nit.Dir", path = nit.path.join (nit.os.tmpdir (), prefix, "a/nested/dir"));
     dir.create ();
+
+    expect (nit.isDir (path)).toBe (true);
+
+    dir.rm ();
+    expect (nit.isDir (path)).toBe (false);
 
     let file = nit.new ("nit.File", nit.path.join (nit.os.tmpdir (), prefix, "a/file"));
     file.write ("a file");
@@ -23,4 +29,8 @@ test ("nit.Dir", async () =>
     expect (n.isDirectory ()).toBe (true);
 
     expect (dir4.read ()).toEqual (["file", "nested"]);
+
+    dir = nit.new ("nit.Dir", path = nit.path.join (nit.os.tmpdir (), prefix, "a"));
+    dir.rm ();
+    expect (nit.isDir (path)).toBe (false);
 });

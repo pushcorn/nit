@@ -20,4 +20,14 @@ test ("nit.File", async () =>
     let buffer = Buffer.from ("1234");
     tmp.write (buffer);
     expect (tmp.read ()).toBe ("1234");
+
+    file = nit.File (nit.path.join ("~", ".nit"));
+    expect (file.path).toBe (nit.path.join (nit.USER_HOME, ".nit"));
+
+    let copy = nit.new ("nit.File", nit.path.join (nit.os.tmpdir (), nit.uuid () + "copy"));
+    tmp.copy (copy.path);
+    expect (copy.read ()).toBe ("1234");
+
+    copy.rm ();
+    expect (copy.exists ()).toBe (false);
 });

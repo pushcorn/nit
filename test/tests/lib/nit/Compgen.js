@@ -289,7 +289,21 @@ test ("nit.Compgen.parseWords ()", async () =>
         .run (async ({ compgen, nit }) =>
         {
             expect (compgen.context.state).toBe (nit.Compgen.STATES.command);
-            expect (await compgen.listCompletions ()).toEqual (["COMMAND", "hello-world", "invalid-cmd", "no-args", "test-cmd"]);
+            expect (await compgen.listCompletions ()).toEqual (
+            [
+                "COMMAND",
+                "hello-world",
+                "invalid-cmd",
+                "no-args",
+                "single-arg",
+                "test-cmd",
+                "console",
+                "help",
+                "lint",
+                "run",
+                "test",
+                "version"
+            ]);
         })
     ;
 });
@@ -314,7 +328,7 @@ test ("nit.Compgen.listCompletions ()", async () =>
     await testListCompletions ("nit te")
         .run (({ result }) =>
         {
-            expect (result).toEqual (["COMMAND", "test-cmd"]);
+            expect (result).toEqual (["COMMAND", "test-cmd", "test"]);
         })
     ;
 
@@ -329,6 +343,13 @@ test ("nit.Compgen.listCompletions ()", async () =>
         .run (({ result }) =>
         {
             expect (result).toEqual (["OPTION"]);
+        })
+    ;
+
+    await testListCompletions ("nit single-arg ")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["OPTION", "--arg"]);
         })
     ;
 
@@ -411,20 +432,14 @@ test ("nit.Compgen.run ()", async () =>
         {
             const log = test.mockConsoleLog (true);
 
-            try
-            {
-                await compgen.run ();
+            await compgen.run ();
 
-                expect (log.data).toEqual (
-                [
-                    ["COMMAND"],
-                    ["test-cmd"]
-                ]);
-            }
-            finally
-            {
-                log.restore ();
-            }
+            expect (log.restore ()).toEqual (
+            [
+                ["COMMAND"],
+                ["test-cmd"],
+                ["test"]
+            ]);
         })
     ;
 

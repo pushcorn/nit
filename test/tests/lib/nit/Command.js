@@ -1,3 +1,99 @@
+test ("nit.Command.describe ()", () =>
+{
+    const Test = nit.defineClass ("Test", "nit.Command")
+        .describe ("Run tests.")
+    ;
+
+    expect (Test.DESCRIPTION).toBe ("Run tests.");
+});
+
+
+test ("nit.Command.help ()", async () =>
+{
+    const nit = await test.setupCliMode ("", "project-a", true);
+    const TestCmd = nit.lookupCommand ("test-cmd");
+
+    TestCmd.defaults ({ choice: "first choice" });
+
+    expect (TestCmd.help ()).toBe (`A test command.
+
+Usage: nit test-cmd [file]
+
+Options:
+
+ [file]            file option
+
+ -b, --base64      base64 option
+ -c, --choice      choice option     [default: first choice]
+ -d, --doc-ids...  docIds option
+ -s, --service     service option`
+);
+
+    const NoArgs = nit.lookupCommand ("no-args");
+
+    expect (NoArgs.help ()).toBe (`Description not available.
+
+Usage: nit no-args`
+);
+
+
+    const HelloWorld = nit.lookupCommand ("hello-world");
+
+    HelloWorld.defaults ({ message: "hello!" });
+
+    expect (HelloWorld.help ()).toBe (`Description not available.
+
+Usage: nit hello-world [message]
+
+Options:
+
+ [message]        The greeting message.  [default: hello!]
+
+ --color          The message color.`
+);
+
+});
+
+
+test ("nit.Command.Type", async () =>
+{
+    const nit = await test.setupCliMode ("", "project-a", true);
+    const TypeTester = nit.defineCommand ("TypeTester")
+        .defineInput (Input =>
+        {
+            Input.option ("cmd", "nit.Command.Type", "The command.");
+        })
+    ;
+
+    nit.require ("nit.Compgen");
+
+    let opt = TypeTester.Input.getOptionByFlag ("cmd");
+    let completer = new TypeTester.Type.Completer;
+    let ctx = new nit.Compgen.Context;
+
+    ctx.currentOption = opt;
+
+    expect (completer.completeForType (ctx)).toEqual (
+        expect.arrayContaining (
+        [
+            nit.Compgen.ACTIONS.VALUE,
+            "hello-world",
+            "invalid-cmd"
+        ])
+    );
+
+    const HelloWorld = nit.lookupCommand ("hello-world");
+    completer = new HelloWorld.Type.Completer;
+    ctx = new nit.Compgen.Context;
+    ctx.currentOption = HelloWorld.Input.getOptionByFlag ("message");
+
+    expect (completer.completeForType (ctx)).toBeUndefined ();
+
+    let type = new nit.Command.Type ("hello-world");
+    expect (await type.lookup ()).toBe (HelloWorld);
+});
+
+
 test ("nit.Command.Option", () =>
 {
     const Test = nit.defineClass ("Test", "nit.Command");
@@ -5,6 +101,10 @@ test ("nit.Command.Option", () =>
     let option = new Test.Option ("paramA");
 
     expect (option.flag).toBe ("param-a");
+
+    option = new Test.Option ("<paramB>");
+
+    expect (option.helpSpec).toBe ("<param-b>");
 });
 
 
