@@ -6,6 +6,8 @@ test ("nit.File", async () =>
     expect (await file.readAsync ()).toMatch (/@pushcorn\/nit/);
     expect (file.exists ()).toBe (true);
     expect (file.stat ().constructor.name).toBe ("Stats");
+    expect (file.basename).toBe ("package.json");
+    expect (file.dirname).toBe (nit.NIT_HOME);
 
     let tmp = nit.new ("nit.File", nit.path.join (nit.os.tmpdir (), nit.uuid () + "test"));
     let uuid = nit.uuid ();
