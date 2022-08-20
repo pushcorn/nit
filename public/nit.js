@@ -3154,7 +3154,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 cfg.pargs = nit.funcArgNames (cfg.construct);
             }
 
-            var subclass = nit.extend (nit.createFunction (cn, true, cfg.pargs), this);
+            var subclass = nit.extend (nit.createFunction (cn, true, cfg.pargs), self);
 
             if (!cfg.local)
             {
@@ -3165,6 +3165,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             if (cfg.construct)
             {
                 subclass.construct (cfg.construct);
+            }
+
+            if (self[nit.Object.kPostDefineSubclass])
+            {
+                self[nit.Object.kPostDefineSubclass] (subclass);
             }
 
             return subclass;
@@ -3432,7 +3437,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     nit.Object
-        .k ("property", "construct", "defvals", "prepareConstructorParams", "preConstruct", "postConstruct")
+        .k ("property", "construct", "defvals", "prepareConstructorParams", "preConstruct", "postConstruct", "postDefineSubclass")
         .m ("error.name_required", "The %{property.kind} name is required.")
         .m ("error.value_required", "The %{property.kind} '%{property.name}' is required.")
         .m ("error.class_name_required", "The class name cannot be empty.")
@@ -3677,6 +3682,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .staticMethod ("postConstruct", function (postConstruct)
         {
             return this.staticMethod (nit.Object.kPostConstruct, postConstruct);
+        })
+        .staticMethod ("postDefineSubclass", function (postDefineSubclass)
+        {
+            return this.staticMethod (nit.Object.kPostDefineSubclass, postDefineSubclass);
         })
         .staticMethod ("buildParam", function (obj, prop, params)
         {

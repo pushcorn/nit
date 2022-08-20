@@ -844,3 +844,18 @@ test ("nit.Object.PrimitiveTypeParser", () =>
 
     expect (parsers.string.cast (undefined)).toBe ("");
 });
+
+
+test ("nit.Object.postDefineSubclass ()", () =>
+{
+    const AA = nit.defineClass ("AA")
+        .postDefineSubclass (function (Sub)
+        {
+            AA.subclasses = [Sub];
+        })
+    ;
+
+    const BB = AA.defineSubclass ("BB");
+
+    expect (AA.subclasses).toEqual ([BB]);
+});
