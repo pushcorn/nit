@@ -3167,9 +3167,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 subclass.construct (cfg.construct);
             }
 
-            if (self[nit.Object.kPostDefineSubclass])
+            if (self[nit.Object.kOnDefineSubclass])
             {
-                self[nit.Object.kPostDefineSubclass] (subclass);
+                self[nit.Object.kOnDefineSubclass] (subclass);
             }
 
             return subclass;
@@ -3437,7 +3437,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     nit.Object
-        .k ("property", "construct", "defvals", "prepareConstructorParams", "preConstruct", "postConstruct", "postDefineSubclass")
+        .k ("property", "construct", "defvals", "prepareConstructorParams", "preConstruct", "postConstruct", "onDefineSubclass")
         .m ("error.name_required", "The %{property.kind} name is required.")
         .m ("error.value_required", "The %{property.kind} '%{property.name}' is required.")
         .m ("error.class_name_required", "The class name cannot be empty.")
@@ -3530,7 +3530,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 .registerTypeParser (new Object.PrimitiveTypeParser ("boolean", false, function (v) {  v += ""; return v == "true" ? true : (v == "false" ? false : undefined); }))
                 .registerTypeParser (new Object.PrimitiveTypeParser ("number", 0, function (v) { return nit.is.num (v) ? +v : undefined; }))
                 .registerTypeParser (new Object.PrimitiveTypeParser ("integer", 0, function (v) { return nit.is.int (v) ? +v : undefined; }))
-                .registerTypeParser (new Object.PrimitiveTypeParser ("object", function () { return nit.object (); }, function (v) { return v instanceof nit.object ? v : (typeof v == "object" ? nit.object (nit.clone (v)) : undefined); }))
+                .registerTypeParser (new Object.PrimitiveTypeParser ("object", function () { return nit.object (); }, function (v) { return typeof v == "object" ? (nit.is.pojo (v) ? nit.object (nit.clone (v)) : v) : undefined; }))
                 .registerTypeParser (new Object.PrimitiveTypeParser ("function", undefined, function (v) { return typeof v == "function" ? v : undefined; }))
                 .registerTypeParser (new Object.PrimitiveTypeParser ("date", undefined, function (v) { var d = new Date (v); return isNaN (d) ? undefined : d; }))
                 .registerTypeParser (new Object.PrimitiveTypeParser ("any", undefined, function (v) { return v; }))
@@ -3683,9 +3683,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             return this.staticMethod (nit.Object.kPostConstruct, postConstruct);
         })
-        .staticMethod ("postDefineSubclass", function (postDefineSubclass)
+        .staticMethod ("onDefineSubclass", function (onDefineSubclass)
         {
-            return this.staticMethod (nit.Object.kPostDefineSubclass, postDefineSubclass);
+            return this.staticMethod (nit.Object.kOnDefineSubclass, onDefineSubclass);
         })
         .staticMethod ("buildParam", function (obj, prop, params)
         {
@@ -4106,6 +4106,21 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             }
 
             return nit.is.subclassOf (nit.is.str (value) ? nit.lookupClass (value) : value, superclass);
+        });
+
+
+    nit.defineConstraint ("nit.constraints.Type")
+        .throws ("error.invalid_type", "The value of '%{property.name}' should be of one of the following type: %{constraint.types.join (', ')}.")
+        .property ("<types...>", "string", "The allowed types.")
+        .validate (function (value, ctx)
+        {
+            return ctx.constraint
+                .types
+                .some (function (type)
+                {
+                    return nit.find (nit.Object.TYPE_PARSERS, function (p) { return p.supports (type); });
+                })
+            ;
         });
 
 

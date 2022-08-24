@@ -276,7 +276,7 @@ test ("nit.Object", () =>
     obj.obj_prop = new Data ();
     expect (obj.obj_prop).toEqual ({ type: "string", value: "test" });
     obj.obj_prop = new Date;
-    expect (obj.obj_prop).toEqual ({});
+    expect (obj.obj_prop).toBeInstanceOf (Date);
     expect (() => obj.obj_prop = "str").toThrow (/should be an object/);
 
 
@@ -846,10 +846,10 @@ test ("nit.Object.PrimitiveTypeParser", () =>
 });
 
 
-test ("nit.Object.postDefineSubclass ()", () =>
+test ("nit.Object.onDefineSubclass ()", () =>
 {
     const AA = nit.defineClass ("AA")
-        .postDefineSubclass (function (Sub)
+        .onDefineSubclass (function (Sub)
         {
             AA.subclasses = [Sub];
         })

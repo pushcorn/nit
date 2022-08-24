@@ -18,7 +18,18 @@ test.nit = function ()
     test.HOME = home;
     test.PUBLIC_NIT_PATH = path.join (home, "public/nit.js");
 
-    return require (process.cwd ());
+    const nit = require (process.cwd ());
+    const Strategy = nit.require ("nit.test.Strategy");
+
+    nit
+        .lookupComponents ("test/strategies", Strategy)
+        .forEach (cls =>
+        {
+            test[nit.camelCase (cls.name.split (".").pop ())] = cls;
+        })
+    ;
+
+    return nit;
 };
 
 

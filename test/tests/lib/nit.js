@@ -643,3 +643,17 @@ test ("nit.lookupCommand ()", async () =>
 
     expect (() => nit.lookupCommand ("error-cmd")).toThrow (/error loading command/);
 });
+
+
+test ("nit.lookupComponents ()", async () =>
+{
+    const nit = await test.reloadNit ("project-a");
+
+    nit.require ("nit.Command");
+
+    let commands = nit.lookupComponents ("commands", nit.Command);
+    expect (commands.every (c => nit.is.subclassOf (c, nit.Command))).toBe (true);
+
+    commands = nit.lookupComponents ("commands", "nit.Command");
+    expect (commands.every (c => nit.is.subclassOf (c, nit.Command))).toBe (true);
+});
