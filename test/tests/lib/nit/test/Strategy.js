@@ -40,6 +40,9 @@ test ("nit.test.Strategy.App", () =>
     app = new nit.test.Strategy.App ();
     expect (app.root.path.split (nit.path.sep).pop ()).toMatch (/^[0-f]{32}$/);
     expect (nit.fs.existsSync (app.root.join ("package.json"))).toBe (true);
+
+    app = new nit.test.Strategy.App ("", test.pathForProject ("project-c"));
+    expect (nit.fs.existsSync (app.root.path)).toBe (true);
 });
 
 
@@ -184,7 +187,8 @@ test ("nit.test.Strategy.snapshot ()", () =>
         expectors: [],
         resultValidator: undefined,
         mocks: [],
-        thisOnly: false
+        thisOnly: false,
+        dir: ""
     });
 
     strategy.snapshot ();
@@ -204,7 +208,8 @@ test ("nit.test.Strategy.snapshot ()", () =>
         expectors: [],
         resultValidator: undefined,
         mocks: [],
-        thisOnly: false
+        thisOnly: false,
+        dir: ""
     });
 });
 
@@ -253,7 +258,8 @@ test ("nit.test.Strategy.reset ()", () =>
         expectors: [],
         resultValidator: undefined,
         mocks: [],
-        thisOnly: false
+        thisOnly: false,
+        dir: ""
     });
 });
 
@@ -483,6 +489,7 @@ test ("nit.test.Strategy.commit ()", async () =>
     ;
 
     let after = jest.fn ();
+    let status = {};
 
     new PropertyStrategy (new A ("AAA"), "name", { description: "Test property." })
         .should ("pass")
@@ -516,11 +523,21 @@ test ("nit.test.Strategy.commit ()", async () =>
         .commit ()
 
         .should ("pass 4")
+        .withApp ("", test.pathForProject ("project-c"))
+        .before (function ()
+        {
+            status.dirChangedForApp = process.cwd () == this.app.root.path;
+        })
         .expectingPropertyToBe ("object.name", "AAA")
         .commit ()
 
         .should ("pass 5")
+        .chdir (test.pathForProject ("project-a"))
         .only ()
+        .before (function ()
+        {
+            status.dirChanged = process.cwd () == this.dir;
+        })
         .expectingPropertyToBe ("object.name", "AAA")
         .commit ()
     ;
@@ -538,4 +555,6 @@ test ("nit.test.Strategy.commit ()", async () =>
     expect (describeOnlyMock.invocations.length).toBe (1);
     expect (itMock.invocations.length).toBe (7);
     expect (expectMock.invocations.length).toBe (3);
+    expect (status.dirChangedForApp).toBe (true);
+    expect (status.dirChanged).toBe (true);
 });

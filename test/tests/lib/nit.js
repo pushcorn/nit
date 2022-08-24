@@ -657,3 +657,11 @@ test ("nit.lookupComponents ()", async () =>
     commands = nit.lookupComponents ("commands", "nit.Command");
     expect (commands.every (c => nit.is.subclassOf (c, nit.Command))).toBe (true);
 });
+
+
+test ("nit.absPath ()", () =>
+{
+    expect (nit.absPath ("aa/bb")).toBe (nit.path.join (nit.NIT_HOME, "aa/bb"));
+    expect (nit.absPath ("~/aa/bb")).toBe (nit.path.join (nit.USER_HOME, "aa/bb"));
+    expect (nit.absPath ("//aa//bb")).toBe ("/aa/bb");
+});

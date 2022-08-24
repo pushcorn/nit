@@ -1,4 +1,7 @@
 const CONSOLE_LOG = console.log;
+const CWD = process.cwd ();
+
+afterAll (() => process.chdir (CWD));
 
 
 test.nit = function ()
@@ -12,13 +15,12 @@ test.nit = function ()
 
     process._argv = process.argv;
     process.argv = [];
-    process.chdir (home);
     jest.resetModules ();
 
     test.HOME = home;
     test.PUBLIC_NIT_PATH = path.join (home, "public/nit.js");
 
-    const nit = require (process.cwd ());
+    const nit = require (home);
     const Strategy = nit.require ("nit.test.Strategy");
 
     nit

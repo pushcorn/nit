@@ -2935,10 +2935,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             {
                                 return;
                             }
-                            else
-                            {
-                                v = nit.clone (prop.defval);
-                            }
+
+                            v = nit.is.func (prop.defval) ? prop.defval (prop) : nit.clone (prop.defval);
                         }
 
                         if ((cv = parser.cast (v, prop.type)) === undefined)
@@ -4136,6 +4134,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 description: "string",
                 defval: "any"
             });
+
             var prop = nit.Object.Property.createFor (cls, { kind: field.kind, configurable: field.configurable, enumerable: field.enumerable }, cfg);
             var cast = prop.cast;
 
