@@ -367,21 +367,33 @@ test ("nit.test.Strategy.expecting... ()", () =>
         {
             return this.name.length;
         })
+        .method ("causeProblem", function ()
+        {
+            throw new Error ("problem!");
+        })
     ;
 
     let strategy = new PropertyStrategy (new A ("AAA"), "name");
 
-    strategy.expectingPropertyValue ("object.name", "AAA");
+    strategy.expectingPropertyToBe ("object.name", "AAA");
     expect (strategy.expectors.length).toBe (1);
     expect (strategy.expectors[0].valueGetter (strategy)).toBe ("AAA");
 
-    strategy.expectingPropertyType ("object.name", "string");
+    strategy.expectingPropertyToBeOfType ("object.name", "string");
     expect (strategy.expectors.length).toBe (2);
     expect (strategy.expectors[1].valueGetter (strategy)).toBe ("AAA");
 
-    strategy.expectingMethodReturns ("object.nameLength", 3);
+    strategy.expectingMethodToReturnValue ("object.nameLength", 3);
     expect (strategy.expectors.length).toBe (3);
     expect (strategy.expectors[2].valueGetter (strategy)).toBe (3);
+
+    strategy.expectingMethodToReturnValueOfType ("object.nameLength", "integer");
+    expect (strategy.expectors.length).toBe (4);
+    expect (strategy.expectors[3].valueGetter (strategy)).toBe (3);
+
+    strategy.expectingMethodToThrow ("object.causeProblem", /problem/);
+    expect (strategy.expectors.length).toBe (5);
+    expect (() => strategy.expectors[4].valueGetter (strategy)).toThrow (/problem/);
 });
 
 
@@ -504,12 +516,12 @@ test ("nit.test.Strategy.commit ()", async () =>
         .commit ()
 
         .should ("pass 4")
-        .expectingPropertyValue ("object.name", "AAA")
+        .expectingPropertyToBe ("object.name", "AAA")
         .commit ()
 
         .should ("pass 5")
         .only ()
-        .expectingPropertyValue ("object.name", "AAA")
+        .expectingPropertyToBe ("object.name", "AAA")
         .commit ()
     ;
 
