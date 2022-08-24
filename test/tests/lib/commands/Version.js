@@ -11,4 +11,6 @@ test ("commands.Version", async () =>
     expect (lines.some (l => l.match (/^\s+Version:/))).toBe (true);
     expect (lines.some (l => l.match (/^\s+Path:/))).toBe (true);
 
+    nit.dpv (nit, "CWD", test.pathForProject ("project-c"));
+    expect (await Version.run ()).toMatch (/^@pushcorn\/nit/);
 });
