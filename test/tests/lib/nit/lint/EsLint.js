@@ -1,9 +1,30 @@
-test ("nit.lint.EsLint.findRc ()", () =>
-{
-    const EsLint = nit.require ("nit.lint.EsLint");
+test.method ("nit.lint.EsLint", "findRc", true)
+    .should ("find the rc file in the working directory")
+    .returns ()
+    .commit ()
 
-    expect (EsLint.findRc ()).toBe (nit.path.join (nit.NIT_HOME, ".eslintrc.json"));
+    .reset ()
+    .given (nit.path.join (nit.NIT_HOME, "test/resources/project-c"))
+    .returns (nit.path.join (nit.NIT_HOME, "test/resources/project-c/.eslintrc.json"))
+    .commit ()
+;
 
-    process.chdir (test.pathForProject ("project-a"));
-    expect (EsLint.findRc ()).toBeUndefined ();
-});
+
+test.method (nit.new ("nit.lint.EsLint",
+    {
+        options:
+        {
+            overrideConfigFile: nit.path.join (nit.NIT_HOME, "resources/eslint/eslintrc.json")
+        }
+    }), "lint")
+
+    .should ("lint JavaScript files")
+    .useApp ()
+    .before (function ()
+    {
+        this.app.root.writeFile ("lib/myscript.js", "var a = 3");
+    })
+    .given ("lib/*.js")
+    .returns (/Missing semicolon/)
+    .commit ()
+;

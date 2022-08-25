@@ -33,4 +33,12 @@ test ("nit.Dir", async () =>
     dir = nit.new ("nit.Dir", path = nit.path.join (nit.os.tmpdir (), prefix, "a"));
     dir.rm ();
     expect (nit.isDir (path)).toBe (false);
+
+    let content = nit.uuid ();
+    dir.writeFile ("a/b/c.txt", content);
+    expect (dir.readFile ("a/b/c.txt")).toBe (content);
+
+    await dir.writeFileAsync ("a/b/d.txt", content);
+    expect (await dir.readFileAsync ("a/b/d.txt")).toBe (content);
+    expect (dir.exists ()).toBe (true);
 });

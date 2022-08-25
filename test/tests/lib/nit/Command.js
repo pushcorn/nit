@@ -49,7 +49,7 @@ Options:
 
  [message]        The greeting message.  [default: hello!]
 
- --color          The message color.`
+     --color      The message color.`
 );
 
 });

@@ -140,7 +140,7 @@ test ("nit.resolvePackageRoot ()", () =>
 
 test ("nit.resolveAsset ()", () =>
 {
-    expect (nit.resolveAsset ("test/setup.js")).toBe (no_path.join (test.HOME, "test/setup.js"));
+    expect (nit.resolveAsset ("resources/jest/setup.js")).toBe (no_path.join (test.HOME, "resources/jest/setup.js"));
 });
 
 

@@ -8,7 +8,7 @@ test.nit = function ()
 {
     const path = require ("path");
     const os = require ("os");
-    const home = path.dirname (__dirname);
+    const home = path.dirname (path.dirname (__dirname));
 
     os._homedir = os.homedir;
     os.homedir = function () { return path.join (home, "test/resources/home/test"); };
