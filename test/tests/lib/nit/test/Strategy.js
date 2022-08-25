@@ -264,11 +264,11 @@ test ("nit.test.Strategy.reset ()", () =>
 });
 
 
-test ("nit.test.Strategy.withApp ()", () =>
+test ("nit.test.Strategy.useApp ()", () =>
 {
     let strategy = new nit.test.Strategy;
 
-    strategy.withApp ("my app");
+    strategy.useApp ("my app");
 
     expect (strategy.app.name).toBe ("my app");
 });
@@ -523,7 +523,7 @@ test ("nit.test.Strategy.commit ()", async () =>
         .commit ()
 
         .should ("pass 4")
-        .withApp ("", test.pathForProject ("project-c"))
+        .useApp ("", test.pathForProject ("project-c"))
         .before (function ()
         {
             status.dirChangedForApp = process.cwd () == this.app.root.path;
