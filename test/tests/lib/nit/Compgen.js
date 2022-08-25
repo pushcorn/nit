@@ -234,7 +234,7 @@ test ("nit.Compgen.parseWords ()", async () =>
         .run (async ({ compgen, nit }) =>
         {
             expect (compgen.context.state).toBe (nit.Compgen.STATES.option);
-            expect (await compgen.listCompletions ()).toEqual (["OPTION", "--file"]);
+            expect (await compgen.listCompletions ()).toEqual (["FILE"]);
         })
     ;
 
@@ -250,7 +250,7 @@ test ("nit.Compgen.parseWords ()", async () =>
         .run (async ({ compgen, nit }) =>
         {
             expect (compgen.context.state).toBe (nit.Compgen.STATES.option);
-            expect (await compgen.listCompletions ()).toEqual (["OPTION", "--file"]);
+            expect (await compgen.listCompletions ()).toEqual (["FILE"]);
         })
     ;
 
@@ -272,16 +272,16 @@ test ("nit.Compgen.parseWords ()", async () =>
     await testParseWords ("nit test-cmd -s srv1 ")
         .run (async ({ compgen, nit }) =>
         {
-            expect (compgen.context.state).toBe (nit.Compgen.STATES.option);
-            expect (await compgen.listCompletions ()).toEqual (["OPTION", "--file", "--choice", "--base64", "--doc-ids"]);
+            expect (compgen.context.state).toBe (nit.Compgen.STATES.value);
+            expect (await compgen.listCompletions ()).toEqual (["FILE"]);
         })
     ;
 
     await testParseWords ("nit test-cmd --doc-ids 1 2 -s srv1 ")
         .run (async ({ compgen, nit }) =>
         {
-            expect (compgen.context.state).toBe (nit.Compgen.STATES.option);
-            expect (await compgen.listCompletions ()).toEqual (["OPTION", "--file", "--choice", "--base64", "--doc-ids"]);
+            expect (compgen.context.state).toBe (nit.Compgen.STATES.value);
+            expect (await compgen.listCompletions ()).toEqual (["FILE"]);
         })
     ;
 
@@ -295,6 +295,7 @@ test ("nit.Compgen.parseWords ()", async () =>
                 "hello-world",
                 "invalid-cmd",
                 "no-args",
+                "positional-args",
                 "single-arg",
                 "test-cmd",
                 "console",
@@ -314,6 +315,7 @@ test ("nit.Compgen.listCompletions ()", async () =>
     function testListCompletions ()
     {
         return testCompgen (...arguments)
+            .push (({ compgen }) => compgen.parseWords ())
             .push (async ({ compgen }) => await compgen.listCompletions ())
         ;
     }
@@ -335,7 +337,7 @@ test ("nit.Compgen.listCompletions ()", async () =>
     await testListCompletions ("nit test-cmd ")
         .run (({ result }) =>
         {
-            expect (result).toEqual (["OPTION", "--file"]);
+            expect (result).toEqual (["FILE"]);
         })
     ;
 
@@ -353,6 +355,31 @@ test ("nit.Compgen.listCompletions ()", async () =>
         })
     ;
 
+
+    await testListCompletions ("nit single-arg --arg val more")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["NONE"]);
+        })
+    ;
+
+
+    await testListCompletions ("nit single-arg --arg val ")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["OPTION"]);
+        })
+    ;
+
+
+    await testListCompletions ("nit positional-args sfile tfile ")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["FILE"]);
+        })
+    ;
+
+
     await testListCompletions ("nit --file ")
         .run (({ result }) =>
         {
@@ -363,7 +390,7 @@ test ("nit.Compgen.listCompletions ()", async () =>
     await testListCompletions ("nit hello-world ")
         .run (({ result }) =>
         {
-            expect (result).toEqual (["OPTION", "--message"]);
+            expect (result).toEqual (["VALUE"]);
         })
     ;
 
@@ -419,7 +446,7 @@ test ("nit.Compgen.listCompletions ()", async () =>
     await testListCompletions ("nit test-cmd \">")
         .run (({ result }) =>
         {
-            expect (result).toEqual (["NONE"]);
+            expect (result).toEqual (["FILE"]);
         })
     ;
 });
