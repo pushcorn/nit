@@ -247,7 +247,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             body = body || "";
         }
 
-        var fps = Object.keys (context).concat ("return function " + sn + " (" + argNames + ") { " + body + " };");
+        var fps = OBJECT.keys (context).concat ("return function " + sn + " (" + argNames + ") { " + body + " };");
         var fvs = nit.values (context);
         var func = Function.apply (null, fps).apply (null, fvs); // eslint-disable-line no-new-func
 
@@ -639,12 +639,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         if (nit.is.pojo (v) || v instanceof nit.object)
         {
-            for (var i in v)
-            {
-                return !i;
-            }
-
-            return true;
+            return !OBJECT.keys (v).length;
         }
 
         return false;

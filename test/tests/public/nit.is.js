@@ -83,6 +83,7 @@ test ("nit.is () checks the type of the input.", function ()
     expect (nit.is.empty ({})).toBe (true);
     expect (nit.is.empty ({ a: 1 })).toBe (false);
     expect (nit.is.empty ([3])).toBe (false);
+    expect (nit.is.empty ({ "": 1 })).toBe (false);
 
     expect (nit.is.truthy (new Date)).toBe (true);
     expect (nit.is.truthy (false)).toBe (false);
