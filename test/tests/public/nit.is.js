@@ -75,6 +75,7 @@ test ("nit.is () checks the type of the input.", function ()
     expect (nit.is.equal ([3, 4], [3, 4, 5])).toBe (false);
     expect (nit.is.equal ([3, 4, 1], [3, 4, 5])).toBe (false);
     expect (nit.is.equal (new Date, new Date)).toBe (true);
+    expect (nit.is.equal.strict (Sup, Sup)).toBe (true);
 
     expect (nit.is.empty (new Date)).toBe (false);
     expect (nit.is.empty ()).toBe (true);

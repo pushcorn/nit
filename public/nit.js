@@ -620,10 +620,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         }
         else
         {
-            same = a === b;
+            same = nit.is.equal.strict (a, b);
         }
 
         return same;
+    };
+
+
+    nit.is.equal.strict = function (a, b)
+    {
+        return a === b;
     };
 
 
@@ -993,7 +999,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         }
 
         var result = [arr[0]];
-        comparator = comparator || nit.is.equal;
+        comparator = (comparator === true ? nit.is.equal.strict : comparator) || nit.is.equal;
 
         for (var i = 1; i < arr.length; ++i)
         {
