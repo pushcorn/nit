@@ -38,13 +38,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     var ARR_SLICE     = ARR_PROTO.slice;
     var ARRAY         = ARR_SLICE.call.bind (ARR_SLICE);
     var TYPED_ARRAY   = PROTO (Int8Array.prototype).constructor;
+    var NIT           = "nit";
 
 
     //--------------------------------------------
     // Base utility methods
     //--------------------------------------------
 
-    nit.dp      = OBJECT.defineProperty.bind (OBJECT);
+    nit.dp = OBJECT.defineProperty.bind (OBJECT);
 
 
     nit.dpg = function (o, p, getter, configurable, enumerable)
@@ -2468,8 +2469,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.ns.invoke = function (func)
     {
+        var minimized = nit.name != NIT;
         var argNames = nit.funcArgNames (func);
-        var args = argNames.map (function (n) { return n.match (/^[a-z]/) ? nit.ns.init (n) : undefined; });
+        var args = argNames.map (function (n) { return n.match (/^[a-z]/) ? nit.ns.init (func.length == 1 && minimized ? NIT : n) : undefined; });
 
         return func.apply (global, args);
     };
@@ -3392,7 +3394,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var self  = this;
             var ns    = self.name.split (".");
             var type  = ns.pop ();
-            var fqn   = (ns.length ? ns.join (".") : "nit") + ".define" + type;
+            var fqn   = (ns.length ? ns.join (".") : NIT) + ".define" + type;
 
             function defineSubclass (name, superclass, construct, local, pargs) // eslint-disable-line no-unused-vars
             {

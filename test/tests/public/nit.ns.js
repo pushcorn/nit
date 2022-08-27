@@ -43,6 +43,23 @@ test ("nit.ns.invoke ()", () =>
     expect (self).toBeUndefined ();
     expect (a.name).toBe ("app");
     expect (h.name).toBe ("http");
+
+    nit.dpv (nit, "name", "n", true);
+    nit.ns.invoke (function (o)
+    {
+        a = o;
+    });
+
+    expect (a).toBe (nit);
+
+    nit.ns.invoke (function (app, ui)
+    {
+        a = app;
+        h = ui;
+    });
+
+    expect (a.name).toBe ("app");
+    expect (h.name).toBe ("ui");
 });
 
 test ("nit.ns.export()", () =>
