@@ -34,5 +34,5 @@ test ("nit.Constraint", () =>
 
     expect (() => cons.validate ("aab", ctx)).toThrow (/cannot be applied to.*aab/i);
     expect (() => cons.validate (500, ctx)).toThrow (/the value is greater than 10/i);
-    expect (cons.validate (5, ctx)).toBeUndefined ();
+    expect (cons.validate (5, ctx)).toBe (true);
 });

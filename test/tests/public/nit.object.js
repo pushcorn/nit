@@ -589,6 +589,50 @@ test ("nit.Object.invokeParentMethod ()", () =>
 });
 
 
+test ("nit.Object.toPojo ()", () =>
+{
+    let now = new Date ();
+
+    const Owner = nit.defineClass ("Owner")
+        .field ("<username>", "string")
+        .property ("updatedAt", "date")
+    ;
+
+    const Doc = nit.defineClass ("Doc")
+        .field ("<id>", "string")
+        .field ("owner", "Owner")
+        .property ("version", "string")
+    ;
+
+    let owner = new Owner ("Somebody");
+    owner.updatedAt = now;
+
+    let doc = new Doc ("12345");
+    doc.owner = owner;
+    doc.version = "9a38b";
+
+    expect (doc.toPojo ()).toEqual (
+    {
+        id: "12345",
+        version: "9a38b",
+        owner:
+        {
+            username: "Somebody",
+            updatedAt: now
+        }
+    });
+
+    expect (doc.toPojo (true)).toEqual (
+    {
+        id: "12345",
+        owner:
+        {
+            username: "Somebody"
+        }
+    });
+});
+
+
 test ("nit.Object.memo ()", () =>
 {
     nit.Object.memo ("createdAt", function ()

@@ -3299,7 +3299,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         ,
         staticProperty: function (spec, type, defval, configurable, enumerable)
         {
-            nit.Object.dpv (this, spec, type || "string", defval, configurable, nit.is.undef (enumerable) ? true : enumerable);
+            configurable = nit.is.undef (configurable) ? true : configurable;
+            enumerable = nit.is.undef (enumerable) ? true : enumerable;
+
+            nit.Object.dpv (this, spec, type || "string", defval, configurable, enumerable);
 
             return this;
         }
@@ -3369,7 +3372,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             var cls = this;
 
-            nit.Object.dpv (cls.prototype, spec, type || "string", defval, configurable, nit.is.undef (enumerable) ? true : enumerable);
+            configurable = nit.is.undef (configurable) ? true : configurable;
+            enumerable = nit.is.undef (enumerable) ? true : enumerable;
+
+            nit.Object.dpv (cls.prototype, spec, type || "string", defval, configurable, enumerable);
 
             return cls.validatePropertyDeclarations (nit.Object.getProperties (cls.prototype));
         }
@@ -3541,7 +3547,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             ;
         })
 
-        .constant ("PROPERTY_TYPE", "nit.Object.Property")
+        .constant ("PRIMARY_PROPERTY_TYPE", "nit.Object.Property")
         .constant ("INNER_CLASS_TYPE", "nit.Object")
         .staticProperty (nit.Object.kDefvals, "object", {}, false, false)
         .staticGetter ("superclass", true, false, function ()
@@ -3563,7 +3569,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             var self = this;
 
-            type = type || self.PROPERTY_TYPE;
+            type = type || self.PRIMARY_PROPERTY_TYPE;
 
             var typeCls = nit.is.func (type) ? type : nit.lookupClass (type);
 
@@ -3950,9 +3956,30 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             nit.throw.apply (this, arguments);
         })
-        .method ("toPojo", function ()
+        .method ("toPojo", function (primaryPropertiesOnly)
         {
-            return nit.clone (this);
+            if (primaryPropertiesOnly)
+            {
+                var self = this;
+                var pojo = {};
+
+                self.constructor
+                    .getProperties ()
+                    .forEach (function (p)
+                    {
+                        var name = p.name;
+                        var val = self[name];
+
+                        pojo[name] = val && nit.is.func (val.toPojo) ? val.toPojo (primaryPropertiesOnly) : val;
+                    })
+                ;
+
+                return pojo;
+            }
+            else
+            {
+                return nit.clone (this);
+            }
         })
     ;
 
@@ -4034,12 +4061,22 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             ctx.constraint = constraint;
 
-            if (!validate.call (cls, value, ctx))
-            {
-                var message = (ctx.constraint.message || cls.t (ctx.constraint.code, ctx)) + " (Class: " + ctx.owner.constructor.name + ")";
+            return nit.Queue ()
+                .push (function ()
+                {
+                    return validate.call (cls, value, ctx);
+                })
+                .push (function (q)
+                {
+                    if (!q.result)
+                    {
+                        var message = (ctx.constraint.message || cls.t (ctx.constraint.code, ctx)) + " (Class: " + ctx.owner.constructor.name + ")";
 
-                ctx.constraint.throw ({ code: ctx.constraint.code, message: message, source: ctx.property, owner: ctx.owner }, ctx);
-            }
+                        ctx.constraint.throw ({ code: ctx.constraint.code, message: message, source: ctx.property, owner: ctx.owner }, ctx);
+                    }
+                })
+                .run ()
+            ;
         })
     ;
 
@@ -4141,19 +4178,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             });
 
             var prop = nit.Object.Property.createFor (cls, { kind: field.kind, configurable: field.configurable, enumerable: field.enumerable }, cfg);
-            var cast = prop.cast;
 
-            prop.cast = function (v, owner)
-            {
-                v = cast (v, owner);
-                field.validate (v, owner);
+            nit.dpv (prop, "__cast", prop.cast, true);
 
-                return v;
-            };
-
+            prop.cast = undefined;
             prop.get.setDescriptor (field);
             nit.assign (field, prop);
             nit.dpv (field.get, nit.Object.kProperty, field);
+            nit.dpv (field.set, nit.Object.kProperty, field);
         })
         .m ("error.constraint_not_defined", "The constraint '%{name}' was not defined.")
         .m ("error.inapplicable_constraint", "The constraint '%{constraint}' cannot be applied to the field '%{field}'.")
@@ -4172,9 +4204,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .property ("set", "function")
         .property ("getter", "function")
         .property ("setter", "function")
-        .property ("cast", "function")
+        .property ("cast", "function", function () { return nit.Field.__cast; })
         .property ("primitive", "boolean") // should not be set manually
         .property ("constraints...", "nit.Constraint")
+
+        .staticMethod ("__cast", function (v, owner)
+        {
+            v = this.__cast (v, owner);
+            this.validate (v, owner);
+
+            return v;
+        })
 
         .method ("addConstraint", function (name)
         {
@@ -4238,7 +4278,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.Object.defineSubclass ("nit.Class")
         .m ("error.no_field_defined", "No field was defined.")
         .categorize ()
-        .constant ("PROPERTY_TYPE", "nit.Field")
+        .constant ("PRIMARY_PROPERTY_TYPE", "nit.Field")
         .constant ("INNER_CLASS_TYPE", "nit.Class")
         .staticMethod ("ns", function (name)
         {
@@ -4275,6 +4315,86 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             return self;
         })
+    ;
+
+
+    nit.defineClass ("nit.Error")
+        .staticMemo ("STACK_SEARCH_PATTERN", function ()
+        {
+            return nit.parseRegExp ("/^\\s*at\\s(new\\s)?" + nit.escapeRegExp (this.name) + "\\s\\(eval.*\\.createFunction/");
+        })
+        .do (function (nit_Error)
+        {
+            var errorProps = nit.propertyDescriptors (Error, true);
+            var classProps = nit.propertyDescriptors (nit.Class, true);
+
+            nit.each (classProps, function (p, n)
+            {
+                if (!(n in errorProps))
+                {
+                    nit.dp (nit_Error, n, p);
+                }
+
+            }, true);
+
+        })
+        .categorize ()
+        .extend (Error)
+        .do (function (nit_Error)
+        {
+            var errorProps = nit.propertyDescriptors (Error.prototype, true);
+            var classProps = nit.propertyDescriptors (nit.Class.prototype, true);
+
+            nit.each (classProps, function (p, n)
+            {
+                if (!(n in errorProps))
+                {
+                    nit.dp (nit_Error.prototype, n, p);
+                }
+
+            }, true);
+        })
+        .construct (function (message)
+        {
+            var error = new Error (message);
+            var cls = this.constructor;
+
+            Object.setPrototypeOf (error, cls.prototype);
+
+            if (Error.captureStackTrace)
+            {
+                Error.captureStackTrace (error, cls);
+            }
+            else
+            {
+                var stack = error.stack.split ("\n");
+                var first = stack.shift ();
+                var lines = [first];
+                var found = false;
+
+                nit.each (stack, function (s)
+                {
+                    if (s.match (cls.STACK_SEARCH_PATTERN))
+                    {
+                        found = true;
+                    }
+                    else
+                    if (found)
+                    {
+                        lines.push (s);
+                    }
+                });
+
+                if (found)
+                {
+                    error.stack = lines.join ("\n");
+                }
+            }
+
+            return nit.assign (error, nit.assign (this, error));
+        })
+        .field ("<message>", "string", "The error message.")
+        .field ("stack", "string", "The stack trace.")
     ;
 
 
