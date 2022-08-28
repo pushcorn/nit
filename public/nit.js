@@ -124,7 +124,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.do = function (obj, cb)
     {
-        return cb.call (obj, obj) || obj;
+        var result = cb.call (obj, obj);
+
+        return result === undefined ? obj : result;
     };
 
 
@@ -1882,10 +1884,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         Template.prototype.evaluate = function (expr, data, context)
         {
-            var escPipe     = "<" + nit.uuid () + ">";
-            var escPipeRe   = new RegExp (escPipe, "g");
-            var self        = this;
-            var transforms  = expr
+            var escPipe = "<" + nit.uuid () + ">";
+            var escPipeRe = new RegExp (escPipe, "g");
+            var self = this;
+            var transforms = expr
                 .replace (/\\\|/g, escPipe)
                 .split ("|")
                 .map (function (t)
@@ -1893,7 +1895,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     return t.replace (escPipeRe, "\\|");
                 });
 
-            var path        = transforms.shift ().trim ();
+            var path = transforms.shift ().trim ();
             var value;
 
             if (!path.length || path == ".")
@@ -2469,9 +2471,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.ns.invoke = function (func)
     {
-        var minimized = nit.name != NIT;
+        var minified = nit.name != NIT;
         var argNames = nit.funcArgNames (func);
-        var args = argNames.map (function (n) { return n.match (/^[a-z]/) ? nit.ns.init (func.length == 1 && minimized ? NIT : n) : undefined; });
+        var args = argNames.map (function (n) { return n.match (/^[a-z]/) ? nit.ns.init (func.length == 1 && minified ? NIT : n) : undefined; });
 
         return func.apply (global, args);
     };
