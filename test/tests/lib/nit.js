@@ -493,14 +493,7 @@ test ("nit.runCommand", async () =>
         return nit.Queue ()
             .push (async function (ctx)
             {
-                try
-                {
-                    ctx.nit = await test.setupCliMode (params);
-                }
-                catch (e)
-                {
-                    ctx.error = e;
-                }
+                ctx.nit = await test.setupCliMode (params);
             })
         ;
     }
@@ -548,24 +541,27 @@ test ("nit.runCommand", async () =>
     ;
 
     await testRunCommand ()
-        .run ((ctx) =>
+        .failure ((ctx) =>
         {
             expect (ctx.error.message).toMatch (/please specify a command/i);
         })
+        .run ()
     ;
 
     await testRunCommand ("non-command")
-        .run ((ctx) =>
+        .failure ((ctx) =>
         {
             expect (ctx.error.message).toMatch (/command.*not found/i);
         })
+        .run ()
     ;
 
     await testRunCommand ("invalid-cmd")
-        .run ((ctx) =>
+        .failure ((ctx) =>
         {
             expect (ctx.error.message).toMatch (/command.*not an instance of nit.Command/i);
         })
+        .run ()
     ;
 });
 

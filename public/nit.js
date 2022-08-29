@@ -2432,7 +2432,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         var ctx = nit.is.obj (code) ? code : { code: code };
 
         code = ctx.code;
-        ctx.source = ctx.source || self;
+        ctx.source = ctx.source || self; // the source object that triggered the error
+        ctx.owner = ctx.owner || self; // the object that owns the error
         ctx.message = ctx.message || (code.match (nit.ERROR_CODE_PATTERN) ? nit.t (self, code) : code);
 
         args = [ctx.message, self].concat (args.slice (1));
@@ -2727,18 +2728,26 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             {
                 tasks: [],
                 running: false,
-                done: undefined,
-                push: function (tasks)
+                onSuccess: undefined,
+                onFailure: undefined,
+                onComplete: undefined,
+                push: function (tasks) // eslint-disable-line no-unused-vars
                 {
                     var self = this;
-                    self.tasks = self.tasks.concat (tasks);
+                    var st = self.tasks;
+
+                    st.push.apply (st, nit.array (arguments, true));
+
                     return self;
                 }
                 ,
-                lpush: function (tasks)
+                lpush: function (tasks) // eslint-disable-line no-unused-vars
                 {
                     var self = this;
-                    self.tasks = nit.array (tasks).concat (self.tasks);
+                    var st = self.tasks;
+
+                    st.unshift.apply (st, nit.array (arguments, true));
+
                     return self;
                 }
                 ,
@@ -2752,18 +2761,51 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     return this.tasks.shift ();
                 }
                 ,
-                run: function (done, ctx) // eslint-disable-line no-unused-vars
+                success: function (onSuccess)
+                {
+                    this.onSuccess = onSuccess;
+                    return this;
+                }
+                ,
+                failure: function (onFailure)
+                {
+                    this.onFailure = onFailure;
+                    return this;
+                }
+                ,
+                complete: function (onComplete)
+                {
+                    this.onComplete = onComplete;
+                    return this;
+                }
+                ,
+                toTask: function ()
+                {
+                    var self = this;
+
+                    return function (ctx)
+                    {
+                        return self.run ({ parent: ctx });
+                    };
+                }
+                ,
+                run: function (onSuccess, onFailure, onComplete, ctx) // eslint-disable-line no-unused-vars
                 {
                     var self  = this;
                     var argv = nit.typedArgsToObj (arguments,
                     {
-                        done: "function",
+                        onSuccess: "function",
+                        onFailure: "function",
+                        onComplete: "function",
                         ctx: "object"
                     });
 
-                    if (argv.done)
+                    for (var i in argv)
                     {
-                        self.done = argv.done;
+                        if (i in self)
+                        {
+                            self[i] = argv[i];
+                        }
                     }
 
                     if (self.running)
@@ -2776,41 +2818,103 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                     ctx = argv.ctx || { result: undefined };
                     ctx.queue = self;
+                    ctx.error = undefined;
 
-                    function run ()
+                    var currentTasks = self.tasks;
+                    var finalizing = false;
+                    var finalizingError;
+
+
+                    function finalize (error)
                     {
-                        var task = self.tasks.shift ();
-
-                        if (task)
+                        if (finalizing)
                         {
-                            result = nit.is.func (task) ? task (ctx) : task;
+                            finalizingError = error;
+                        }
+                        else
+                        {
+                            finalizing = true;
 
-                            if (result instanceof Promise)
+                            if ((ctx.error = error))
                             {
-                                return result.then (function (result)
+                                if (!self.onFailure)
                                 {
-                                    ctx.result = result === undefined ? ctx.result : result;
-                                    return run ();
-                                });
+                                    finalizingError = error;
+                                }
+
+                                currentTasks = [self.onFailure, self.onComplete];
                             }
                             else
                             {
-                                ctx.result = result === undefined ? ctx.result : result;
-                                return run ();
+                                currentTasks = [self.onSuccess, self.onComplete];
+                            }
+                        }
+
+                        return run ();
+                    }
+
+
+                    function run ()
+                    {
+                        var task = currentTasks.shift ();
+
+                        if (task)
+                        {
+                            if (task instanceof nit.Queue)
+                            {
+                                task = task.toTask ();
+                            }
+
+                            try
+                            {
+                                result = nit.is.func (task) ? task (ctx) : task;
+
+                                if (result instanceof Promise)
+                                {
+                                    return result
+                                        .then (function (result)
+                                        {
+                                            ctx.result = result === undefined ? ctx.result : result;
+                                            return run ();
+                                        })
+                                        .catch (finalize)
+                                    ;
+                                }
+                                else
+                                {
+                                    ctx.result = result === undefined ? ctx.result : result;
+                                    return run ();
+                                }
+                            }
+                            catch (e)
+                            {
+                                return finalize (e);
                             }
                         }
                         else
-                        if (self.done)
+                        if (currentTasks.length)
                         {
-                            self.tasks.push (self.done);
-                            delete self.done;
-
                             return run ();
+                        }
+                        else
+                        if (!finalizing)
+                        {
+                            return finalize ();
                         }
 
                         self.running = false;
 
-                        return result === undefined ? ctx.result : result;
+                        if (result !== undefined)
+                        {
+                            ctx.result = result;
+                        }
+
+                        if (finalizingError)
+                        {
+                            throw finalizingError;
+                        }
+
+                        return ctx.result;
                     }
 
                     return run ();
@@ -2946,7 +3050,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                         if ((cv = parser.cast (v, prop.type)) === undefined)
                         {
-                            nit.throw.call (cls, { code: invalidValueCode, source: owner }, { value: v, property: prop });
+                            nit.throw.call (cls, { code: invalidValueCode, source: prop, owner: owner }, { value: v, property: prop });
                         }
 
                         return cv;
@@ -2980,14 +3084,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                         if (prop.required && nit.is.empty (v))
                         {
-                            nit.throw.call (cls, { code: "error.value_required", source: owner }, { property: prop });
+                            nit.throw.call (cls, { code: "error.value_required", source: prop, owner: owner }, { property: prop });
                         }
 
                         var isArr = nit.is.arr (v);
 
                         if (isArr && !prop.array && prop.type != "any")
                         {
-                            nit.throw.call (cls, { code: invalidValueCode, source: owner }, { value: v, property: prop });
+                            nit.throw.call (cls, { code: invalidValueCode, source: prop, owner: owner }, { value: v, property: prop });
                         }
 
                         v = isArr ? v : nit.array (v);
@@ -4072,7 +4176,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     {
                         var message = (ctx.constraint.message || cls.t (ctx.constraint.code, ctx)) + " (Class: " + ctx.owner.constructor.name + ")";
 
-                        ctx.constraint.throw ({ code: ctx.constraint.code, message: message, source: ctx.property, owner: ctx.owner }, ctx);
+                        ctx.constraint.throw ({ code: ctx.constraint.code, message: message, owner: ctx.owner }, ctx);
                     }
                 })
                 .run ()
@@ -4179,11 +4283,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             var prop = nit.Object.Property.createFor (cls, { kind: field.kind, configurable: field.configurable, enumerable: field.enumerable }, cfg);
 
-            nit.dpv (prop, "__cast", prop.cast, true);
-
-            prop.cast = undefined;
             prop.get.setDescriptor (field);
             nit.assign (field, prop);
+            field.cast = nit.Field.cast;
+            nit.dpv (field, "__cast", prop.cast, true, false);
             nit.dpv (field.get, nit.Object.kProperty, field);
             nit.dpv (field.set, nit.Object.kProperty, field);
         })
@@ -4204,11 +4307,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .property ("set", "function")
         .property ("getter", "function")
         .property ("setter", "function")
-        .property ("cast", "function", function () { return nit.Field.__cast; })
+        .property ("cast", "function")
         .property ("primitive", "boolean") // should not be set manually
         .property ("constraints...", "nit.Constraint")
 
-        .staticMethod ("__cast", function (v, owner)
+        .staticMethod ("cast", function (v, owner)
         {
             v = this.__cast (v, owner);
             this.validate (v, owner);
@@ -4318,11 +4421,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     ;
 
 
+    nit.ns.initializer = nit.defineClass;
+
+
     nit.defineClass ("nit.Error")
         .staticMemo ("STACK_SEARCH_PATTERN", function ()
         {
             return nit.parseRegExp ("/^\\s*at\\s(new\\s)?" + nit.escapeRegExp (this.name) + "\\s\\(eval.*\\.createFunction/");
         })
+        .constant ("NATIVE_ERROR_PROPERTIES", nit.keys (new Error, true))
         .do (function (nit_Error)
         {
             var errorProps = nit.propertyDescriptors (Error, true);
@@ -4353,11 +4460,43 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 }
 
             }, true);
+
+            nit_Error.prototype.name = nit_Error.name;
+        })
+        .staticMethod ("defaultCode", function (code, message)
+        {
+            var cls = this;
+
+            cls.getField ("code").defval = code;
+
+            return cls.m (code, message);
+        })
+        .onDefineSubclass (function (subclass)
+        {
+            subclass.prototype.name = subclass.name;
+        })
+        .prepareConstructorParams (function (params, obj)
+        {
+            var message = params.message;
+            var code = params.code || obj.code;
+
+            if (message && message.match (nit.ERROR_CODE_PATTERN))
+            {
+                code = message;
+                message = "";
+            }
+
+            if (!message && code)
+            {
+                params.code = code;
+                params.message = obj.t (code);
+            }
         })
         .construct (function (message)
         {
+            var self = this;
             var error = new Error (message);
-            var cls = this.constructor;
+            var cls = self.constructor;
 
             Object.setPrototypeOf (error, cls.prototype);
 
@@ -4391,14 +4530,162 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 }
             }
 
-            return nit.assign (error, nit.assign (this, error));
+            nit.each (cls.NATIVE_ERROR_PROPERTIES, function (p)
+            {
+                self[p] = error[p];
+            });
+
+            return nit.assign (error, self);
         })
         .field ("<message>", "string", "The error message.")
+        .field ("code", "string", "The error code.")
         .field ("stack", "string", "The stack trace.")
     ;
 
 
-    nit.ns.initializer = nit.defineClass;
+    nit.defineClass ("nit.Model")
+        .constant ("PROPERTY_TYPE", "nit.Model.Field")
+        .categorize ()
+
+        .defineInnerClass ("Field", "nit.Field", function (Field)
+        {
+            Field
+                .postConstruct (function (field)
+                {
+                    nit.dpv (field, "__set", field.set, true, false);
+
+                    field.cast = field.__cast;
+                    field.set = function (v)
+                    {
+                        var owner = this;
+                        var uncheckedProp = field.uncheckedProp;
+
+                        if (!owner.hasOwnProperty (uncheckedProp))
+                        {
+                            nit.dpv (owner, uncheckedProp, v, true, false);
+                        }
+                        else
+                        {
+                            owner[uncheckedProp] = v;
+                        }
+                    };
+                })
+                .memo ("uncheckedProp", function ()
+                {
+                    return "$__" + this.name + "Unchecked";
+                })
+                .method ("validate", function (value, owner, ctx) // owner must be a model
+                {
+                    var ValidationContext = owner.constructor.ValidationContext;
+                    var field = this;
+
+                    ctx = ctx instanceof ValidationContext ? ctx : new ValidationContext (ctx);
+
+                    return nit.Queue ()
+                        .push (function ()
+                        {
+                            field.__set.call (owner, value);
+                        })
+                        .push (nit.each (field.constraints, function (cons)
+                        {
+                            return function ()
+                            {
+                                var consCls = cons.constructor;
+
+                                if (consCls.VALIDATE_ALL || !nit.is.empty (value) || field.required)
+                                {
+                                    ctx.value = value;
+                                    ctx.owner = owner;
+                                    ctx.property = field;
+
+                                    return cons.validate (value, ctx);
+                                }
+                            };
+                        }))
+                        .failure (function (qc)
+                        {
+                            var error = qc.error;
+                            var source = nit.get (error, "context.source");
+
+                            throw new nit.Model.FieldValidationError (
+                                error.message,
+                                field.name,
+                                source instanceof nit.Constraint ? source.constructor.name : "",
+                               { code: error.code }
+                            );
+                        })
+                        .run ()
+                    ;
+                })
+            ;
+        })
+        .defineInnerClass ("FieldValidationError", "nit.Error", function (FieldValidationError)
+        {
+            FieldValidationError
+                .field ("<field>", "string", "The field that failed the validation.")
+                .field ("[constraint]", "string", "The constraint that caused error.")
+            ;
+        })
+        .defineInnerClass ("ModelValidationError", "nit.Error", function (ModelValidationError)
+        {
+            ModelValidationError
+                .defaultCode ("error.model_validation_failed", "The model validation failed.")
+                .field ("<fieldErrors...>", "nit.Model.FieldValidationError", "The field errors.")
+            ;
+        })
+        .defineInnerClass ("ValidationContextBase", function (ValidationContextBase)
+        {
+            ValidationContextBase.extend (nit.Constraint.ValidationContext);
+        })
+        .staticMethod ("defineValidationContext", function (builder)
+        {
+            return this.defineInnerClass ("ValidationContext", "nit.Model.ValidationContextBase", builder);
+        })
+        .staticMethod ("field", function (spec, type, description, defval) // eslint-disable-line no-unused-vars
+        {
+            nit.new (nit.Model.Field, arguments).bind (this.prototype);
+
+            return this;
+        })
+        .do (function ()
+        {
+            this.defineValidationContext ();
+        })
+
+        .method ("validate", function (ctx)
+        {
+            var fieldErrors = [];
+            var self = this;
+            var ValidationContext = self.constructor.ValidationContext;
+
+            ctx = ctx instanceof ValidationContext ? ctx : new ValidationContext (ctx);
+
+            return nit.Queue ()
+                .push (nit.each (self.constructor.getProperties (), function (f)
+                {
+                    return nit.Queue ()
+                        .push (function ()
+                        {
+                            var val = self[f.uncheckedProp];
+
+                            return f.validate (val, self, ctx);
+                        })
+                        .failure (function (qc)
+                        {
+                            fieldErrors.push (qc.error);
+                        })
+                    ;
+                }))
+                .run (function ()
+                {
+                    if (fieldErrors.length)
+                    {
+                        throw new nit.Model.ModelValidationError ({ fieldErrors: fieldErrors });
+                    }
+                })
+            ;
+        })
+    ;
 }
 ,
 /* eslint-disable */

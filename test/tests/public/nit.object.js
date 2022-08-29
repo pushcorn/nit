@@ -396,7 +396,7 @@ test ("nit.Object.invokeConstructor ()", () =>
     }
     catch (e)
     {
-        expect (e.context.source).toBeInstanceOf (Phone);
+        expect (e.context.owner).toBeInstanceOf (Phone);
     }
 
     var myPhone;
@@ -408,7 +408,7 @@ test ("nit.Object.invokeConstructor ()", () =>
     }
     catch (e)
     {
-        expect (e.context.source).toBe (myPhone);
+        expect (e.context.owner).toBe (myPhone);
         expect (e.message).toBe ("The phone number is invalid");
     }
 
