@@ -42,7 +42,7 @@ test ("nit.Model", async () =>
 
     try { await user.validate (); } catch (e) { error = e; }
     expect (error).toBeInstanceOf (Error);
-    expect (error.code).toBe ("error.model_validation_failed");
+    expect (error.code).toBe ("error.model_validation_failure");
     expect (checkedConstraints).toEqual ([Unique, MinLength]);
 
     //----------------------------------
@@ -67,7 +67,7 @@ test ("nit.Model", async () =>
 
     try { await user.validate (); } catch (e) { error = e; }
     expect (checkedConstraints).toEqual ([]);
-    expect (error.fieldErrors[0].code).toBe ("error.value_required");
+    expect (error.failures[0].code).toBe ("error.value_required");
 
     //----------------------------------
     let field = User.getField ("username");

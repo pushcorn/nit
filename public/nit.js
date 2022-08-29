@@ -3045,7 +3045,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                                 return;
                             }
 
-                            v = nit.is.func (prop.defval) ? prop.defval (prop) : nit.clone (prop.defval);
+                            v = nit.is.func (prop.defval) ? prop.defval (prop, owner) : nit.clone (prop.defval);
                         }
 
                         if ((cv = parser.cast (v, prop.type)) === undefined)
@@ -3069,7 +3069,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             }
                             else
                             {
-                                v = nit.is.func (prop.defval) ? prop.defval (prop) : nit.clone (prop.defval);
+                                v = nit.is.func (prop.defval) ? prop.defval (prop, owner) : nit.clone (prop.defval);
                             }
 
                             nit.dpv (owner, privProp, v, true, false);
@@ -3812,7 +3812,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 var defval = n in defvals ? defvals[n] : prop.defval;
 
                 defval = nit.get (nit.CONFIG, configKey + "." + n, defval);
-                defval = nit.is.func (defval) ? defval (prop) : nit.clone (defval);
+                defval = nit.is.func (defval) ? defval (prop, obj) : nit.clone (defval);
 
                 if (prop.array && !nit.is.arr (defval))
                 {
@@ -4430,6 +4430,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return nit.parseRegExp ("/^\\s*at\\s(new\\s)?" + nit.escapeRegExp (this.name) + "\\s\\(eval.*\\.createFunction/");
         })
         .constant ("NATIVE_ERROR_PROPERTIES", nit.keys (new Error, true))
+        .constant ("CODE", "")
+        .constant ("MESSAGE", "")
         .do (function (nit_Error)
         {
             var errorProps = nit.propertyDescriptors (Error, true);
@@ -4463,40 +4465,34 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             nit_Error.prototype.name = nit_Error.name;
         })
-        .staticMethod ("defaultCode", function (code, message)
+        .staticMethod ("code", function (code)
         {
-            var cls = this;
-
-            cls.getField ("code").defval = code;
-
-            return cls.m (code, message);
+            return this.constant ("CODE", code);
+        })
+        .staticMethod ("message", function (message)
+        {
+            return this.constant ("MESSAGE", message);
         })
         .onDefineSubclass (function (subclass)
         {
             subclass.prototype.name = subclass.name;
         })
-        .prepareConstructorParams (function (params, obj)
-        {
-            var message = params.message;
-            var code = params.code || obj.code;
-
-            if (message && message.match (nit.ERROR_CODE_PATTERN))
-            {
-                code = message;
-                message = "";
-            }
-
-            if (!message && code)
-            {
-                params.code = code;
-                params.message = obj.t (code);
-            }
-        })
-        .construct (function (message)
+        .construct (function (args)
         {
             var self = this;
-            var error = new Error (message);
             var cls = self.constructor;
+            var message;
+
+            if (cls == nit.Error && nit.is.str (args[0]))
+            {
+                message = self.t (args[0], args);
+            }
+            else
+            {
+                message = self.t (self.message);
+            }
+
+            var error = new Error (message);
 
             Object.setPrototypeOf (error, cls.prototype);
 
@@ -4535,11 +4531,25 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 self[p] = error[p];
             });
 
-            return nit.assign (error, self);
+            nit.assign (error, self);
+
+            if (self.code)
+            {
+                error.stack += "\nCode: " + self.code;
+            }
+
+            return error;
         })
-        .field ("<message>", "string", "The error message.")
-        .field ("code", "string", "The error code.")
-        .field ("stack", "string", "The stack trace.")
+        .field ("message", "string", "The error message.", function (prop, owner)
+        {
+            return owner.constructor.MESSAGE || owner.code;
+        })
+        .field ("code", "string", "The error code.", function (prop, owner)
+        {
+            var ownerCls = owner.constructor;
+
+            return ownerCls.CODE || (ownerCls != nit.Error ? "error." + nit.snakeCase (ownerCls.name.split (".").pop ()) : "");
+        })
     ;
 
 
@@ -4607,11 +4617,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             var error = qc.error;
                             var source = nit.get (error, "context.source");
 
-                            throw new nit.Model.FieldValidationError (
-                                error.message,
+                            throw new nit.Model.FieldValidationFailure (
                                 field.name,
                                 source instanceof nit.Constraint ? source.constructor.name : "",
-                               { code: error.code }
+                               { code: error.code, message: error.message }
                             );
                         })
                         .run ()
@@ -4619,18 +4628,18 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 })
             ;
         })
-        .defineInnerClass ("FieldValidationError", "nit.Error", function (FieldValidationError)
+        .defineInnerClass ("FieldValidationFailure", "nit.Error", function (FieldValidationFailure)
         {
-            FieldValidationError
+            FieldValidationFailure
                 .field ("<field>", "string", "The field that failed the validation.")
                 .field ("[constraint]", "string", "The constraint that caused error.")
             ;
         })
-        .defineInnerClass ("ModelValidationError", "nit.Error", function (ModelValidationError)
+        .defineInnerClass ("ModelValidationFailure", "nit.Error", function (ModelValidationFailure)
         {
-            ModelValidationError
-                .defaultCode ("error.model_validation_failed", "The model validation failed.")
-                .field ("<fieldErrors...>", "nit.Model.FieldValidationError", "The field errors.")
+            ModelValidationFailure
+                .message ("The model validation failed.")
+                .field ("<failures...>", "nit.Model.FieldValidationFailure", "The field validation failures.")
             ;
         })
         .defineInnerClass ("ValidationContextBase", function (ValidationContextBase)
@@ -4654,7 +4663,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         .method ("validate", function (ctx)
         {
-            var fieldErrors = [];
+            var failures = [];
             var self = this;
             var ValidationContext = self.constructor.ValidationContext;
 
@@ -4672,15 +4681,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         })
                         .failure (function (qc)
                         {
-                            fieldErrors.push (qc.error);
+                            failures.push (qc.error);
                         })
                     ;
                 }))
                 .run (function ()
                 {
-                    if (fieldErrors.length)
+                    if (failures.length)
                     {
-                        throw new nit.Model.ModelValidationError ({ fieldErrors: fieldErrors });
+                        throw new nit.Model.ModelValidationFailure ({ failures: failures });
                     }
                 })
             ;

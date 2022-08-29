@@ -14,21 +14,27 @@ test ("nit.Error", () =>
     expect (err.stack.split ("\n")[1]).toMatch (/^\s*at\sObject\.<anonymous>/);
 
     const MyError = nit.defineError ("MyError")
-        .m ("error.one", "The first error.")
+        .message ("The first error.")
         .constant ("STACK_SEARCH_PATTERN", /xyz/)
         .field ("<reason>", "string")
     ;
 
-    err = new MyError ("Test Error3", "Unknown");
+    err = new MyError ("Unknown");
 
+    expect (err.code).toBe ("error.my_error");
     expect (err.stack).toMatch (/new MyError/);
+    expect (err.stack).toMatch (/Code: error.my_error$/);
     expect (err.reason).toBe ("Unknown");
     expect (err.name).toBe ("MyError");
 
-    err = new MyError ("error.one", "Unknown");
+    MyError.code ("error.two");
+    err = new MyError ("Another reason");
     expect (err.message).toBe ("The first error.");
+    expect (err.reason).toBe ("Another reason");
 
-    MyError.defaultCode ("error.two", "The second error.");
-    err = new MyError ("", "Unknown");
-    expect (err.message).toBe ("The second error.");
+
+    err = new nit.Error ("The value %{value} is greater than 10", { value: 11 });
+    expect (err.message).toBe ("The value 11 is greater than 10");
+    expect (err.code).toBe ("");
+    expect (err.stack).not.toMatch (/Code:/);
 });
