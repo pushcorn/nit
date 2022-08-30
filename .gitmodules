@@ -1,3 +1,6 @@
 [submodule "packages/ui"]
 	path = packages/ui
 	url = git@pushcorn.github.com:pushcorn/ui.git
+[submodule "packages/postgresql"]
+	path = packages/postgresql
+	url = git@pushcorn.github.com:pushcorn/postgresql.git
