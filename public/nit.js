@@ -1065,6 +1065,21 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    nit.entries = function (o)
+    {
+        o = o || {};
+
+        var entries = [];
+
+        for (var k in o)
+        {
+            entries.push ({ k: k, v: o[k] });
+        }
+
+        return entries;
+    };
+
+
     nit.clone = function (object, filter, target, all)
     {
         if (typeof object == "function")

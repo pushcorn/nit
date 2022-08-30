@@ -7,6 +7,23 @@ test ("nit.Template.render () - if", () =>
     expect (result).toBe (expected);
 });
 
+
+test ("nit.Template.render () - object entries", () =>
+{
+    let object = { firstname: "John", lastname: "Doe" };
+
+    expect (nit.Template.render ("{{#object|nit.entries}}{{$FIRST ? '' : ', '}}{{k}} = {{v}}{{/}}", { object }))
+        .toBe ("firstname = John, lastname = Doe")
+    ;
+
+    object = { firstname: "John" };
+
+    expect (nit.Template.render ("{{#object|nit.entries}}{{$FIRST ? 'F ' : ', '}}{{k}} = {{v}}{{/}}", { object }))
+        .toBe ("F firstname = John")
+    ;
+});
+
+
 test ("nit.Template.render () - escaping transform delimiter", () =>
 {
     var tmpl = "{{#names}}{{|nit.kababCase|append ('|')}} {{/}}";
