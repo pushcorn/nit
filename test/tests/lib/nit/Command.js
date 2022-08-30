@@ -310,3 +310,41 @@ test ("nit.Command.run ()", async () =>
 
     expect (async () => await Test2.run ()).rejects.toThrow (/instance method.*not implemented/);
 });
+
+
+test ("nit.Command.getPositionalOptions ()", async () =>
+{
+    const nit = await test.setupCliMode ("", "project-a", true);
+    const TestCmd = nit.lookupCommand ("test-cmd");
+
+    expect (TestCmd.Input.getPositionalOptions ()[0].name).toBe ("file");
+});
+
+
+test ("nit.Command.defineContext ()", async () =>
+{
+    const Add = nit.defineClass ("Add", "nit.Command")
+        .defineInput (Input =>
+        {
+            Input
+                .option ("<a>", "integer")
+                .option ("<b>", "integer")
+            ;
+        })
+        .defineContext (Context =>
+        {
+            Context
+                .field ("db", "any", "The database connection.")
+            ;
+        })
+        .method ("run", function (ctx)
+        {
+            return ctx.input.a + ctx.input.b;
+        })
+    ;
+
+    expect (Add.Context.name).toBe ("Add.Context");
+    expect (Add.Context.superclass).toBe (nit.Command.Context);
+
+    expect (await Add.run ([3, 4])).toBe (7);
+});

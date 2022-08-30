@@ -2063,13 +2063,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         };
 
 
-        Template.render = function (tmpl, data, serialize, config)
+        Template.render = function (tmpl, data, config) // eslint-disable-line no-unused-vars
         {
-            var args = ARRAY (arguments).slice (2);
+            var argv = nit.typedArgsToObj (arguments,
+            {
+                tmpl: "string",
+                data: ["undef", "object"],
+                config: "object"
+            });
 
-            config = nit.argsToObj (args, ["serialize"]);
-
-            return new Template (tmpl, config).render (data);
+            return new Template (argv.tmpl, argv.config).render (argv.data);
         };
 
 
@@ -2450,6 +2453,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     {
         if (arguments.length > 1)
         {
+            var p = nit.kvSplit (ns, ".").shift ();
+
+            if (p && !nit.NS[p] && !nit.ns.initializing[p])
+            {
+                nit.ns.initializing[p] = true;
+                nit.ns.init (p);
+                delete nit.ns.initializing[p];
+            }
+
             nit.set (nit.NS, ns, obj);
 
             return obj;
@@ -2460,7 +2472,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         }
     };
 
-
+    nit.ns.initializing = {};
     nit.ns.initializer = undefined;
 
 
@@ -2636,9 +2648,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
-    nit.registerArgExpander ("tpl", function (tmpl, owner)
+    nit.registerArgExpander ("tpl", function (tmpl, data)
     {
-        return nit.Template.render (tmpl, owner);
+        return nit.Template.render (tmpl, data);
     });
 
 
@@ -2814,10 +2826,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     }
 
                     self.running = true;
-                    var result;
 
-                    ctx = argv.ctx || { result: undefined };
+                    ctx = argv.ctx || {};
                     ctx.queue = self;
+                    ctx.result = undefined;
                     ctx.error = undefined;
 
                     var currentTasks = self.tasks;
@@ -2857,6 +2869,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     function run ()
                     {
                         var task = currentTasks.shift ();
+                        var result;
 
                         if (task)
                         {
@@ -2903,11 +2916,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         }
 
                         self.running = false;
-
-                        if (result !== undefined)
-                        {
-                            ctx.result = result;
-                        }
 
                         if (finalizingError)
                         {
@@ -4421,7 +4429,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     ;
 
 
-    nit.ns.initializer = nit.defineClass;
+    nit.ns.initializer = function (name)
+    {
+        return nit.lookupClass (name) || nit.defineClass (name);
+    };
 
 
     nit.defineClass ("nit.Error")

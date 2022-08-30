@@ -351,3 +351,21 @@ test ("nit.Queue.toTask ()", async () =>
     expect (q1.parentContext).toBe (parentContext);
     expect (q1.error.message).toBe ("q1 error");
 });
+
+
+test ("nit.Queue - returns promise on completion", async () =>
+{
+    let result = await nit.Queue ()
+        .success (async function ()
+        {
+            return 10;
+        })
+        .complete (function (ctx)
+        {
+            return Promise.resolve (ctx.result + 1);
+        })
+        .run ()
+    ;
+
+    expect (result).toBe (11);
+});
