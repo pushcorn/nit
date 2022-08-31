@@ -133,10 +133,30 @@ test ("nit.test.Strategy.Mock", () =>
 });
 
 
-test ("nit.test.Strategy.format ()", () =>
+test ("nit.test.Strategy.TRANSFORMS.format ()", () =>
 {
-    expect (nit.test.Strategy.format ("a string")).toBe ('"a string"');
-    expect (nit.test.Strategy.format ({ a: 1 })).toBe ('{"a":1}');
+    expect (nit.test.Strategy.TRANSFORMS.format ("a string")).toBe ('"a string"');
+    expect (nit.test.Strategy.TRANSFORMS.format ({ a: 1 })).toBe ('{"a":1}');
+});
+
+
+test ("nit.test.Strategy.TRANSFORMS.formatArgs ()", () =>
+{
+    expect (nit.test.Strategy.TRANSFORMS.formatArgs ([3, "string", null])).toBe ('3, "string", <null>');
+});
+
+
+test ("nit.test.Strategy.render ()", () =>
+{
+    expect (nit.test.Strategy.render ("the string is %{s|format}", { s: "test" })).toBe ('the string is "test"');
+});
+
+
+test ("nit.test.Strategy.serialize ()", () =>
+{
+    expect (nit.test.Strategy.serialize (null)).toBe ("<null>");
+    expect (nit.test.Strategy.serialize (undefined)).toBe ("<undefined>");
+    expect (nit.test.Strategy.serialize ({ a: 1 })).toBe ('{"a":1}');
 });
 
 
@@ -356,7 +376,7 @@ test ("nit.test.Strategy.mock... ()", () =>
 });
 
 
-test ("nit.test.Strategy.expecting... ()", () =>
+test ("nit.test.Strategy.expecting... ()", async () =>
 {
     const PropertyStrategy = nit.test.defineStrategy ("Property")
         .field ("<object>", "object")
@@ -400,6 +420,12 @@ test ("nit.test.Strategy.expecting... ()", () =>
     strategy.expectingMethodToThrow ("object.causeProblem", /problem/);
     expect (strategy.expectors.length).toBe (5);
     expect (() => strategy.expectors[4].valueGetter (strategy)).toThrow (/problem/);
+
+    strategy.expecting ("causeProblem will throw", Error, function (s)
+    {
+        try { s.object.causeProblem (); } catch (e) { return e.constructor; }
+    });
+    expect (await strategy.expectors[5].validate (strategy)).toBeUndefined ();
 });
 
 

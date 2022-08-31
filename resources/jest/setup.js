@@ -23,6 +23,8 @@ test.nit = function ()
     const nit = require (home);
     const Strategy = nit.require ("nit.test.Strategy");
 
+    nit.require ("nit.test.Mock");
+
     nit
         .lookupComponents ("test/strategies", Strategy)
         .forEach (cls =>

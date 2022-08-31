@@ -2746,11 +2746,30 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.Queue = nit.do (nit.registerClass (nit.createFunction ("nit.Queue",
         function (obj, args)
         {
-            nit.dpv (obj, "tasks", [].concat (ARRAY (args)), true, false);
-            nit.dpv (obj, "running", false, true, false);
+            nit.dpvs (obj,
+            {
+                tasks: [].concat (ARRAY (args)),
+                running: false
+
+            }, true, false);
         })),
         function (Queue)
         {
+            Queue.Stop = nit.do (nit.registerClass (nit.createFunction ("nit.Queue.Stop",
+                function (obj, args)
+                {
+                    obj.next = args[0];
+                })),
+                function (Stop)
+                {
+                    nit.dpvs (Stop.prototype,
+                    {
+                        next: undefined
+
+                    }, true, false);
+                })
+            ;
+
             nit.dpvs (Queue.prototype,
             {
                 tasks: [],
@@ -2812,7 +2831,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                     return function (ctx)
                     {
-                        return self.run ({ parent: ctx });
+                        return self.run ({ parent: ctx, result: ctx.result });
                     };
                 }
                 ,
@@ -2841,10 +2860,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     }
 
                     self.running = true;
-
                     ctx = argv.ctx || {};
                     ctx.queue = self;
-                    ctx.result = undefined;
                     ctx.error = undefined;
 
                     var currentTasks = self.tasks;
@@ -2881,10 +2898,38 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     }
 
 
+                    function checkResult (result)
+                    {
+                        if (result instanceof nit.Queue)
+                        {
+                            currentTasks.unshift (result.toTask ());
+                            return run ();
+                        }
+                        else
+                        if (result instanceof nit.Queue.Stop)
+                        {
+                            currentTasks = [result.next];
+                            return run ();
+                        }
+                        else
+                        if (result instanceof Promise)
+                        {
+                            return result
+                                .then (checkResult)
+                                .catch (finalize)
+                            ;
+                        }
+                        else
+                        {
+                            ctx.result = result === undefined ? ctx.result : result;
+                            return run ();
+                        }
+                    }
+
+
                     function run ()
                     {
                         var task = currentTasks.shift ();
-                        var result;
 
                         if (task)
                         {
@@ -2895,24 +2940,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                             try
                             {
-                                result = nit.is.func (task) ? task (ctx) : task;
+                                var result = nit.is.func (task) ? task (ctx) : task;
 
-                                if (result instanceof Promise)
-                                {
-                                    return result
-                                        .then (function (result)
-                                        {
-                                            ctx.result = result === undefined ? ctx.result : result;
-                                            return run ();
-                                        })
-                                        .catch (finalize)
-                                    ;
-                                }
-                                else
-                                {
-                                    ctx.result = result === undefined ? ctx.result : result;
-                                    return run ();
-                                }
+                                return checkResult (result);
                             }
                             catch (e)
                             {

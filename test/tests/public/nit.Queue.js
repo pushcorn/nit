@@ -369,3 +369,96 @@ test ("nit.Queue - returns promise on completion", async () =>
 
     expect (result).toBe (11);
 });
+
+
+test ("nit.Queue.stop ()", async () =>
+{
+    let q2 = nit.Queue ()
+        .push (function (ctx)
+        {
+            q2.executed = true;
+
+            return ctx.result + 10;
+        })
+        .complete (function ()
+        {
+            q2.completed = true;
+        })
+    ;
+
+    let q1 = nit.Queue ()
+        .push (async function task1 ()
+        {
+            return 10;
+        })
+        .push (async function (ctx)
+        {
+            if (ctx.result >= 10)
+            {
+                return nit.Queue.Stop (q2);
+            }
+        })
+        .push (async function task2 ()
+        {
+            q1.task2Executed = true;
+        })
+        .complete (function ()
+        {
+            q1.completed = true;
+        })
+    ;
+
+    q1.task2Executed = false;
+
+    expect (await q1.run ()).toBe (20);
+    expect (await q1.completed).toBe (true);
+    expect (await q1.task2Executed).toBe (false);
+
+    expect (await q2.executed).toBe (true);
+    expect (await q2.completed).toBe (true);
+});
+
+
+test ("nit.Queue - return another Queue from task", async () =>
+{
+    let q2 = nit.Queue ()
+        .push (function (ctx)
+        {
+            q2.executed = true;
+
+            return ctx.result + 10;
+        })
+        .complete (function ()
+        {
+            q2.completed = true;
+        })
+    ;
+
+    let q1 = nit.Queue ()
+        .push (async function task1 ()
+        {
+            return 10;
+        })
+        .push (async function ()
+        {
+            return q2;
+        })
+        .push (async function task2 ()
+        {
+            q1.task2Executed = true;
+        })
+        .complete (function ()
+        {
+            q1.completed = true;
+        })
+    ;
+
+    q1.task2Executed = false;
+
+    expect (await q1.run ()).toBe (20);
+    expect (await q1.completed).toBe (true);
+    expect (await q1.task2Executed).toBe (true);
+
+    expect (await q2.executed).toBe (true);
+    expect (await q2.completed).toBe (true);
+});

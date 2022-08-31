@@ -20,6 +20,7 @@ test ("nit.test.Jest", async () =>
         config: '{"rootDir":"."}',
         testPathPattern: [],
         watch: false,
+        watchAll: false,
         testEnvironment: "node"
     });
 

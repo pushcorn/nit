@@ -23,13 +23,13 @@ test ("nit.test.strategies.Object", async () =>
     expect (st.description).toMatch ("Object: A");
     expect (st.class).toBe (A);
     expect (obj = st.test ()).not.toBe (a);
-    expect (obj.id).toBe (2);
+    expect (obj.nextId).toBe (2);
 
     st = new nit.test.strategies.Object ("A");
     expect (st.description).toMatch ("Object: A");
     expect (st.class).toBe (A);
     expect (obj = st.test ()).not.toBe (a);
-    expect (obj.id).toBe (3);
+    expect (obj.id).toBe (2);
 
     st = new nit.test.strategies.Object (a);
     expect (st.description).toMatch ("Object: A");
