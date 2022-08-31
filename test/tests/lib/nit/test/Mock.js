@@ -22,20 +22,30 @@ test ("nit.test.Mock", async () =>
 
     expect (database.connect.invocations[0]).toEqual (
     {
-        this: {},
+        snapshot: {},
         args: [],
         result: true
     });
 
     expect (database.query.invocations[0]).toEqual (
     {
-        this: { count: 3 },
+        snapshot: { count: 3 },
         args: ["SELECT * FROM table_a"],
         result: [{ a: 1 }]
     });
 
+    expect (database.count).toBe (3);
     expect (database.version ()).toBe ("1.0");
 
     database.query.reset ();
+    expect (database.query.invocations).toEqual ([]);
+
+    expect (database.connect.invocations[0]).toEqual (
+    {
+        snapshot: {},
+        args: [],
+        result: true
+    });
+    Database.reset ();
     expect (database.query.invocations).toEqual ([]);
 });

@@ -13,12 +13,14 @@ test.nit = function ()
     os._homedir = os.homedir;
     os.homedir = function () { return path.join (home, "test/resources/home/test"); };
 
-    process._argv = process.argv;
-    process.argv = [];
-    jest.resetModules ();
-
     test.HOME = home;
     test.PUBLIC_NIT_PATH = path.join (home, "public/nit.js");
+    test.TEST_PROJECT_PATH = path.join (process.cwd (), "test");
+
+    process._argv = process.argv;
+    process.argv = [];
+    process.env.NIT_PROJECT_PATHS = test.TEST_PROJECT_PATH;
+    jest.resetModules ();
 
     const nit = require (home);
     const Strategy = nit.require ("nit.test.Strategy");
@@ -49,11 +51,11 @@ test.pathForProject = function (name)
 test.reloadNit = async function (projectPath)
 {
     jest.resetModules ();
-    process.env.NIT_PROJECT_PATHS = "";
+    process.env.NIT_PROJECT_PATHS = test.TEST_PROJECT_PATH;
 
     if (projectPath)
     {
-        process.env.NIT_PROJECT_PATHS = test.pathForProject (projectPath);
+        process.env.NIT_PROJECT_PATHS += ":" + test.pathForProject (projectPath);
     }
 
     const nit = await require (test.HOME);

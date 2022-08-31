@@ -271,7 +271,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             obj = cls;
             cls = obj.constructor;
         }
-        else
+
+        var that = obj; // the original this
+
         if (!(obj instanceof cls))
         {
             obj = OBJECT_CREATE (cls.prototype);
@@ -279,7 +281,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         if (cls.constructObject)
         {
-            obj = cls.constructObject (obj, ARRAY (args || [])) || obj;
+            obj = cls.constructObject (obj, ARRAY (args || []), that) || obj;
         }
 
         return obj;

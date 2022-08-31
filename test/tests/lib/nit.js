@@ -16,6 +16,7 @@ test ("nit.PROJECT_PATHS", async () =>
 
     expect (nit.PROJECT_PATHS).toEqual ([
         no_path.join (test.HOME, "test/resources/home/test/.nit"),
+        no_path.join (test.HOME, "test"),
         no_path.join (test.HOME, "test/resources"),
         test.HOME
     ]);
@@ -31,6 +32,7 @@ test ("nit.ASSET_PATHS", async () =>
 
     expect (nit.ASSET_PATHS).toEqual ([
         no_path.join (test.HOME, "test/resources/home/test/.nit"),
+        no_path.join (test.HOME, "test"),
         testProjectPath,
         no_path.join (testProjectPath, "packages/package-a"),
         nit.NIT_HOME
