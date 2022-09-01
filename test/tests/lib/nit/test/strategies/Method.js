@@ -19,17 +19,22 @@ test ("nit.test.strategies.Method", async () =>
 
     let st = new nit.test.strategies.Method (new A, "addOne");
     expect (st.description).toMatch (/Method.*A\.addOne/);
+    st.up ();
     expect (st.test (3)).toBe (4);
 
     st = new nit.test.strategies.Method (A, "addTwo", true);
+    st.up ();
     expect (st.test (3)).toBe (5);
 
     st = new nit.test.strategies.Method ("A", "addTwo", true);
+    st.up ();
     expect (st.test (3)).toBe (5);
 
     st = new nit.test.strategies.Method ("A", "addOne");
+    st.up ();
     expect (st.test (5)).toBe (6);
     expect (st.object.called).toBe (1);
+    st.up ();
     expect (st.test (5)).toBe (6);
     expect (st.object.called).toBe (1);
 });

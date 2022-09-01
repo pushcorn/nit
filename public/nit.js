@@ -3298,25 +3298,29 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var cfg = nit.typedArgsToObj (arguments,
             {
                 name: "string",
-                construct: "function",
+                construct: ["string", "function"],
                 local: "boolean",
                 pargs: "array"
             });
 
+            construct = cfg.construct;
+
             var self = this;
-            var cn = nit.trim (cfg.name || cfg.construct && cfg.construct.name);
+            var isConstructString = nit.is.str (construct);
+            var isConstructFunc = nit.is.func (construct);
+            var cn = nit.trim (cfg.name || isConstructFunc && construct.name);
 
             if (!cn)
             {
                 self.throw ("error.class_name_required");
             }
 
-            if (nit.is.empty (cfg.pargs) && cfg.construct)
+            if (nit.is.empty (cfg.pargs) && isConstructFunc)
             {
-                cfg.pargs = nit.funcArgNames (cfg.construct);
+                cfg.pargs = nit.funcArgNames (construct);
             }
 
-            var subclass = nit.extend (nit.createFunction (cn, true, cfg.pargs), self);
+            var subclass = nit.extend (nit.createFunction (cn, isConstructString ? construct : true, cfg.pargs), self);
 
             if (!cfg.local)
             {
@@ -3324,9 +3328,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 nit.registerClass (subclass);
             }
 
-            if (cfg.construct)
+            if (isConstructFunc)
             {
-                subclass.construct (cfg.construct);
+                subclass.construct (construct);
             }
 
             if (self[nit.Object.kOnDefineSubclass])
@@ -3650,11 +3654,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             {
                 supports: function (type)
                 {
-                    return nit.lookupClass (type);
+                    return !!nit.lookupClass (type);
                 }
                 ,
                 cast: function (v, type)
                 {
+                    if (nit.is.undef (v))
+                    {
+                        return;
+                    }
+
                     if (!type)
                     {
                         nit.Object.throw ("error.class_name_required");

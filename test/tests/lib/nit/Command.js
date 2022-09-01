@@ -347,4 +347,11 @@ test ("nit.Command.defineContext ()", async () =>
     expect (Add.Context.superclass).toBe (nit.Command.Context);
 
     expect (await Add.run ([3, 4])).toBe (7);
+
+    let ctx = new Add.Context;
+    expect (ctx.input).toBeInstanceOf (Add.Input);
+
+    Add.Input = null;
+    ctx = new Add.Context;
+    expect (ctx.input).toBeUndefined ();
 });

@@ -204,6 +204,7 @@ test ("nit.test.Strategy.snapshot ()", () =>
         object: a,
         property: "name",
         app: undefined,
+        args: [],
         expectors: [],
         resultValidator: undefined,
         mocks: [],
@@ -225,6 +226,7 @@ test ("nit.test.Strategy.snapshot ()", () =>
         object: a,
         property: "name",
         app: undefined,
+        args: [],
         expectors: [],
         resultValidator: undefined,
         mocks: [],
@@ -275,6 +277,7 @@ test ("nit.test.Strategy.reset ()", () =>
         property: "name",
         data: { d: 1 },
         app: undefined,
+        args: [],
         expectors: [],
         resultValidator: undefined,
         mocks: [],
@@ -429,6 +432,15 @@ test ("nit.test.Strategy.expecting... ()", async () =>
 });
 
 
+test ("nit.test.Strategy.up,down ()", () =>
+{
+    let st = new nit.test.Strategy ();
+
+    expect (st.up ()).toBeUndefined ();
+    expect (st.down ()).toBeUndefined ();
+});
+
+
 test ("nit.test.Strategy.commit ()", async () =>
 {
     const _nit = global.nit;
@@ -500,6 +512,14 @@ test ("nit.test.Strategy.commit ()", async () =>
     const PropertyStrategy = nit.test.defineStrategy ("Property")
         .field ("<object>", "object")
         .field ("<property>", "string")
+        .up (function ()
+        {
+            PropertyStrategy.upCalled = ~~PropertyStrategy.upCalled + 1;
+        })
+        .down (function ()
+        {
+            PropertyStrategy.downCalled = ~~PropertyStrategy.downCalled + 1;
+        })
         .test (function ()
         {
             return this.object[this.property];
@@ -583,4 +603,6 @@ test ("nit.test.Strategy.commit ()", async () =>
     expect (expectMock.invocations.length).toBe (3);
     expect (status.dirChangedForApp).toBe (true);
     expect (status.dirChanged).toBe (true);
+    expect (PropertyStrategy.upCalled).toBe (5);
+    expect (PropertyStrategy.downCalled).toBe (5);
 });

@@ -435,10 +435,10 @@ test ("nit.Object.ITypeParser ()", () =>
 
 test ("nit.Object.ClassTypeParser ()", () =>
 {
-    expect (nit.Object.ITypeParser ()).toBeUndefined ();
-    expect ((new nit.Object.ITypeParser).supports ()).toBe (false);
-    expect ((new nit.Object.ITypeParser).defval).toBeUndefined ();
-    expect ((new nit.Object.ITypeParser).cast ()).toBeUndefined ();
+    expect ((new nit.Object.ClassTypeParser).supports ()).toBe (false);
+    expect ((new nit.Object.ClassTypeParser).defval).toBeUndefined ();
+    expect ((new nit.Object.ClassTypeParser).cast ()).toBeUndefined ();
+    expect ((new nit.Object.ClassTypeParser).cast ("@nit.Class", "nit.Class")).toBeInstanceOf (nit.Class);
 });
 
 
