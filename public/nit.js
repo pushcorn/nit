@@ -4491,137 +4491,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
-    nit.defineClass ("nit.Error")
-        .staticMemo ("STACK_SEARCH_PATTERN", function ()
-        {
-            return nit.parseRegExp ("/^\\s*at\\s(new\\s)?" + nit.escapeRegExp (this.name) + "\\s\\(eval.*\\.createFunction/");
-        })
-        .constant ("NATIVE_ERROR_PROPERTIES", nit.keys (new Error, true))
-        .constant ("CODE", "")
-        .constant ("MESSAGE", "")
-        .do (function (nit_Error)
-        {
-            var errorProps = nit.propertyDescriptors (Error, true);
-            var classProps = nit.propertyDescriptors (nit.Class, true);
-
-            nit.each (classProps, function (p, n)
-            {
-                if (!(n in errorProps))
-                {
-                    nit.dp (nit_Error, n, p);
-                }
-
-            }, true);
-
-        })
-        .categorize ()
-        .extend (Error)
-        .do (function (nit_Error)
-        {
-            var errorProps = nit.propertyDescriptors (Error.prototype, true);
-            var classProps = nit.propertyDescriptors (nit.Class.prototype, true);
-
-            nit.each (classProps, function (p, n)
-            {
-                if (!(n in errorProps))
-                {
-                    nit.dp (nit_Error.prototype, n, p);
-                }
-
-            }, true);
-
-            nit_Error.prototype.name = nit_Error.name;
-        })
-        .staticMethod ("code", function (code)
-        {
-            return this.constant ("CODE", code);
-        })
-        .staticMethod ("message", function (message)
-        {
-            return this.constant ("MESSAGE", message);
-        })
-        .onDefineSubclass (function (subclass)
-        {
-            subclass.prototype.name = subclass.name;
-        })
-        .construct (function (args)
-        {
-            var self = this;
-            var cls = self.constructor;
-            var message;
-
-            if (cls == nit.Error && nit.is.str (args[0]))
-            {
-                message = self.t (args[0], args);
-            }
-            else
-            {
-                message = self.t (self.message);
-            }
-
-            var error = new Error (message);
-
-            Object.setPrototypeOf (error, cls.prototype);
-
-            if (Error.captureStackTrace)
-            {
-                Error.captureStackTrace (error, cls);
-            }
-            else
-            {
-                var stack = error.stack.split ("\n");
-                var first = stack.shift ();
-                var lines = [first];
-                var found = false;
-
-                nit.each (stack, function (s)
-                {
-                    if (s.match (cls.STACK_SEARCH_PATTERN))
-                    {
-                        found = true;
-                    }
-                    else
-                    if (found)
-                    {
-                        lines.push (s);
-                    }
-                });
-
-                if (found)
-                {
-                    error.stack = lines.join ("\n");
-                }
-            }
-
-            nit.each (cls.NATIVE_ERROR_PROPERTIES, function (p)
-            {
-                self[p] = error[p];
-            });
-
-            nit.assign (error, self);
-
-            if (self.code)
-            {
-                error.stack += "\nCode: " + self.code;
-            }
-
-            return error;
-        })
-        .field ("message", "string", "The error message.", function (prop, owner)
-        {
-            return owner.constructor.MESSAGE || owner.code;
-        })
-        .field ("code", "string", "The error code.", function (prop, owner)
-        {
-            var ownerCls = owner.constructor;
-
-            return ownerCls.CODE || (ownerCls != nit.Error ? "error." + nit.snakeCase (ownerCls.name.split (".").pop ()) : "");
-        })
-    ;
-
-
     nit.defineClass ("nit.Model")
         .constant ("PROPERTY_TYPE", "nit.Model.Field")
+        .m ("error.model_validation_failed", "The model validation failed.")
         .categorize ()
 
         .defineInnerClass ("Field", "nit.Field", function (Field)
@@ -4653,10 +4525,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 })
                 .method ("validate", function (value, owner, ctx) // owner must be a model
                 {
-                    var ValidationContext = owner.constructor.ValidationContext;
                     var field = this;
-
-                    ctx = ctx instanceof ValidationContext ? ctx : new ValidationContext (ctx);
 
                     return nit.Queue ()
                         .push (function ()
@@ -4684,34 +4553,33 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             var error = qc.error;
                             var source = nit.get (error, "context.source");
 
-                            throw new nit.Model.FieldValidationFailure (
-                                field.name,
-                                source instanceof nit.Constraint ? source.constructor.name : "",
-                               { code: error.code, message: error.message }
-                            );
+                            ctx.violations.push (
+                            {
+                                field: field.name,
+                                constraint: source instanceof nit.Constraint ? source.constructor.name : "",
+                                code: error.code,
+                                message: error.message
+                            });
                         })
                         .run ()
                     ;
                 })
             ;
         })
-        .defineInnerClass ("FieldValidationFailure", "nit.Error", function (FieldValidationFailure)
+        .defineInnerClass ("Violation", function (Violation)
         {
-            FieldValidationFailure
-                .field ("<field>", "string", "The field that failed the validation.")
-                .field ("[constraint]", "string", "The constraint that caused error.")
+            Violation
+                .field ("field", "string", "The field that failed the validation.")
+                .field ("constraint", "string", "The constraint that caused error.")
+                .field ("code", "string", "The error code.")
+                .field ("message", "string", "The error message.")
             ;
         })
-        .defineInnerClass ("ModelValidationFailure", "nit.Error", function (ModelValidationFailure)
+        .defineInnerClass ("ValidationContextBase", "nit.Constraint.ValidationContext", function (ValidationContextBase)
         {
-            ModelValidationFailure
-                .message ("The model validation failed.")
-                .field ("<failures...>", "nit.Model.FieldValidationFailure", "The field validation failures.")
+            ValidationContextBase
+                .property ("violations...", "nit.Model.Violation", "The validation violations.")
             ;
-        })
-        .defineInnerClass ("ValidationContextBase", function (ValidationContextBase)
-        {
-            ValidationContextBase.extend (nit.Constraint.ValidationContext);
         })
         .staticMethod ("defineValidationContext", function (builder)
         {
@@ -4730,7 +4598,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         .method ("validate", function (ctx)
         {
-            var failures = [];
             var self = this;
             var ValidationContext = self.constructor.ValidationContext;
 
@@ -4739,25 +4606,18 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return nit.Queue ()
                 .push (nit.each (self.constructor.getProperties (), function (f)
                 {
-                    return nit.Queue ()
-                        .push (function ()
-                        {
-                            var val = self[f.uncheckedProp];
+                    var val = self[f.uncheckedProp];
 
-                            return f.validate (val, self, ctx);
-                        })
-                        .failure (function (qc)
-                        {
-                            failures.push (qc.error);
-                        })
-                    ;
+                    return f.validate (val, self, ctx);
                 }))
                 .run (function ()
                 {
-                    if (failures.length)
+                    if (ctx.violations.length)
                     {
-                        throw new nit.Model.ModelValidationFailure ({ failures: failures });
+                        self.throw ("error.model_validation_failed");
                     }
+
+                    return ctx;
                 })
             ;
         })

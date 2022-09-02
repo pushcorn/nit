@@ -37,12 +37,11 @@ test ("nit.Model", async () =>
     expect (user.username).toBe ("");
     user.pass = "password";
 
-    let ctx = new nit.Model.ValidationContext ();
     let error;
 
     try { await user.validate (); } catch (e) { error = e; }
     expect (error).toBeInstanceOf (Error);
-    expect (error.code).toBe ("error.model_validation_failure");
+    expect (error.code).toBe ("error.model_validation_failed");
     expect (checkedConstraints).toEqual ([Unique, MinLength]);
 
     //----------------------------------
@@ -57,6 +56,7 @@ test ("nit.Model", async () =>
     //----------------------------------
     error = undefined;
 
+    let ctx = new nit.Model.ValidationContext ();
     try { await user.validate (ctx); } catch (e) { error = e; }
     expect (ctx.owner).toBe (user);
 
@@ -65,16 +65,18 @@ test ("nit.Model", async () =>
     checkedConstraints = [];
     error = undefined;
 
-    try { await user.validate (); } catch (e) { error = e; }
+    ctx = new nit.Model.ValidationContext ();
+    try { await user.validate (ctx); } catch (e) { error = e; }
     expect (checkedConstraints).toEqual ([]);
-    expect (error.failures[0].code).toBe ("error.value_required");
+    expect (ctx.violations[0].code).toBe ("error.value_required");
 
     //----------------------------------
     let field = User.getField ("username");
     error = undefined;
 
-    try { await field.validate ("", user); } catch (e) { error = e; }
-    expect (error.code).toBe ("error.value_required");
+    ctx = new nit.Model.ValidationContext ();
+    await field.validate ("", user, ctx);
+    expect (ctx.violations[0].code).toBe ("error.value_required");
 
     //----------------------------------
     user.username = "janedoe";
@@ -82,7 +84,10 @@ test ("nit.Model", async () =>
     checkedConstraints = [];
     error = undefined;
 
-    try { await user.validate (); } catch (e) { error = e; }
+    ctx = new nit.Model.ValidationContext ();
+    try { await user.validate (ctx); } catch (e) { error = e; }
     expect (error).toBeUndefined ();
     expect (checkedConstraints).toEqual ([Unique, MinLength]);
+
+    expect (await  user.validate ()).toBeInstanceOf (nit.Model.ValidationContext);
 });
