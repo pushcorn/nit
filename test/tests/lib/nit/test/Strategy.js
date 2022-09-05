@@ -30,18 +30,18 @@ test ("nit.test.Strategy.Expector", async () =>
 });
 
 
-test ("nit.test.Strategy.App", () =>
+test ("nit.test.Strategy.Application", () =>
 {
     let root = nit.path.join (nit.os.tmpdir (), "app-" + nit.uuid ());
-    let app = new nit.test.Strategy.App ("", root);
+    let app = new nit.test.Strategy.Application ("", root);
 
     expect (nit.isDir (root)).toBe (true);
 
-    app = new nit.test.Strategy.App ();
+    app = new nit.test.Strategy.Application ();
     expect (app.root.path.split (nit.path.sep).pop ()).toMatch (/^[0-f]{32}$/);
     expect (nit.fs.existsSync (app.root.join ("package.json"))).toBe (true);
 
-    app = new nit.test.Strategy.App ("", test.pathForProject ("project-c"));
+    app = new nit.test.Strategy.Application ("", test.pathForProject ("project-c"));
     expect (nit.fs.existsSync (app.root.path)).toBe (true);
 });
 
@@ -130,6 +130,15 @@ test ("nit.test.Strategy.Mock", () =>
     mock.apply ({ a });
     expect (a.addOne (3)).toBe (9);
     mock.restore ();
+
+    mock = new nit.test.Strategy.Mock ("a", "addOne", function () { throw new Error ("NO!!"); });
+    mock.apply ({ a });
+    expect (() => a.addOne (3)).toThrow ("NO!!");
+    expect (mock.invocations[0].error).toBeInstanceOf (Error);
+
+    mock = new nit.test.Strategy.Mock ("aaa", "addOne");
+    mock.apply ({ a });
+    expect (mock.applied).toBe (false);
 });
 
 
@@ -203,8 +212,10 @@ test ("nit.test.Strategy.snapshot ()", () =>
         error: undefined,
         object: a,
         property: "name",
-        app: undefined,
+        application: undefined,
         args: [],
+        downs: [],
+        ups: [],
         expectors: [],
         resultValidator: undefined,
         mocks: [],
@@ -225,8 +236,10 @@ test ("nit.test.Strategy.snapshot ()", () =>
         error: undefined,
         object: a,
         property: "name",
-        app: undefined,
+        application: undefined,
         args: [],
+        downs: [],
+        ups: [],
         expectors: [],
         resultValidator: undefined,
         mocks: [],
@@ -276,8 +289,10 @@ test ("nit.test.Strategy.reset ()", () =>
         object: a,
         property: "name",
         data: { d: 1 },
-        app: undefined,
+        application: undefined,
         args: [],
+        downs: [],
+        ups: [],
         expectors: [],
         resultValidator: undefined,
         mocks: [],
@@ -287,13 +302,13 @@ test ("nit.test.Strategy.reset ()", () =>
 });
 
 
-test ("nit.test.Strategy.useApp ()", () =>
+test ("nit.test.Strategy.app ()", () =>
 {
     let strategy = new nit.test.Strategy;
 
-    strategy.useApp ("my app");
+    strategy.app ("my app");
 
-    expect (strategy.app.name).toBe ("my app");
+    expect (strategy.application.name).toBe ("my app");
 });
 
 
@@ -432,12 +447,12 @@ test ("nit.test.Strategy.expecting... ()", async () =>
 });
 
 
-test ("nit.test.Strategy.up,down ()", () =>
+test ("nit.test.Strategy.testUp,testDown ()", () =>
 {
     let st = new nit.test.Strategy ();
 
-    expect (st.up ()).toBeUndefined ();
-    expect (st.down ()).toBeUndefined ();
+    expect (st.testUp ()).toBeUndefined ();
+    expect (st.testDown ()).toBeUndefined ();
 });
 
 
@@ -512,11 +527,11 @@ test ("nit.test.Strategy.commit ()", async () =>
     const PropertyStrategy = nit.test.defineStrategy ("Property")
         .field ("<object>", "object")
         .field ("<property>", "string")
-        .up (function ()
+        .testUp (function ()
         {
             PropertyStrategy.upCalled = ~~PropertyStrategy.upCalled + 1;
         })
-        .down (function ()
+        .testDown (function ()
         {
             PropertyStrategy.downCalled = ~~PropertyStrategy.downCalled + 1;
         })
@@ -569,10 +584,10 @@ test ("nit.test.Strategy.commit ()", async () =>
         .commit ()
 
         .should ("pass 4")
-        .useApp ("", test.pathForProject ("project-c"))
+        .app ("", test.pathForProject ("project-c"))
         .before (function ()
         {
-            status.dirChangedForApp = process.cwd () == this.app.root.path;
+            status.dirChangedForApp = process.cwd () == this.application.root.path;
         })
         .expectingPropertyToBe ("object.name", "AAA")
         .commit ()
@@ -580,6 +595,14 @@ test ("nit.test.Strategy.commit ()", async () =>
         .should ("pass 5")
         .chdir (test.pathForProject ("project-a"))
         .only ()
+        .up (function ()
+        {
+            status.upCalled = true;
+        })
+        .down (function ()
+        {
+            status.downCalled = true;
+        })
         .before (function ()
         {
             status.dirChanged = process.cwd () == this.dir;
@@ -603,6 +626,8 @@ test ("nit.test.Strategy.commit ()", async () =>
     expect (expectMock.invocations.length).toBe (3);
     expect (status.dirChangedForApp).toBe (true);
     expect (status.dirChanged).toBe (true);
+    expect (status.upCalled).toBe (true);
+    expect (status.downCalled).toBe (true);
     expect (PropertyStrategy.upCalled).toBe (5);
     expect (PropertyStrategy.downCalled).toBe (5);
 });

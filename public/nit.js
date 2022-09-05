@@ -228,6 +228,47 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    nit.trim.text = function (text)
+    {
+        var t = nit.trim (text instanceof Array ? text.join ("") : text, "\n");
+        var leadingSpace = Array (t.length).join (" ");
+        var first, last;
+
+        return t
+            .split ("\n")
+            .map (function (l, i)
+            {
+                if (l.trim ())
+                {
+                    if (first === undefined)
+                    {
+                        first = i;
+                        last = i;
+                    }
+                    else
+                    {
+                        last = i;
+                    }
+                }
+
+                return l;
+            })
+            .filter (function (l, i) { return i >= first && i <= last; })
+            .map (function (l)
+            {
+                var s = l.match (/^\s*/)[0];
+
+                leadingSpace = l.trim () && s.length < leadingSpace.length ? s : leadingSpace;
+
+                return { l: l.slice (s.length), s: s };
+            })
+            .map (function (ls) { return ls.s.slice (leadingSpace.length) + ls.l; })
+            .join ("\n")
+            .trim ()
+        ;
+    };
+
+
     nit.trim.PATTERN = /^\s+|\s+$/g;
 
 
@@ -2472,13 +2513,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             var p = nit.kvSplit (ns, ".").shift ();
 
-            if (p && !nit.NS[p] && !nit.ns.initializing[p])
-            {
-                nit.ns.initializing[p] = true;
-                nit.ns.init (p);
-                delete nit.ns.initializing[p];
-            }
-
+            nit.ns.init (p);
             nit.set (nit.NS, ns, obj);
 
             return obj;
@@ -2489,13 +2524,24 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         }
     };
 
+
     nit.ns.initializing = {};
     nit.ns.initializer = undefined;
 
 
     nit.ns.init = function (name) // initialize top-level namespace only
     {
-        return (nit.NS[name] = nit.NS[name] || (nit.ns.initializer && nit.ns.initializer (name) || {}));
+        var initializing = nit.ns.initializing;
+        var NS = nit.NS;
+
+        if (!NS[name] && !initializing[name])
+        {
+            initializing[name] = true;
+            NS[name] = nit.ns.initializer && nit.ns.initializer (name) || {};
+            delete initializing[name];
+        }
+
+        return NS[name];
     };
 
 
@@ -3560,8 +3606,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             });
         }
         ,
-        categorize: function (prefix)
+        categorize: function (prefix, local) // eslint-disable-line no-unused-vars
         {
+            var declCfg = nit.typedArgsToObj (arguments,
+            {
+                prefix: "string",
+                local: "boolean"
+            });
+
             var self  = this;
             var ns    = self.name.split (".");
             var type  = ns.pop ();
@@ -3578,6 +3630,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     pargs: "array"
                 });
 
+                local = nit.is.undef (cfg.local) ? declCfg.local : cfg.local;
                 superclass = cfg.superclass || self;
 
                 if (cfg.superclass
@@ -3591,12 +3644,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     self.throw ("error.invalid_superclass_type", cfg, { parent: self.name });
                 }
 
-                if (cfg.name && prefix)
+                if (cfg.name && declCfg.prefix)
                 {
-                    cfg.name = prefix + "." + cfg.name;
+                    cfg.name = declCfg.prefix + "." + cfg.name;
                 }
 
-                return superclass.defineSubclass (cfg.name, cfg.construct, cfg.local, cfg.pargs);
+                return superclass.defineSubclass (cfg.name, cfg.construct, local, cfg.pargs);
             }
 
             nit.dpv (defineSubclass, "name", fqn, true, false);

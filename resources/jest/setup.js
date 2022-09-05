@@ -239,4 +239,58 @@ test.mockConsoleLog = function (all)
 };
 
 
+test.mock = function (object, method, mockFn, count)
+{
+    count = count || 1;
+
+    if (!(mockFn instanceof Function))
+    {
+        let retval = mockFn;
+
+        mockFn = function ()
+        {
+            return retval;
+        };
+    }
+
+    let mock =
+    {
+        invocations: [],
+        originalMethod: object[method],
+        restore: function ()
+        {
+            object[method] = mock.originalMethod;
+        }
+    }
+
+    object[method] = function ()
+    {
+        --count;
+
+        let result, error, args = Array.prototype.slice.call (arguments);
+
+        try
+        {
+            return (result = mockFn.apply (object, args));
+        }
+        catch (e)
+        {
+            error = e;
+        }
+        finally
+        {
+            mock.invocations.push ({ result, error, args });
+
+            if (!count)
+            {
+                mock.restore ();
+            }
+        }
+    };
+
+    return mock;
+};
+
+
+
 global.nit = test.nit ();

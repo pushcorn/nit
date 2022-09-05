@@ -355,3 +355,40 @@ test ("nit.Command.defineContext ()", async () =>
     ctx = new Add.Context;
     expect (ctx.input).toBeUndefined ();
 });
+
+
+test ("nit.Command.confirm ()", async () =>
+{
+    const Rmdir = nit.defineClass ("Rmdir", "nit.Command")
+        .m ("info.confirmation", "Are you sure you want to delete the directory?")
+        .defineInput (Input =>
+        {
+            Input
+                .option ("<file>", "file")
+            ;
+        })
+    ;
+
+    const Stdio = nit.require ("nit.utils.Stdio");
+    let mesg;
+
+    Stdio.confirm = function (message)
+    {
+        mesg = message;
+    };
+
+    await Rmdir ().confirm ("info.confirmation");
+    expect (mesg).toBe (nit.m.MESSAGES["Rmdir|info.confirmation"]);
+});
+
+
+test ("nit.Command.log ()", async () =>
+{
+    const Test = nit.defineClass ("Test", "nit.Command")
+        .m ("info.message", "Hello %{name}!")
+    ;
+
+    let mock = test.mock (nit, "log");
+    new Test ().log ("info.message", { name: "John" });
+    expect (mock.invocations[0].args[0]).toEqual ("Hello John!");
+});

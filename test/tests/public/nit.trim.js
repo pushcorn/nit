@@ -6,3 +6,30 @@ test ("nit.trim() removes the leading and trailing spaces from a string.", () =>
     expect (nit.trim ("   a   ")).toBe ("a");
     expect (nit.trim ("--a----", "-")).toBe ("a");
 });
+
+
+test ("nit.trim.text () trims a multi-line text block", () =>
+{
+    expect (nit.trim.text (
+    [
+    `
+    AB
+    CD
+    `,
+    `
+    EF
+    GH
+    `
+    ])).toBe (`AB
+CD
+
+EF
+GH`);
+
+    expect (nit.trim.text (
+    `
+the only line
+    `
+    ))
+    .toBe ("the only line");
+});

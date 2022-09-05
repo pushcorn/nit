@@ -291,7 +291,7 @@ test ("nit.lookupClass ()", () =>
     jest.resetModules ();
     let nit = require (test.HOME);
 
-    expect (nit.lookupClass ("d")).toBeUndefined ();
+    expect (nit.lookupClass ("d")).toBeInstanceOf (Promise);
 });
 
 

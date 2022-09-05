@@ -29,6 +29,7 @@ test ("nit.Dir", async () =>
     expect (n.isDirectory ()).toBe (true);
 
     expect (dir4.read ()).toEqual (["file", "nested"]);
+    expect (await dir4.readAsync ()).toEqual (["file", "nested"]);
 
     dir = nit.new ("nit.Dir", path = nit.path.join (nit.os.tmpdir (), prefix, "a"));
     dir.rm ();
@@ -41,4 +42,7 @@ test ("nit.Dir", async () =>
     await dir.writeFileAsync ("a/b/d.txt", content);
     expect (await dir.readFileAsync ("a/b/d.txt")).toBe (content);
     expect (dir.exists ()).toBe (true);
+
+    dir = nit.new ("nit.Dir", "a");
+    expect (dir.join ("b/c", true)).toBe ("a/b/c");
 });
