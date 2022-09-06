@@ -10,7 +10,7 @@ test ("nit.Class", () =>
 
     expect (() => User.constraint ("minInt", 10)).toThrow (/constraint.*min.*not defined/i);
 
-    nit.defineConstraint ("MinInt")
+    nit.defineConstraint ("constraints.MinInt")
         .throws ("less_than_min", "The minimum value of '%{property.name}' is '%{constraint.min}'.")
         .property ("<min>", "integer")
         .appliesTo ("integer")

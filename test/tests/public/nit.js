@@ -64,10 +64,10 @@ test ("nit.listComponents ()", () =>
     const newNit = global.nit;
 
     let constraints = newNit.listComponents ("constraints");
-    expect (constraints.some (c => c.name == "nit:exclusive")).toBe (true);
+    expect (constraints.some (c => c.name == "exclusive")).toBe (true);
 
     constraints = newNit.listComponents ("constraints", true);
-    expect (constraints.some (n => n == "nit:exclusive")).toBe (true);
+    expect (constraints.some (n => n == "exclusive")).toBe (true);
 
     delete global.module;
     delete global.document;

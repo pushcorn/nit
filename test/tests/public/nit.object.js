@@ -529,13 +529,6 @@ test ("nit.listSubclassesOf ()", () =>
 });
 
 
-test ("nit.lookupSubclassOf ()", () =>
-{
-    expect (nit.lookupSubclassOf (nit.Constraint, "nit.constraints.Max")).toBe (nit.constraints.Max);
-    expect (nit.lookupSubclassOf (nit.Constraint, "max")).toBe (nit.constraints.Max);
-});
-
-
 test ("nit.Object.invokeParentStaticMethod ()", () =>
 {
     let parentMethodCalled = false;

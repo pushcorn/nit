@@ -2627,23 +2627,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
-    nit.lookupSubclassOf = function (superclass, name)
-    {
-        var simpleName = ~name.indexOf (".") ? "" : nit.pascalCase (name);
-
-        for (var n in nit.CLASSES)
-        {
-            var cls = nit.CLASSES[n];
-
-            if (nit.is.subclassOf (cls, superclass)
-                && (simpleName ? (n.split (".").pop () == simpleName) : (n == name)))
-            {
-                return cls;
-            }
-        }
-    };
-
-
     nit.new = function (cls, args)
     {
         if (nit.is.str (cls))
@@ -4307,7 +4290,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     ;
 
 
-    nit.defineConstraint ("nit.constraints.Exclusive")
+    nit.defineConstraint ("constraints.Exclusive")
         .constant ("VALIDATE_ALL", true)
         .throws ("error.exclusive_fields_specified", "Exactly one of following fields must be specified: %{constraint.fields.join (', ')}. (%{specified} specified)")
         .property ("<fields...>")
@@ -4330,7 +4313,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         });
 
 
-    nit.defineConstraint ("nit.constraints.Choice")
+    nit.defineConstraint ("constraints.Choice")
         .throws ("error.invalid_choice", "The value of '%{property.name}' is not a valid choice. (Given: '%{value}', Allowed: %{constraint.choiceValues.join (', ')})")
         .property ("<choices...>", "any") // A choice can either be a value or an object a 'value' field.
         .getter ("choiceValues", function ()
@@ -4349,7 +4332,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         });
 
 
-    nit.defineConstraint ("nit.constraints.Min")
+    nit.defineConstraint ("constraints.Min")
         .throws ("error.less_than_min", "The minimum value of '%{property.name}' is '%{constraint.min}'.")
         .property ("<min>", "integer")
         .validate (function (value, ctx)
@@ -4358,7 +4341,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         });
 
 
-    nit.defineConstraint ("nit.constraints.Subclass")
+    nit.defineConstraint ("constraints.Subclass")
         .throws ("error.not_a_subclass", "The value of '%{property.name}' is not a subclass of '%{constraint.superclass}'.")
         .m ("error.invalid_superclass", "The superclass '%{superclass}' is invalid.")
         .property ("<superclass>", "string")
@@ -4375,7 +4358,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         });
 
 
-    nit.defineConstraint ("nit.constraints.Type")
+    nit.defineConstraint ("constraints.Type")
         .throws ("error.invalid_type", "The value of '%{property.name}' should be of one of the following type: %{constraint.types.join (', ')}.")
         .property ("<types...>", "string", "The allowed types.")
         .validate (function (value, ctx)
@@ -4444,7 +4427,19 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .method ("addConstraint", function (name)
         {
             var self = this;
-            var cls = nit.lookupSubclassOf (nit.Constraint, name);
+            var cls;
+
+            try
+            {
+                cls = nit.lookupComponent ("constraints", name, nit.Constraint);
+            }
+            catch (e)
+            {
+                if (e.code != "error.component_not_found")
+                {
+                    throw e;
+                }
+            }
 
             if (!cls)
             {
@@ -4553,6 +4548,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .field ("<name>", "string", "The component name.")
         .field ("<className>", "string", "The component's class name.")
         .field ("namespace", "string", "The component's namespace.")
+        .staticMethod ("normalizeName", function (name)
+        {
+            return name.split (/[.:/]/)
+                .map (nit.kababCase)
+                .join (":")
+            ;
+        })
         .construct (function ()
         {
             nit.COMPONENT_DESCRIPTORS[this.className] = this;
@@ -4594,7 +4596,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var cn = ns.pop ();
             var matched = ns.pop () == category;
 
-            if (!matched || !ns.length)
+            if (!matched)
             {
                 return nit.each.SKIP;
             }
@@ -4629,9 +4631,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.lookupComponent = function (category, name, superclass)
     {
+        var nn = nit.ComponentDescriptor.normalizeName (name);
+
         var component = nit.find (nit.listComponents (category), function (c)
         {
-            return c.name == name || c.className == name;
+            return c.name == nn || c.className == name;
         });
 
         var cls;
@@ -4641,9 +4645,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             nit.throw ("error.component_not_found", { component: name });
         }
 
-        if (superclass && !nit.is.subclassOf (cls, nit.lookupClass (superclass)))
+        superclass = nit.is.func (superclass) ? superclass : nit.lookupClass (superclass);
+
+        if (superclass && !nit.is.subclassOf (cls, superclass))
         {
-            nit.throw ("error.invalid_component", { component: name, superclass: superclass });
+            nit.throw ("error.invalid_component", { component: name, superclass: superclass.name });
         }
 
         return cls;

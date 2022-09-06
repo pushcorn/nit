@@ -2,7 +2,7 @@ test ("nit.Model", async () =>
 {
     let checkedConstraints = [];
 
-    const Unique = nit.defineConstraint ("Unique")
+    const Unique = nit.defineConstraint ("constraints.Unique")
         .throws ("error.not_unique", "The '%{property.name}' has been used.")
         .validate (async function (value)
         {
@@ -12,7 +12,7 @@ test ("nit.Model", async () =>
         })
     ;
 
-    const MinLength = nit.defineConstraint ("MinLength")
+    const MinLength = nit.defineConstraint ("constraints.MinLength")
         .throws ("error.insufficient_length", "The '%{property.name}' is too short.")
         .validate (function (value)
         {

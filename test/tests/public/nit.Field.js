@@ -13,7 +13,7 @@ test ("nit.Field", () =>
 
     expect (() => new nit.Field ("<>")).toThrow (/field name is required/);
 
-    let Max = nit.defineConstraint ("MaxInt")
+    let Max = nit.defineConstraint ("constraints.MaxInt")
         .appliesTo ("integer")
         .throws ("error.greater_than_max", "The value is greater than %{constraint.max}.")
         .property ("max", "integer", 10)
@@ -23,7 +23,10 @@ test ("nit.Field", () =>
         })
     ;
 
+    nit.defineClass ("constraints.InvalidCons");
+
     expect (() => field.addConstraint ("UndefCons")).toThrow (/constraint.*not defined/);
+    expect (() => field.addConstraint ("InvalidCons")).toThrow (/not an instance of nit.Constraint/);
 
     let obj = {};
 
