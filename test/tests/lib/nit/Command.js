@@ -15,7 +15,7 @@ test ("nit.Command.help ()", async () =>
 
     TestCmd.defaults ({ choice: "first choice" });
 
-    expect (TestCmd.help ()).toBe (`A test command.
+    expect (TestCmd.help ().build ()).toBe (`A test command.
 
 Usage: nit test-cmd [file]
 
@@ -31,7 +31,7 @@ Options:
 
     const NoArgs = nit.lookupCommand ("no-args");
 
-    expect (NoArgs.help ()).toBe (`Description not available.
+    expect (NoArgs.help ().build ()).toBe (`Description not available.
 
 Usage: nit no-args`
 );
@@ -41,7 +41,7 @@ Usage: nit no-args`
 
     HelloWorld.defaults ({ message: "hello!" });
 
-    expect (HelloWorld.help ()).toBe (`Description not available.
+    expect (HelloWorld.help ().build ()).toBe (`Description not available.
 
 Usage: nit hello-world [message]
 

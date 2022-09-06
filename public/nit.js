@@ -104,6 +104,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         CLASSES: {},
         CLASS_REF_PATTERN: /^@([a-zA-Z][a-zA-Z0-9]*\.)*([A-Z][a-z0-9]*)+$/,
         CLASS_TAG: "@class",
+        COMPONENT_DESCRIPTORS: {},
         CONFIG: {},
         ENV: {},
         ERROR_CODE_PATTERN: /^[a-z0-9_]+(\.[a-z0-9_]+)*$/,
@@ -2435,7 +2436,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.m.SCOPE_DELIMITER = "|";
     nit.m.MESSAGES = {};
 
-    nit.m ("error.class_not_defined", "The class '%{name}' was not defined.");
+    nit
+        .m ("error.class_not_defined", "The class '%{name}' was not defined.")
+        .m ("error.component_not_found", "The component '%{component}' was not found.")
+        .m ("error.invalid_component", "The component '%{component}' is not an instance of %{superclass}.")
+    ;
 
 
     nit.t = function () // (scope, key, args...) or (key, args...)
@@ -4541,6 +4546,107 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.ns.initializer = function (name)
     {
         return nit.lookupClass (name) || nit.defineClass (name);
+    };
+
+
+    nit.defineClass ("nit.ComponentDescriptor")
+        .field ("<name>", "string", "The component name.")
+        .field ("<className>", "string", "The component's class name.")
+        .field ("namespace", "string", "The component's namespace.")
+        .construct (function ()
+        {
+            nit.COMPONENT_DESCRIPTORS[this.className] = this;
+        })
+        .method ("compareTo", function (that)
+        {
+            var na = this.name.split (":");
+            var nb = that.name.split (":");
+
+            if (na.length == nb.length)
+            {
+                for (var i = 0; i < na.length; ++i)
+                {
+                    var va = na[i];
+                    var vb = nb[i];
+                    var res = va.localeCompare (vb);
+
+                    if (res != 0)
+                    {
+                        return res;
+                    }
+                }
+
+                return 0;
+            }
+            else
+            {
+                return na.length - nb.length;
+            }
+        })
+    ;
+
+
+    nit.listComponents = function (category, returnNames)
+    {
+        var components = nit.each (nit.CLASSES, function (cls, className)
+        {
+            var ns = className.split (".");
+            var cn = ns.pop ();
+            var matched = ns.pop () == category;
+
+            if (!matched || !ns.length)
+            {
+                return nit.each.SKIP;
+            }
+            else
+            {
+                ns = ns.concat (cn).map (nit.kababCase);
+
+                return new nit.ComponentDescriptor (
+                {
+                    name: ns.join (":"),
+                    className: className,
+                    namespace: ns.slice (0, -1).join (":")
+                });
+            }
+        });
+
+        return returnNames ? components.map (function (c) { return c.name; }) : components;
+    };
+
+
+    nit.lookupComponents = function (category, superclass)
+    {
+        superclass = nit.is.func (superclass) ? superclass : nit.lookupClass (superclass);
+
+        return nit
+            .listComponents (category)
+            .map (function (c) { return nit.lookupClass (c.className); })
+            .filter (function (cls) { return nit.is.subclassOf (cls, superclass); })
+        ;
+    };
+
+
+    nit.lookupComponent = function (category, name, superclass)
+    {
+        var component = nit.find (nit.listComponents (category), function (c)
+        {
+            return c.name == name || c.className == name;
+        });
+
+        var cls;
+
+        if (!component || !(cls = nit.lookupClass (component.className)))
+        {
+            nit.throw ("error.component_not_found", { component: name });
+        }
+
+        if (superclass && !nit.is.subclassOf (cls, nit.lookupClass (superclass)))
+        {
+            nit.throw ("error.invalid_component", { component: name, superclass: superclass });
+        }
+
+        return cls;
     };
 
 

@@ -52,3 +52,23 @@ test ("nit creates module.exports setter in browser env.", () =>
     delete global.module;
     delete global.document;
 });
+
+
+test ("nit.listComponents ()", () =>
+{
+    jest.resetModules ();
+
+    global.document = {};
+    delete global.nit;
+    require (test.PUBLIC_NIT_PATH);
+    const newNit = global.nit;
+
+    let constraints = newNit.listComponents ("constraints");
+    expect (constraints.some (c => c.name == "nit:exclusive")).toBe (true);
+
+    constraints = newNit.listComponents ("constraints", true);
+    expect (constraints.some (n => n == "nit:exclusive")).toBe (true);
+
+    delete global.module;
+    delete global.document;
+});
