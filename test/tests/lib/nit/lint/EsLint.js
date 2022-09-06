@@ -4,8 +4,8 @@ test.method ("nit.lint.EsLint", "findRc", true)
     .commit ()
 
     .reset ()
-    .given (nit.path.join (nit.NIT_HOME, "test/resources/project-c"))
-    .returns (nit.path.join (nit.NIT_HOME, "test/resources/project-c/.eslintrc.json"))
+    .given (nit.path.join (nit.HOME, "test/resources/project-c"))
+    .returns (nit.path.join (nit.HOME, "test/resources/project-c/.eslintrc.json"))
     .commit ()
 ;
 
@@ -14,7 +14,7 @@ test.method (nit.new ("nit.lint.EsLint",
     {
         options:
         {
-            overrideConfigFile: nit.path.join (nit.NIT_HOME, "resources/eslint/eslintrc.json")
+            overrideConfigFile: nit.path.join (nit.HOME, "resources/eslint/eslintrc.json")
         }
     }), "lint")
 

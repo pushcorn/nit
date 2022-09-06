@@ -192,7 +192,7 @@ test.setupCliMode = async function ()
 
     if (!initOnly)
     {
-        process.argv = ["node", global.nit.NIT_HOME].concat (command || []);
+        process.argv = ["node", global.nit.HOME].concat (command || []);
     }
     else
     {

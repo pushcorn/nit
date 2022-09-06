@@ -4,7 +4,7 @@ test ("exts/nit.Compgen.js", async () =>
 
     process.env.COMP_LINE = "command";
     process.env.COMP_POINT = "command".length;
-    process.argv = ["node", global.nit.NIT_HOME];
+    process.argv = ["node", global.nit.HOME];
     console.log = function () { logContent = global.nit.array (arguments); };
 
     const nit = await test.reloadNit ();

@@ -35,7 +35,7 @@ test ("nit.ASSET_PATHS", async () =>
         no_path.join (test.HOME, "test"),
         testProjectPath,
         no_path.join (testProjectPath, "packages/package-a"),
-        nit.NIT_HOME
+        nit.HOME
     ]);
 
     delete process.env.NIT_PROJECT_PATHS;
@@ -417,7 +417,7 @@ test ("nit.listComponentPaths", async () =>
         }
         ,
         {
-            path: no_path.join (nit.NIT_HOME, "lib/commands"),
+            path: no_path.join (nit.HOME, "lib/commands"),
             classNamespace: "commands",
             namespace: ""
         }
@@ -513,7 +513,7 @@ test ("nit.runCommand", async () =>
 
             Object.getOwnPropertyDescriptor (nit, "PROJECT_PATHS").get.reset ();
 
-            nit.dpg (nit, "NIT_HOME", nit.path.join (test.pathForProject ("project-c"), "node_modules/@pushcorn/nit"), true);
+            nit.dpg (nit, "HOME", nit.path.join (test.pathForProject ("project-c"), "node_modules/@pushcorn/nit"), true);
 
             expect (nit.PROJECT_PATHS.filter (p => p.endsWith ("node_modules/@pushcorn/nit")).length).toBe (1);
             expect (nit.PROJECT_PATHS.filter (p => p.endsWith ("node_modules/@pushcorn/ui")).length).toBe (1);
@@ -659,7 +659,7 @@ test ("nit.lookupComponents ()", async () =>
 
 test ("nit.absPath ()", () =>
 {
-    expect (nit.absPath ("aa/bb")).toBe (nit.path.join (nit.NIT_HOME, "aa/bb"));
+    expect (nit.absPath ("aa/bb")).toBe (nit.path.join (nit.HOME, "aa/bb"));
     expect (nit.absPath ("~/aa/bb")).toBe (nit.path.join (nit.USER_HOME, "aa/bb"));
     expect (nit.absPath ("//aa//bb")).toBe ("/aa/bb");
 });

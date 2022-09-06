@@ -9,6 +9,6 @@ do
     [[ $SOURCE != /* ]] && SOURCE="$BIN_DIR/$SOURCE"
 done
 
-export NIT_HOME=$(dirname $(cd $(dirname "$SOURCE") && pwd -P))
+NIT_HOME=$(dirname $(cd $(dirname "$SOURCE") && pwd -P))
 
 /usr/bin/env node --preserve-symlinks "$NIT_HOME" "$@"
