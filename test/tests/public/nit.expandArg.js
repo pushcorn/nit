@@ -10,6 +10,8 @@ test ("nit.expandArg ()", async () =>
 
     nit.config ("api.endpoint..tpl", "{{defaults.api.endpoint.{{env}}}}");
     expect (nit.CONFIG.api.endpoint).toBe ("https://prod.local/api");
+    nit.config ("api.endpoint2..fmt", "%{defaults.api.endpoint.%{env}}");
+    expect (nit.CONFIG.api.endpoint2).toBe ("https://prod.local/api");
 
     nit.config ("vals.arr..val", "[1, 2]");
     expect (nit.CONFIG.vals.arr).toEqual ([1, 2]);

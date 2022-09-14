@@ -20,14 +20,14 @@ test ("nit.test.Mock", async () =>
     await database.connect ();
     await database.query ("SELECT * FROM table_a");
 
-    expect (database.connect.invocations[0]).toEqual (
+    expect (database.connect.invocations[0].toPojo ()).toEqual (
     {
         snapshot: {},
         args: [],
         result: true
     });
 
-    expect (database.query.invocations[0]).toEqual (
+    expect (database.query.invocations[0].toPojo ()).toEqual (
     {
         snapshot: { count: 3 },
         args: ["SELECT * FROM table_a"],
@@ -40,7 +40,7 @@ test ("nit.test.Mock", async () =>
     database.query.reset ();
     expect (database.query.invocations).toEqual ([]);
 
-    expect (database.connect.invocations[0]).toEqual (
+    expect (database.connect.invocations[0].toPojo ()).toEqual (
     {
         snapshot: {},
         args: [],

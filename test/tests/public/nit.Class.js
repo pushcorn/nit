@@ -50,12 +50,3 @@ test ("nit.Class", () =>
     expect (nit.clone (new User ("007", { age: 20 }))).toEqual ({ id: "007", age: 20 });
     expect (User.getField ("age").name).toBe ("age");
 });
-
-
-test ("nit.Class.ns ()", () =>
-{
-    nit.User.ns ("api");
-
-    expect (nit.User.api).toBeInstanceOf (Function);
-    expect (nit.getSuperclass (nit.User.api)).toBe (nit.Class);
-});

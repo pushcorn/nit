@@ -194,6 +194,8 @@ test ("nit.requireModule ()", () =>
         value: "a test value"
     });
 
+    expect (() => nit.requireModule ("jest-this")).toThrow (/module.*not found/);
+    expect (() => nit.requireModule ("test/resources/invalid.js")).toThrow (/parsing error/);
 });
 
 
@@ -209,6 +211,7 @@ test ("nit.require ()", async () =>
     expect (nit.require ("Work")).toBeInstanceOf (Function);
     expect (() => nit.require ("Work2")).toThrow (/file.*does not exist/);
     expect (() => nit.require ("InvalidClass")).toThrow (/load error/);
+    expect (nit.projectExtenstionLoaded).toBe (true);
 
     nit.require ("c");
     await nit.sleep (10);
@@ -662,4 +665,90 @@ test ("nit.absPath ()", () =>
     expect (nit.absPath ("aa/bb")).toBe (nit.path.join (nit.HOME, "aa/bb"));
     expect (nit.absPath ("~/aa/bb")).toBe (nit.path.join (nit.USER_HOME, "aa/bb"));
     expect (nit.absPath ("//aa//bb")).toBe ("/aa/bb");
+});
+
+
+test ("nit arg expander: configFile", () =>
+{
+    nit.config ("test.config..configFile", "test/resources/test-config.json");
+
+    expect (nit.CONFIG.test.config).toEqual ({
+        "name": "test",
+        "value": "a test value"
+    });
+});
+
+test ("nit arg expander: file", () =>
+{
+    nit.config ("test.config..file", "test/resources/test-config.json");
+
+    expect (nit.CONFIG.test.config).toBe (`{
+    "name": "test",
+    "value": "a test value"
+}
+`);
+});
+
+test ("nit arg expander: fileAsync", async () =>
+{
+    await nit.config ("test.config..fileAsync", "test/resources/test-config.json");
+
+    expect (nit.CONFIG.test.config).toBe (`{
+    "name": "test",
+    "value": "a test value"
+}
+`);
+});
+
+
+test ("nit.Compgen completers", async () =>
+{
+    let logContent;
+
+    process.env.COMP_LINE = "command";
+    process.env.COMP_POINT = "command".length;
+    process.argv = ["node", global.nit.HOME];
+    console.log = function () { logContent = global.nit.array (arguments); };
+
+    const nit = await test.reloadNit ();
+    const Completer = nit.lookupClass ("nit.compgen.Completer");
+
+    expect (nit.CLASSES["nit.compgen.completers.File"].superclass).toBe (Completer);
+    expect (nit.CLASSES["nit.compgen.completers.Choice"].superclass).toBe (Completer);
+    expect (logContent).toEqual (["NONE"]);
+});
+
+
+test ("nit.Object type registration", () =>
+{
+    const Copy = nit.defineClass ("Copy")
+        .field ("[from]", "file")
+    ;
+
+    expect (new Copy ("aa").from).toBe ("aa");
+    expect (new Copy ().from).toBe ("");
+
+    let copy = new Copy ();
+
+    expect (() => (copy.from = {})).toThrow (/should be a file/);
+    expect (() => (copy.from = Copy)).toThrow (/should be a file/);
+});
+
+
+test ("nit.Object.use ()", () =>
+{
+    const B = nit.defineClass ("B");
+    const A = nit.defineClass ("A")
+        .use ("B")
+        .use ("nit.Dir")
+        .use ("nit:function", "strategies", nit.test.Strategy)
+        .use ("path")
+        .use ("package.json")
+    ;
+
+    expect (A.Dir).toBe (nit.Dir);
+    expect (A.Function).toBe (nit.test.strategies.Function);
+    expect (A.B).toBe (B);
+    expect (A.path).toBe (require ("path"));
+    expect (A["package.json"]).toEqual (expect.objectContaining ({ bin: "./bin/nit" }));
 });

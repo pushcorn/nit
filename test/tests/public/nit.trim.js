@@ -32,4 +32,15 @@ the only line
     `
     ))
     .toBe ("the only line");
+
+    let key = "mykey";
+    let val = "myvalue";
+
+    expect (nit.trim.text`
+    KEY=${key}
+    VALUE=${val}
+    `)
+    .toBe (`KEY=mykey
+VALUE=myvalue`);
+
 });

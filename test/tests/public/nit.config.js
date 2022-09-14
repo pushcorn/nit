@@ -57,4 +57,20 @@ test ("nit.config ()", async () =>
     expect (nit.config ("cpu")).toBe ("arm");
     expect (nit.config ("a.b")).toBe (3);
     expect (nit.config ()).toBe (nit.CONFIG);
+
+
+    nit.config ("test.MyClass*",
+    {
+        "opt1..tpl": "{{cpu}}",
+        "opt2": "value2"
+    });
+
+    expect (nit.CONFIG.test).toEqual (
+    {
+        MyClass:
+        {
+            opt1: "arm",
+            opt2: "value2"
+        }
+    });
 });

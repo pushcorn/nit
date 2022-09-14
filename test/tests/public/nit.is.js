@@ -93,4 +93,7 @@ test ("nit.is () checks the type of the input.", function ()
     expect (nit.is.truthy (0)).toBe (false);
 
     expect (nit.is.not.truthy (0)).toBe (true);
+
+    expect (nit.is.any (0)).toBe (true);
+    expect (nit.is.any ({})).toBe (true);
 });

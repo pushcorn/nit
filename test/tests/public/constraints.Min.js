@@ -1,4 +1,4 @@
-test ("nit.constraints.Min", () =>
+test ("constraints.Min", () =>
 {
     let Car = nit.defineClass ("Car")
         .field ("<speed>", "integer")

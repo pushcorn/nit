@@ -15,11 +15,12 @@ test.nit = function ()
 
     test.HOME = home;
     test.PUBLIC_NIT_PATH = path.join (home, "public/nit.js");
+    test.ORIGINAL_NIT_PROJECT_PATHS = process.env.NIT_PROJECT_PATHS || "";
     test.TEST_PROJECT_PATH = path.join (process.cwd (), "test");
 
     process._argv = process.argv;
     process.argv = [];
-    process.env.NIT_PROJECT_PATHS = test.TEST_PROJECT_PATH;
+    process.env.NIT_PROJECT_PATHS = test.ORIGINAL_NIT_PROJECT_PATHS + ":" + test.TEST_PROJECT_PATH;
     jest.resetModules ();
 
     const nit = require (home);
@@ -28,7 +29,7 @@ test.nit = function ()
     nit.require ("nit.test.Mock");
 
     nit
-        .lookupComponents ("test/strategies", Strategy)
+        .lookupComponents ("strategies", Strategy)
         .forEach (cls =>
         {
             test[nit.camelCase (cls.name.split (".").pop ())] = cls;

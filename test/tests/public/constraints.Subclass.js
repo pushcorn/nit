@@ -1,4 +1,4 @@
-test ("nit.constraints.Subclass", () =>
+test ("constraints.Subclass", () =>
 {
     let Shape = nit.defineClass ("Shape");
     let Circle = Shape.defineSubclass ("Circle");

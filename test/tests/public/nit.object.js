@@ -100,7 +100,7 @@ test ("nit.Object", () =>
       '$__func': undefined
     });
 
-    nit.Object.dpv (obj, "age", "integer", 10);
+    nit.Object.defineProperty (obj, "age", "integer", 10);
     expect (Object.getOwnPropertyDescriptor (obj, "age").get[nit.Object.kProperty]).toMatchObject ({ array: false, name: "age", defval: 10 });
 
     MyClass.constant ("MAX_SIZE", 20);
@@ -183,8 +183,9 @@ test ("nit.Object", () =>
 
     MyClass.categorize ();
     expect (nit.defineMyClass).toBeInstanceOf (Function);
-    let MySubclass2 = nit.defineMyClass ("MySubclass2");
+    let MySubclass2 = nit.defineMyClass ("MySubclass2", true);
     expect (nit.getSuperclass (MySubclass2)).toBe (MyClass);
+    expect (nit.CLASSES.MySubclass2).toBeUndefined ();
 
     MyClass.categorize ("classes");
     let MyNewSubclass = nit.defineMyClass ("MyNewSubclass");
@@ -584,6 +585,8 @@ test ("nit.Object.invokeParentMethod ()", () =>
 
 test ("nit.Object.toPojo ()", () =>
 {
+    expect (nit.Object.toPojo (null)).toBe (null);
+
     let now = new Date ();
 
     const Owner = nit.defineClass ("Owner")
@@ -605,17 +608,6 @@ test ("nit.Object.toPojo ()", () =>
     doc.version = "9a38b";
 
     expect (doc.toPojo ()).toEqual (
-    {
-        id: "12345",
-        version: "9a38b",
-        owner:
-        {
-            username: "Somebody",
-            updatedAt: now
-        }
-    });
-
-    expect (doc.toPojo (true)).toEqual (
     {
         id: "12345",
         owner:
@@ -895,4 +887,10 @@ test ("nit.Object.onDefineSubclass ()", () =>
     const BB = AA.defineSubclass ("BB");
 
     expect (AA.subclasses).toEqual ([BB]);
+});
+
+
+test ("nit.Object.simpleName", () =>
+{
+    expect (nit.Object.simpleName).toBe ("Object");
 });
