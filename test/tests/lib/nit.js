@@ -506,13 +506,13 @@ test ("nit.runCommand", async () =>
     await testRunCommand ("test-cmd", test.pathForProject ("project-c"))
         .lpush (function (ctx)
         {
-            ctx.log = test.mockConsoleLog ();
+            ctx.mock = test.mock (console, "log");
         })
         .run ((ctx) =>
         {
             let nit = ctx.nit;
 
-            expect (ctx.log.restore ()).toEqual (["Test command for project-c."]);
+            expect (ctx.mock.invocations[0].args).toEqual (["Test command for project-c."]);
 
             Object.getOwnPropertyDescriptor (nit, "PROJECT_PATHS").get.reset ();
 
@@ -526,31 +526,23 @@ test ("nit.runCommand", async () =>
     await testRunCommand ("empty-result", test.pathForProject ("project-c"))
         .lpush (function (ctx)
         {
-            ctx.log = test.mockConsoleLog ();
+            ctx.mock = test.mock (console, "log");
         })
         .run ((ctx) =>
         {
-            expect (ctx.log.restore ()).toEqual ([]);
+            expect (ctx.mock.invocations).toEqual ([]);
         })
     ;
 
     await testRunCommand ("test-cmd")
         .lpush (function (ctx)
         {
-            ctx.log = test.mockConsoleLog ();
+            ctx.mock = test.mock (console, "log");
         })
         .run ((ctx) =>
         {
-            expect (ctx.log.restore ()).toEqual (["This is the test command."]);
+            expect (ctx.mock.invocations[0].args).toEqual (["This is the test command."]);
         })
-    ;
-
-    await testRunCommand ()
-        .failure ((ctx) =>
-        {
-            expect (ctx.error.message).toMatch (/please specify a command/i);
-        })
-        .run ()
     ;
 
     await testRunCommand ("non-command")
@@ -568,6 +560,16 @@ test ("nit.runCommand", async () =>
         })
         .run ()
     ;
+
+
+    let Console = nit.require ("commands.Console");
+    let mock = test.mock (nit, "lookupCommand", function ()
+    {
+        return Console;
+    });
+    test.mock (Console, "run");
+    await nit.runCommand ();
+    expect (mock.invocations[0].args).toEqual (["console"]);
 });
 
 
@@ -629,12 +631,12 @@ test ("nit.ComponentDescriptor", async () =>
 
 test ("nit.runCompgen ()", async () =>
 {
-    const log = test.mockConsoleLog ();
+    let mock = test.mock (console, "log");
     const nit = await test.setupCompletionMode ("project-a");
 
     await nit.runCompgen ();
 
-    expect (log.restore ()).toEqual (["NONE"]);
+    expect (mock.invocations[0].args).toEqual (["NONE"]);
 });
 
 
@@ -743,12 +745,12 @@ test ("nit.Object.use ()", () =>
         .use ("nit.Dir")
         .use ("nit:function", "strategies", nit.test.Strategy)
         .use ("path")
-        .use ("package.json")
+        .use (["package.json", "pkg"])
     ;
 
     expect (A.Dir).toBe (nit.Dir);
     expect (A.Function).toBe (nit.test.strategies.Function);
     expect (A.B).toBe (B);
     expect (A.path).toBe (require ("path"));
-    expect (A["package.json"]).toEqual (expect.objectContaining ({ bin: "./bin/nit" }));
+    expect (A.pkg).toEqual (expect.objectContaining ({ bin: "./bin/nit" }));
 });

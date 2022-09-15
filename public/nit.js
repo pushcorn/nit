@@ -3443,7 +3443,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             if (cfg.builder)
             {
-                cfg.builder (innerClass);
+                cfg.builder.call (self, innerClass);
             }
 
             return self;
@@ -4638,7 +4638,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 {
                     return nit.each (cls[category], function (plugin)
                     {
-                        return function () { return nit.invoke ([plugin, method], args); };
+                        return function () { return plugin[method] && nit.invoke ([plugin, method], args); };
                     });
                 }))
                 .run ()

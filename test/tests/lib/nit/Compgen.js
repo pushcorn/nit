@@ -457,11 +457,11 @@ test ("nit.Compgen.run ()", async () =>
     await testCompgen ("nit tes")
         .run (async ({ compgen }) =>
         {
-            const log = test.mockConsoleLog (true);
+            let mock = test.mock (console, "log", null, 3);
 
             await compgen.run ();
 
-            expect (log.restore ()).toEqual (
+            expect (mock.invocations.map (i => i.args)).toEqual (
             [
                 ["COMMAND"],
                 ["test-cmd"],

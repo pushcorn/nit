@@ -181,7 +181,6 @@ test.setupCompletionMode = async function ()
 };
 
 
-
 test.setupCliMode = async function ()
 {
     let { command, projectPath, initOnly } = global.nit.typedArgsToObj (arguments,
@@ -208,35 +207,6 @@ test.setupCliMode = async function ()
     }
 
     return nit;
-};
-
-
-test.mockConsoleLog = function (all)
-{
-    function log ()
-    {
-        let args = nit.array (arguments);
-
-        if (all)
-        {
-            log.data.push (args);
-        }
-        else
-        {
-            log.data = args;
-        }
-    }
-
-    log.data = [];
-
-    log.restore = function ()
-    {
-        console.log = CONSOLE_LOG;
-
-        return log.data;
-    };
-
-    return console.log = log;
 };
 
 

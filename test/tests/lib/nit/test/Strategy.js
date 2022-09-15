@@ -3,7 +3,7 @@ test ("nit.test.Strategy.Expector", async () =>
     const STRATEGY = {};
 
     const Strategy = nit.test.Strategy;
-    const TestValidator = Strategy.IValidator.defineSubclass ("TestValidator")
+    const TestValidator = Strategy.Validator.defineSubclass ("TestValidator")
         .method ("validate", function (strategy, value)
         {
             this.validateCalled = true;
@@ -50,7 +50,7 @@ test ("nit.test.Strategy.ValueValidator", () =>
 {
     let validator = new nit.test.Strategy.ValueValidator ({ expected: 123 });
 
-    expect (() => validator.validate ({ error: "has err" })).toThrow ("has err");
+    expect (() => validator.validate ({ error: new Error ("has err") })).toThrow ("has err");
 
     validator.validate ({ error: "has err" }, 123);
     validator.validate ({ result: 123 });
@@ -67,9 +67,9 @@ test ("nit.test.Strategy.TypeValidator", () =>
 {
     let validator = new nit.test.Strategy.TypeValidator ({ expected: "string" });
 
-    expect (() => validator.validate ({ error: "has err" })).toThrow ("has err");
+    expect (() => validator.validate ({ error: new Error ("has err") })).toThrow ("has err");
 
-    validator.validate ({ error: "has err" }, "teststring");
+    validator.validate ({ error: new Error ("has err") }, "teststring");
     validator.validate ({ result: "teststring2" });
 
     validator.expected = RegExp;
@@ -89,7 +89,7 @@ test ("nit.test.Strategy.ErrorValidator", () =>
 
     expect (() => validator.validate ({})).toThrow (/the test did not throw/i);
 
-    validator.validate ({ error: "has err" }, new Error ("validation err"));
+    validator.validate ({ error: new Error ("has err") }, new Error ("validation err"));
     validator.validate ({ error: new Error ("validation err") });
 
     validator.expected = /validation err/;
@@ -299,6 +299,20 @@ test ("nit.test.Strategy.reset ()", () =>
         thisOnly: false,
         dir: ""
     });
+
+    let check;
+
+    test.mock (process, "nextTick", function (cb)
+    {
+        check = cb;
+    }, 2);
+
+    strategy.reset ("not committed");
+    expect (() => check ()).toThrow (/not committed/);
+
+    strategy.should ("will commit");
+    strategy.testId = "";
+    expect (check ()).toBeUndefined ();
 });
 
 
@@ -337,6 +351,7 @@ test ("nit.test.Strategy.should,can ()", () =>
         .field ("<name>", "string")
     ;
 
+    test.mock (process, "nextTick", nit.noop);
     let strategy = new PropertyStrategy (new A ("AAA"), "name")
         .should ("return the value of a property")
     ;
@@ -346,6 +361,7 @@ test ("nit.test.Strategy.should,can ()", () =>
     strategy.should ();
     expect (strategy.message).toBe ("should return the value of a property");
 
+    test.mock (process, "nextTick", nit.noop);
     strategy.can ("return the value of a property");
     expect (strategy.message).toBe ("can return the value of a property");
 
@@ -552,6 +568,7 @@ test ("nit.test.Strategy.commit ()", async () =>
     let after = jest.fn ();
     let status = {};
 
+    test.mock (process, "nextTick", nit.noop, 5);
     new PropertyStrategy (new A ("AAA"), "name", { description: "Test property." })
         .should ("pass")
         .given (1, 2, 3)

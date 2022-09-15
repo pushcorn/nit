@@ -31,15 +31,17 @@ test ("commands.Console", async () =>
     const nit = await test.setupCliMode ("console", true);
     const Console = nit.lookupCommand ("console");
 
-    let log = nit.log = test.mockConsoleLog ();
-    await Console.run ();
+    let mock = test.mock (nit, "log");
+    await Console.run ({ history: nit.uuid () });
 
-    expect (log.restore ()).toEqual (["Welcome to the nit console!"]);
+    expect (mock.invocations[0].args).toEqual (["Welcome to the nit console!"]);
     expect (server.history).toEqual ([]);
 
     let history = nit.new ("nit.File", nit.path.join (nit.os.tmpdir (), nit.uuid ()));
     history.write ("");
     server.history = [];
+
+    mock = test.mock (nit, "log");
     await Console.run (["--history", history.path]);
     let line = "a = 1";
 
@@ -49,6 +51,7 @@ test ("commands.Console", async () =>
     server.enterLine (line);
     expect (history.read ()).toBe ("a = 1");
 
+    mock = test.mock (nit, "log");
     await Console.run (["--history", history.path]);
     expect (server.history).toEqual (["a = 1"]);
 });

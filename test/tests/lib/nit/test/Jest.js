@@ -21,7 +21,8 @@ test ("nit.test.Jest", async () =>
         testPathPattern: [],
         watch: false,
         watchAll: false,
-        testEnvironment: "node"
+        testEnvironment: "node",
+        detectOpenHandles: false
     });
 
     expect (res[1]).toEqual (["."]);

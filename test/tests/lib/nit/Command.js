@@ -36,7 +36,6 @@ Options:
 Usage: nit no-args`
 );
 
-
     const HelloWorld = nit.lookupCommand ("hello-world");
 
     HelloWorld.defaults ({ message: "hello!" });
@@ -108,7 +107,7 @@ test ("nit.Command.Option", () =>
 });
 
 
-test ("nit.Command.InputBase", () =>
+test ("nit.Command.Input", () =>
 {
     const Test = nit.defineClass ("Test", "nit.Command")
         .defineInput (function (Input)
@@ -136,7 +135,24 @@ test ("nit.Command.InputBase", () =>
 });
 
 
-test ("nit.Command.InputBase.fromArgv ()", () =>
+test ("nit.Command.Input.parseArgv ()", () =>
+{
+    const Test = nit.defineClass ("Test", "nit.Command")
+        .defineInput (function (Input)
+        {
+            Input
+                .option ("<paramA>")
+                .option ("paramB")
+            ;
+        })
+    ;
+
+    expect (Test.Input.parseArgv ("a", { paramB: "b" })).toEqual ({ paramA: "a", paramB: "b" });
+    expect (Test.Input.parseArgv ({ paramA: "a", paramB: "b" })).toEqual ({ paramA: "a", paramB: "b" });
+});
+
+
+test ("nit.Command.Input.fromArgv ()", () =>
 {
     const Test = nit.defineClass ("Test", "nit.Command")
         .defineInput (function (Input)
