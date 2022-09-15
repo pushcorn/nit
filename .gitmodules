@@ -4,3 +4,6 @@
 [submodule "packages/postgresql"]
 	path = packages/postgresql
 	url = git@pushcorn.github.com:pushcorn/postgresql.git
+[submodule "packages/http"]
+	path = packages/http
+	url = git@pushcorn.github.com:pushcorn/http.git
