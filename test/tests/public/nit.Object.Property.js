@@ -69,3 +69,23 @@ test ("nit.Object.Property", () =>
     a.defval = [3, 4, 5];
     expect (a.defval).toEqual ([3, 4, 5]);
 });
+
+
+test ("nit.Object.Property.Writer", () =>
+{
+    let writer = new nit.Object.Property.Writer;
+
+    const A = nit.defineClass ("A")
+        .property ("priv", "integer", { writer })
+    ;
+
+    let a = new A;
+
+    expect (a.priv).toBe (0);
+
+    a.priv = 99;
+    expect (a.priv).toBe (0);
+
+    a.priv = writer.value (100);
+    expect (a.priv).toBe (100);
+});

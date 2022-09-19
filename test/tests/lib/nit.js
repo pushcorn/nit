@@ -743,8 +743,9 @@ test ("nit.Object.use ()", () =>
     const A = nit.defineClass ("A")
         .use ("B")
         .use ("nit.Dir")
-        .use ("nit:function", "strategies", nit.test.Strategy)
+        .use ("nit:function", "strategies", "nit.test.Strategy")
         .use ("path")
+        .use ("*http")
         .use (["package.json", "pkg"])
     ;
 
@@ -752,5 +753,6 @@ test ("nit.Object.use ()", () =>
     expect (A.Function).toBe (nit.test.strategies.Function);
     expect (A.B).toBe (B);
     expect (A.path).toBe (require ("path"));
+    expect (A.http).toBe (require ("http"));
     expect (A.pkg).toEqual (expect.objectContaining ({ bin: "./bin/nit" }));
 });

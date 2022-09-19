@@ -44,4 +44,7 @@ test ("nit.invoke ()", async () =>
 
     expect (nit.invoke ([obj, "getValLater"], "name", "obj2")).toBeInstanceOf (Promise);
     expect (await nit.invoke ([obj, "getValLater"], "name", "obj3")).toBe ("obj3");
+
+    expect (nit.invoke ([obj, "getVal2"])).toBeUndefined ();
+    expect (nit.invoke (null, null, 100)).toBe (100);
 });

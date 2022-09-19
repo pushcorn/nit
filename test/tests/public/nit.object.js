@@ -894,3 +894,30 @@ test ("nit.Object.simpleName", () =>
 {
     expect (nit.Object.simpleName).toBe ("Object");
 });
+
+
+test ("nit.Object.extend ()", () =>
+{
+    const { Writable } = require ("stream");
+
+    nit.registerClass ("Writable", Writable);
+
+    const MyStream = nit.defineClass ("MyStream")
+        .extend (Writable, nit.Class)
+    ;
+
+    expect (MyStream.method).toBeInstanceOf (Function);
+    expect (MyStream.prototype.throw).toBeInstanceOf (Function);
+});
+
+
+test ("nit.Object.ClassTypeParser.cast ()", () =>
+{
+    let parser = new nit.Object.ClassTypeParser;
+
+    const A = nit.defineClass ("A");
+    nit.defineClass ("B");
+
+    expect (parser.cast (new A, "B")).toBeUndefined ();
+    expect (parser.cast (new A, "A")).toBeInstanceOf (A);
+});

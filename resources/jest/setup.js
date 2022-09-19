@@ -1,4 +1,3 @@
-const CONSOLE_LOG = console.log;
 const CWD = process.cwd ();
 
 afterAll (() => process.chdir (CWD));

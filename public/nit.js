@@ -413,6 +413,28 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    nit.copyProperties = function (source, target)
+    {
+        var sourceProps = nit.propertyDescriptors (source, true);
+        var targetProps = nit.propertyDescriptors (target, true);
+
+        nit.each (sourceProps, function (p, n)
+        {
+            if (!(n in targetProps))
+            {
+                nit.dp (target, n, p);
+            }
+        }, true);
+    };
+
+
+    nit.mix = function (subclass, superclass)
+    {
+        nit.copyProperties (superclass, subclass);
+        nit.copyProperties (superclass.prototype, subclass.prototype);
+    };
+
+
     nit.kvSplit = function (str, delimiter, fromEnd)
     {
         delimiter = delimiter || " ";
@@ -2677,22 +2699,29 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.invoke = function (func, args, defval)
     {
+        var obj = this;
         var result;
+
         args = nit.array (args);
 
         if (nit.is.arr (func))
         {
-            var obj = func[0];
             var method = func[1];
+
+            obj = func[0];
 
             if (nit.is.str (method))
             {
                 method = obj[method];
             }
 
-            result = method.apply (obj, args);
+            if (method)
+            {
+                result = method.apply (obj, args);
+            }
         }
         else
+        if (nit.is.func (func))
         {
             result = func.apply (obj, args);
         }
@@ -3057,6 +3086,44 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    nit.promisify = function (object, method) // or (func)
+    {
+        if (nit.is.func (object))
+        {
+            method = object;
+            object = null;
+        }
+        else
+        if (nit.is.str (method))
+        {
+            method = object[method];
+        }
+
+        return function ()
+        {
+            var args = nit.array (arguments);
+            var self = this;
+
+            return new Promise (function (res, rej)
+            {
+                args.push (function (err, result)
+                {
+                    if (err)
+                    {
+                        rej (err);
+                    }
+                    else
+                    {
+                        res (result);
+                    }
+                });
+
+                method.apply (object || self, args);
+            });
+        };
+    };
+
+
     // -----------------------------------------
     // Object & Classes
     // -----------------------------------------
@@ -3092,6 +3159,22 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 return nit.assign (obj, nit.argsToObj (args, ["spec", "type", "defval", "configurable", "enumerable"], true));
             };
 
+            var Writer = Property.Writer = nit.registerClass (nit.createFunction (Property.name + ".Writer", function (obj)
+            {
+                obj.id = nit.uuid ();
+            }));
+
+            var Value = Property.Writer.Value = nit.registerClass (nit.createFunction (Writer.name + ".Value", function (obj, args)
+            {
+                obj.id = args[0];
+                obj.value = args[1];
+            }));
+
+            Writer.prototype.value = function (v)
+            {
+                return new Value (this.id, v);
+            };
+
             Property.createFor = function (cls, spec, type, defval, configurable, enumerable)
             {
                 var cfg = nit.assign ({}, nit.argsToObj (ARRAY (arguments).slice (1), ["spec", "type", "defval", "configurable", "enumerable"], true));
@@ -3106,7 +3189,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 var required = false;
                 var positional = false;
                 var array = !!cfg.array;
+                var writer = cfg.writer;
                 var name;
+
+                delete cfg.writer;
 
                 if (ch == "[" || ch == "<")
                 {
@@ -3129,7 +3215,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 var parser = nit.find (nit.Object.TYPE_PARSERS, function (p) { return p.supports (type); });
                 var classType = parser instanceof nit.Object.ClassTypeParser;
                 var invalidValueCode = "error." + (classType ? "invalid_instance_type" : "invalid_value_type");
-
 
                 function patchArray (arr, owner)
                 {
@@ -3198,11 +3283,23 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             nit.dpv (owner, privProp, v, true, false);
                         }
 
-                        return prop.getter ? prop.getter.call (owner, v) : v;
+                        return prop.getter ? prop.getter.call (owner, v, prop) : v;
                     }
                     ,
                     set: function (v)
                     {
+                        if (writer)
+                        {
+                            if (v instanceof Value && writer.id == v.id)
+                            {
+                                v = v.value;
+                            }
+                            else
+                            {
+                                return;
+                            }
+                        }
+
                         var owner = this;
 
                         if (prop.required && nit.is.empty (v))
@@ -3231,8 +3328,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                         if (prop.setter)
                         {
-                            v = prop.setter.call (owner, v);
+                            v = prop.setter.call (owner, v, prop);
                         }
+
+                        var fn = nit.is.func (v) && !v.name ? "" : undefined;
 
                         if (!owner.hasOwnProperty (privProp))
                         {
@@ -3241,6 +3340,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         else
                         {
                             owner[privProp] = v;
+                        }
+
+                        if (fn !== undefined) // reset the anonymous function name
+                        {
+                            nit.dpv (v, "name", fn, true, false);
                         }
                     }
                 });
@@ -3324,9 +3428,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             nit.throw.apply (this, arguments);
         }
         ,
-        extend: function (superclass)
+        extend: function (superclass, mixins) // eslint-disable-line no-unused-vars
         {
-            return nit.extend (this, superclass);
+            var cls = nit.extend (this, superclass);
+
+            nit.each (nit.array (arguments).slice (1), function (mixin)
+            {
+                nit.mix (cls, mixin);
+            });
+
+            return cls;
         }
         ,
         registerInnerClass: function (name, cls)
@@ -3427,18 +3538,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             if (nit.is.func (superclass.defineSubclass))
             {
-                nit.dpv (self, cfg.name, undefined, true, false);
                 innerClass = superclass.defineSubclass (fqn, cfg.local, cfg.pargs);
             }
             else
             {
                 innerClass = nit.extend (nit.createFunction (fqn, true, cfg.pargs), superclass);
+            }
 
-                if (!cfg.local)
-                {
-                    nit.dpv (self, cfg.name, innerClass, true, false);
-                    nit.registerClass (innerClass);
-                }
+            if (!cfg.local)
+            {
+                nit.dpv (self, cfg.name, innerClass, true, false);
+                nit.registerClass (innerClass);
             }
 
             if (cfg.builder)
@@ -3746,9 +3856,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         nit.Object.throw ("error.class_not_defined", { name: type });
                     }
 
+                    var isPojo = nit.is.pojo (v) || v instanceof nit.object;
+
                     if (v instanceof cls)
                     {
                         return v;
+                    }
+                    else
+                    if (nit.is.obj (v) && !isPojo)
+                    {
+                        return;
                     }
 
                     if (nit.is.str (v) && v.match (nit.CLASS_REF_PATTERN))
@@ -3757,8 +3874,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         v = undefined;
                     }
                     else
-                    if ((nit.is.pojo (v) || v instanceof nit.object)
-                        && nit.CLASS_TAG in v)
+                    if (isPojo && nit.CLASS_TAG in v)
                     {
                         cls = nit.lookupClass (v[nit.CLASS_TAG]);
                         v = nit.assign ({}, v);
@@ -4362,7 +4478,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.defineConstraint ("constraints.Dependent")
         .constant ("ALWAYS", true)
-        .throws ("error.value_required", "The %{property.kind} is required.")
+        .throws ("error.value_required", "The %{property.kind} '%{property.name}' is required.")
         .property ("<source>", "string")
         .validate (function (value, ctx)
         {
@@ -4427,15 +4543,19 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     nit.defineConstraint ("constraints.Type")
-        .throws ("error.invalid_type", "The value of '%{property.name}' should be of one of the following type: %{constraint.types.join (', ')}.")
+        .throws ("error.invalid_type", "The value of '%{property.name}' should be of one of the following type: %{constraint.types.join (', ')}. (Given: %{valueType})")
         .property ("<types...>", "string", "The allowed types.")
         .validate (function (value, ctx)
         {
+            ctx.valueType = value.constructor.name;
+
             return ctx.constraint
                 .types
                 .some (function (type)
                 {
-                    return nit.find (nit.Object.TYPE_PARSERS, function (p) { return p.supports (type); });
+                    var parser = nit.find (nit.Object.TYPE_PARSERS, function (p) { return p.supports (type); });
+
+                    return parser && parser.cast (value, type) !== undefined;
                 })
             ;
         });

@@ -1,3 +1,5 @@
+jest.setTimeout (100000);
+
 test ("nit.test.Strategy.Expector", async () =>
 {
     const STRATEGY = {};
@@ -12,7 +14,7 @@ test ("nit.test.Strategy.Expector", async () =>
         })
     ;
 
-    let validator = new TestValidator;
+    let validator = new TestValidator (Strategy.getSourceLine ());
     let expector = new Strategy.Expector ("expect...", validator, function (strategy)
     {
         this.valueGetterCalled = true;
@@ -48,7 +50,7 @@ test ("nit.test.Strategy.Application", () =>
 
 test ("nit.test.Strategy.ValueValidator", () =>
 {
-    let validator = new nit.test.Strategy.ValueValidator ({ expected: 123 });
+    let validator = new nit.test.Strategy.ValueValidator (nit.test.Strategy.getSourceLine (), { expected: 123 });
 
     expect (() => validator.validate ({ error: new Error ("has err") })).toThrow ("has err");
 
@@ -65,7 +67,7 @@ test ("nit.test.Strategy.ValueValidator", () =>
 
 test ("nit.test.Strategy.TypeValidator", () =>
 {
-    let validator = new nit.test.Strategy.TypeValidator ({ expected: "string" });
+    let validator = new nit.test.Strategy.TypeValidator (nit.test.Strategy.getSourceLine (), { expected: "string" });
 
     expect (() => validator.validate ({ error: new Error ("has err") })).toThrow ("has err");
 
@@ -85,7 +87,7 @@ test ("nit.test.Strategy.TypeValidator", () =>
 
 test ("nit.test.Strategy.ErrorValidator", () =>
 {
-    let validator = new nit.test.Strategy.ErrorValidator ({ expected: "validation err" });
+    let validator = new nit.test.Strategy.ErrorValidator (nit.test.Strategy.getSourceLine (), { expected: "validation err" });
 
     expect (() => validator.validate ({})).toThrow (/the test did not throw/i);
 
@@ -281,8 +283,8 @@ test ("nit.test.Strategy.reset ()", () =>
     {
         description: '[Untitled Test]',
         message: '',
-        befores: [before],
-        afters: [after],
+        befores: [strategy.befores[0]],
+        afters: [strategy.afters[0]],
         inputs: [],
         result: undefined,
         error: undefined,
@@ -571,61 +573,77 @@ test ("nit.test.Strategy.commit ()", async () =>
     test.mock (process, "nextTick", nit.noop, 5);
     new PropertyStrategy (new A ("AAA"), "name", { description: "Test property." })
         .should ("pass")
-        .given (1, 2, 3)
-        .mock (nit, "noop")
-        .before (nit.noop)
-        .before (async function ()
-        {
-            await nit.sleep (10);
-        })
-        .after (nit.noop)
-        .returns ("AAA")
-        .commit ()
+            .given (1, 2, 3)
+            .mock (nit, "noop")
+            .before (nit.noop)
+            .before (async function ()
+            {
+                await nit.sleep (10);
+            })
+            .after (nit.noop)
+            .returns ("AAA")
+            .commit ()
 
         .should ("pass 2")
-        .before (async function ()
-        {
-            await nit.sleep (10);
-            this.throw ("error.failed2");
-        })
-        .after (after)
-        .returns ("AAA")
-        .commit ()
+            .before (async function ()
+            {
+                await nit.sleep (10);
+                this.throw ("error.failed2");
+            })
+            .after (after)
+            .returns ("AAA")
+            .commit ()
 
         .should ("pass 3")
-        .before (async function ()
-        {
-            await nit.sleep (10);
-            this.throw ("error.failed3");
-        })
-        .commit ()
+            .before (async function ()
+            {
+                await nit.sleep (10);
+                this.throw ("error.failed3");
+            })
+            .commit ()
 
         .should ("pass 4")
-        .app ("", test.pathForProject ("project-c"))
-        .before (function ()
-        {
-            status.dirChangedForApp = process.cwd () == this.application.root.path;
-        })
-        .expectingPropertyToBe ("object.name", "AAA")
-        .commit ()
+            .app ("", test.pathForProject ("project-c"))
+            .before (function ()
+            {
+                status.dirChangedForApp = process.cwd () == this.application.root.path;
+            })
+            .expectingPropertyToBe ("object.name", "AAA")
+            .commit ()
 
         .should ("pass 5")
-        .chdir (test.pathForProject ("project-a"))
-        .only ()
-        .up (function ()
+            .chdir (test.pathForProject ("project-a"))
+            .only ()
+            .up (function ()
+            {
+                status.upCalled = true;
+            })
+            .down (function ()
+            {
+                status.downCalled = true;
+            })
+            .before (function ()
+            {
+                status.dirChanged = process.cwd () == this.dir;
+            })
+            .expectingPropertyToBe ("object.name", "AAA")
+            .commit ()
+    ;
+
+    const ErrorStrategy = nit.test.defineStrategy ("Error")
+        .test (function ()
         {
-            status.upCalled = true;
+            throw new Error ("test error!");
         })
-        .down (function ()
-        {
-            status.downCalled = true;
-        })
-        .before (function ()
-        {
-            status.dirChanged = process.cwd () == this.dir;
-        })
-        .expectingPropertyToBe ("object.name", "AAA")
-        .commit ()
+    ;
+
+    new ErrorStrategy ()
+        .should ("throw an error")
+            .throws ("test error!")
+            .commit ()
+
+        .should ("throw again")
+            .commit ()
     ;
 
     await queue.run ();
@@ -637,14 +655,46 @@ test ("nit.test.Strategy.commit ()", async () =>
 
     expect (itMock.errors[0].code).toBe ("error.failed2");
     expect (itMock.errors[1].code).toBe ("error.failed3");
-    expect (describeMock.invocations.length).toBe (4);
+    expect (itMock.errors[2].message).toBe ("test error!");
+    expect (describeMock.invocations.length).toBe (6);
     expect (describeOnlyMock.invocations.length).toBe (1);
-    expect (itMock.invocations.length).toBe (7);
-    expect (expectMock.invocations.length).toBe (3);
+    expect (itMock.invocations.length).toBe (9);
+    expect (expectMock.invocations.length).toBe (4);
+    expect (expectMock.invocations[3].args[0]).toBe ("test error!");
     expect (status.dirChangedForApp).toBe (true);
     expect (status.dirChanged).toBe (true);
     expect (status.upCalled).toBe (true);
     expect (status.downCalled).toBe (true);
     expect (PropertyStrategy.upCalled).toBe (5);
     expect (PropertyStrategy.downCalled).toBe (5);
+
+
 });
+
+
+test ("nit.test.Strategy.addSourceLineToStack ()", () =>
+{
+    const Strategy = nit.test.Strategy;
+
+    let err = new Error ("test");
+    let sourceLine = "    at test.method (" + __filename + ".test:100:100)";
+
+    Strategy.addSourceLineToStack (err, sourceLine);
+    expect (err.stack.split ("\n")[1]).toBe (sourceLine);
+
+    sourceLine = "    at test.method (" + __filename + ":100:100)";
+    Strategy.addSourceLineToStack (err, sourceLine);
+    expect (err.stack.split ("\n")[1]).not.toBe (sourceLine);
+    expect (err.stack.split ("\n")[1]).toMatch (__filename);
+});
+
+
+test ("nit.test.Strategy.getSourceLine ()", () =>
+{
+    const Strategy = nit.test.Strategy;
+
+    expect (Strategy.getSourceLine ()).toMatch (__filename);
+});
+
+
+
