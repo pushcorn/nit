@@ -432,6 +432,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     {
         nit.copyProperties (superclass, subclass);
         nit.copyProperties (superclass.prototype, subclass.prototype);
+
+        return subclass;
     };
 
 

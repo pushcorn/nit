@@ -8,7 +8,7 @@ test ("nit.mix ()", () =>
         .extend (Writable)
     ;
 
-    nit.mix (MyStream, nit.Class);
+    expect (nit.mix (MyStream, nit.Class)).toBe (MyStream);
     expect (MyStream.method).toBeInstanceOf (Function);
     expect (MyStream.prototype.throw).toBeInstanceOf (Function);
 });
