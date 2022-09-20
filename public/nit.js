@@ -2580,6 +2580,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.ns.init = function (name) // initialize top-level namespace only
     {
+        if (!name)
+        {
+            return;
+        }
+
         var initializing = nit.ns.initializing;
         var NS = nit.NS;
 
@@ -4528,9 +4533,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     nit.defineConstraint ("constraints.Subclass")
-        .throws ("error.not_a_subclass", "The value of '%{property.name}' is not a subclass of '%{constraint.superclass}'.")
+        .throws ("error.not_a_subclass", "The value of '%{property.name}' is not a subclass of %{constraint.superclass}.")
         .m ("error.invalid_superclass", "The superclass '%{superclass}' is invalid.")
         .property ("<superclass>", "string")
+        .property ("[inclusive]", "boolean") // including the superclass
         .validate (function (value, ctx)
         {
             var superclass = nit.lookupClass (ctx.constraint.superclass);
@@ -4540,12 +4546,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 this.throw ("error.invalid_superclass", ctx.constraint);
             }
 
-            return nit.is.subclassOf (nit.is.str (value) ? nit.lookupClass (value) : value, superclass);
+            var subclass = nit.is.str (value) ? nit.lookupClass (value) : value;
+
+            return ctx.constraint.inclusive && subclass == superclass || nit.is.subclassOf (subclass, superclass);
         });
 
 
     nit.defineConstraint ("constraints.Type")
-        .throws ("error.invalid_type", "The value of '%{property.name}' should be of one of the following type: %{constraint.types.join (', ')}. (Given: %{valueType})")
+        .throws ("error.invalid_type", "The value of '%{property.name}' should be one of the following type: %{constraint.types.join (', ')}. (Given: %{valueType})")
         .property ("<types...>", "string", "The allowed types.")
         .validate (function (value, ctx)
         {
@@ -4739,13 +4747,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return cls
                 .defineInnerClass (name, cfg.builder)
                 .staticProperty (category + "...", innerClassName)
-                .staticMethod (cn, function (plugin)
+                .staticMethod (cn, function (pluginName)
                 {
-                    var cls = nit.lookupComponent (plugin, category, innerClassName);
+                    var self = this;
+                    var cls = nit.lookupComponent (pluginName, category, innerClassName);
+                    var plugin = nit.new (cls, nit.array (arguments).slice (1));
 
-                    this[category].push (nit.new (cls, nit.array (arguments).slice (1)));
+                    self[category].push (plugin);
 
-                    return this;
+                    nit.invoke ([cls, "onRegisterPlugin"], [self, plugin]);
+
+                    return self;
                 })
             ;
         })

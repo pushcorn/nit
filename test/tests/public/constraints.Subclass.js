@@ -20,8 +20,24 @@ test ("constraints.Subclass", () =>
 
     let Paper3 = nit.defineClass ("Paper3")
         .field ("<shape>", "function")
-        .constraint ("subclass", "Shape2")
+            .constraint ("subclass", "Shape2")
     ;
 
     expect (() => new Paper3 (Circle)).toThrow (/superclass.*is invalid/);
+
+    let Paper4 = nit.defineClass ("Paper4")
+        .field ("<shape>", "string")
+            .constraint ("subclass", "Shape")
+    ;
+
+    expect (new Paper4 (Circle.name).shape).toBe ("Circle");
+    expect (() => new Paper4 (Shape.name)).toThrow (/not a subclass of Shape/i);
+
+    let Paper5 = nit.defineClass ("Paper4")
+        .field ("<shape>", "string")
+            .constraint ("subclass", "Shape", true)
+    ;
+
+    expect (new Paper5 (Circle.name).shape).toBe ("Circle");
+    expect (new Paper5 (Shape.name).shape).toBe ("Shape");
 });

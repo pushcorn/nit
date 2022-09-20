@@ -22,6 +22,8 @@ test ("nit.ns.init ()", () =>
     nit.ns.initializer = null;
     nit.ns.init ("mod");
     expect (nit.NS.mod).toEqual ({});
+
+    expect (nit.ns.init ()).toBeUndefined ();
 });
 
 
