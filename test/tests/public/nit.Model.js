@@ -24,7 +24,7 @@ test ("nit.Model", async () =>
     const User = nit.defineModel ("User")
         .field ("<username>", "string")
             .constraint ("unique")
-        .field ("pass", "string")
+        .field ("cred", "string")
             .constraint ("minLength")
     ;
 
@@ -35,7 +35,7 @@ test ("nit.Model", async () =>
     expect (user.username).toBe ("");
     user.username = "johndoe";
     expect (user.username).toBe ("");
-    user.pass = "password";
+    user.cred = "password";
 
     let error;
 
@@ -45,7 +45,7 @@ test ("nit.Model", async () =>
     expect (checkedConstraints).toEqual ([Unique, MinLength]);
 
     //----------------------------------
-    user.pass = "";
+    user.cred = "";
     checkedConstraints = [];
     error = undefined;
 
@@ -88,7 +88,7 @@ test ("nit.Model", async () =>
 
     //----------------------------------
     user.username = "janedoe";
-    user.pass = "123456789012345";
+    user.cred = "123456789012345";
     checkedConstraints = [];
     error = undefined;
 
@@ -105,15 +105,15 @@ test ("nit.Model.create ()", async () =>
 {
     const User = nit.defineModel ("User")
         .field ("<username>", "string")
-        .field ("pass", "string")
+        .field ("cred", "string")
     ;
 
     let user;
 
-    expect (User.create ({ username: "john", pass: "1234" }).toPojo ()).toEqual ({ username: "john", pass: "1234" });
-    expect (user = User.create ({ pass: "1234" })).toBeInstanceOf (User);
+    expect (User.create ({ username: "john", cred: "1234" }).toPojo ()).toEqual ({ username: "john", cred: "1234" });
+    expect (user = User.create ({ cred: "1234" })).toBeInstanceOf (User);
 
-    expect (User.update (user, function (u) { u.pass = 5678; }).pass).toBe ("5678");
+    expect (User.update (user, function (u) { u.cred = 5678; }).cred).toBe ("5678");
 });
 
 
@@ -132,7 +132,7 @@ test ("nit.Model.preValidateField ()", async () =>
 
     const User = nit.defineModel ("User")
         .field ("<username>", "string")
-        .field ("[pass]", "string")
+        .field ("[cred]", "string")
         .do (User =>
         {
             User.preValidateInvocations = [];
@@ -148,5 +148,5 @@ test ("nit.Model.preValidateField ()", async () =>
     expect (User.preValidateInvocations.length).toBe (1);
     expect (User.preValidateInvocations[0].model).toBe (user);
     expect (User.postValidateInvocations.length).toBe (1);
-    expect (User.postValidateInvocations[0].field.name).toBe ("pass");
+    expect (User.postValidateInvocations[0].field.name).toBe ("cred");
 });

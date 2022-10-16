@@ -50,3 +50,35 @@ test ("nit.Class", () =>
     expect (nit.clone (new User ("007", { age: 20 }))).toEqual ({ id: "007", age: 20 });
     expect (User.getField ("age").name).toBe ("age");
 });
+
+
+test ("nit.Class.registerPlugin ()", () =>
+{
+    const Condition = nit.defineClass ("nit.utils.Condition")
+        .field ("<check>", "string")
+    ;
+
+    const CheckOne = nit.defineClass ("conditions.CheckOne", "nit.utils.Condition"); // eslint-disable-line no-unused-vars
+    const CheckTwo = nit.defineClass ("conditions.CheckTwo", "nit.utils.Condition");
+
+    const A = nit.defineClass ("A")
+        .registerPlugin (Condition)
+    ;
+
+
+    expect (nit.propertyDescriptors (A).conditions).toBeInstanceOf (Object);
+    expect (nit.propertyDescriptors (A, true).condition.value).toBeInstanceOf (Function);
+
+    A.condition ("check-one", "a");
+    A.condition (new CheckTwo ("b"));
+
+    expect (A.conditions[0].check).toBe ("a");
+    expect (A.conditions[1].check).toBe ("b");
+
+    const B = nit.defineClass ("B")
+        .registerPlugin ("nit:utils.Condition")
+    ;
+
+    expect (nit.propertyDescriptors (B).utilsConditions).toBeInstanceOf (Object);
+    expect (nit.propertyDescriptors (B, true).utilsCondition.value).toBeInstanceOf (Function);
+});

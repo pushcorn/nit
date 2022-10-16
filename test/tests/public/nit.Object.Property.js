@@ -89,3 +89,21 @@ test ("nit.Object.Property.Writer", () =>
     a.priv = writer.value (100);
     expect (a.priv).toBe (100);
 });
+
+
+test ("nit.Object.Property: push/unshift invalid values", () =>
+{
+    const B = nit.defineClass ("B") // eslint-disable-line no-unused-vars
+        .field ("<val>", "string")
+    ;
+
+    const A = nit.defineClass ("A")
+        .staticProperty ("bs...", "B")
+    ;
+
+    expect (A.bs.push ("a", "b")).toBe (2);
+    expect (A.bs.push (null)).toBe (2);
+
+    expect (A.bs.unshift  ("c", "d")).toBe (4);
+    expect (A.bs.unshift (null)).toBe (4);
+});

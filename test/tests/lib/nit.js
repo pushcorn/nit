@@ -186,6 +186,30 @@ test ("nit.readFileAsync ()", async () =>
 });
 
 
+test ("nit.readStream ()", async () =>
+{
+    let pkgStream = nit.fs.createReadStream (nit.resolveAsset ("package.json"));
+    let content = await nit.readStream (pkgStream);
+    expect (JSON.parse (content).name).toBe ("@pushcorn/nit");
+
+    pkgStream = nit.fs.createReadStream (nit.resolveAsset ("package.json"));
+    content = await nit.readStream (pkgStream, null);
+    expect (content).toBeInstanceOf (Buffer);
+
+    const no_stream = require ("stream");
+
+    async function *generate ()
+    {
+        yield "1";
+        throw new Error ("ERR!");
+    }
+
+    let readable = no_stream.Readable.from (generate ());
+
+    expect (() => nit.readStream (readable)).rejects.toThrow ("ERR!");
+});
+
+
 test ("nit.requireModule ()", () =>
 {
     expect (nit.requireModule ("test/resources/test-config.json")).toEqual (
@@ -746,7 +770,7 @@ test ("nit.Object.use ()", () =>
         .use ("nit:function", "strategies", "nit.test.Strategy")
         .use ("path")
         .use ("*http")
-        .use (["package.json", "pkg"])
+        .use (["pkg", "package.json"])
     ;
 
     expect (A.Dir).toBe (nit.Dir);

@@ -489,6 +489,24 @@ test ("nit.Object.staticGetter ()", () =>
     });
 
     expect (nit.Object.now).toBeInstanceOf (Date);
+
+    const B = nit.defineClass ("B")
+        .field ("<val>", "string")
+    ;
+
+    const A = nit.defineClass ("A")
+        .staticProperty ("b", "B")
+        .property ("b", "B")
+        .staticGetter ("bVal", "b.val")
+        .getter ("bVal", "b.val")
+    ;
+
+    A.b = new B (9);
+    expect (A.bVal).toBe ("9");
+
+    let a = new A;
+    a.b = new B (10);
+    expect (a.bVal).toBe ("10");
 });
 
 
@@ -921,3 +939,24 @@ test ("nit.Object.ClassTypeParser.cast ()", () =>
     expect (parser.cast (new A, "B")).toBeUndefined ();
     expect (parser.cast (new A, "A")).toBeInstanceOf (A);
 });
+
+
+test ("nit.Object.do ()", () =>
+{
+    const B = nit.defineClass ("B")
+        .field ("<val>", "string")
+    ;
+
+    const A = nit.defineClass ("A")
+        .staticProperty ("b", "B")
+    ;
+
+    A.b = new B (9);
+
+    A.do ("b", b =>
+    {
+        expect (b).toBeInstanceOf (B);
+        expect (b.val).toBe ("9");
+    });
+});
+

@@ -11,4 +11,4 @@ done
 
 NIT_HOME=$(dirname $(cd $(dirname "$SOURCE") && pwd -P))
 
-/usr/bin/env node --preserve-symlinks "$NIT_HOME" "$@"
+/usr/bin/env node --experimental-vm-modules --preserve-symlinks "$NIT_HOME" "$@"
