@@ -151,6 +151,13 @@ test ("nit.test.Strategy.TRANSFORMS.format ()", () =>
 });
 
 
+test ("nit.test.Strategy.TRANSFORMS.formatType ()", () =>
+{
+    expect (nit.test.Strategy.TRANSFORMS.formatType ("string")).toBe ("string");
+    expect (nit.test.Strategy.TRANSFORMS.formatType (function A () {})).toBe ("A");
+});
+
+
 test ("nit.test.Strategy.TRANSFORMS.formatArgs ()", () =>
 {
     expect (nit.test.Strategy.TRANSFORMS.formatArgs ([3, "string", null])).toBe ('3, "string", <null>');
