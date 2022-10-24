@@ -108,7 +108,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         COMPONENT_DESCRIPTORS: {},
         CONFIG: {},
         ENV: {},
-        ERROR_CODE_PATTERN: /^[a-z0-9_]+(\.[a-z0-9_]+)*$/,
+        ERROR_CODE_PATTERN: /^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$/,
         EXPANDABLE_ARG_PATTERN: /\.\.(([a-z][a-z0-9_$]+)(\|[a-z][a-z0-9_$]+)*)(!?)$/i,
         NS: { nit: nit }
 
@@ -2011,7 +2011,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 .split ("|")
                 .map (function (t)
                 {
-                    return t.replace (escPipeRe, "\\|");
+                    return t.replace (escPipeRe, "|");
                 });
 
             var path = transforms.shift ().trim ();
@@ -3107,9 +3107,20 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
-    nit.promisify = function (object, method) // or (func)
+    nit.promisify = function (object, method, resultOnly) // or (func)
     {
-        if (nit.is.func (object))
+        var argv = nit.typedArgsToObj (arguments,
+        {
+            object: ["object", "function"],
+            method: ["string", "function"],
+            resultOnly: "boolean"
+        });
+
+        object = argv.object;
+        method = argv.method;
+        resultOnly = argv.resultOnly;
+
+        if (nit.is.func (object) && !method)
         {
             method = object;
             object = null;
@@ -3129,6 +3140,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             {
                 args.push (function (err, result)
                 {
+                    if (resultOnly)
+                    {
+                        res (err);
+                    }
+                    else
                     if (err)
                     {
                         rej (err);
@@ -3236,6 +3252,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 var parser = nit.find (nit.Object.TYPE_PARSERS, function (p) { return p.supports (type); });
                 var classType = parser instanceof nit.Object.ClassTypeParser;
                 var invalidValueCode = "error." + (classType ? "invalid_instance_type" : "invalid_value_type");
+                var isAny = type == "any";
 
                 function patchArray (arr, owner)
                 {
@@ -3250,7 +3267,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                                 {
                                     return prop.cast (v, owner);
                                 })
-                                .filter (nit.is.not.undef)
+                                .filter (function (v) { return isAny || !nit.is.undef (v); })
                             ;
 
                             return vs.length ? arrayMethod.apply (this, vs) : this.length;
@@ -3338,18 +3355,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                         var isArr = nit.is.arr (v);
 
-                        if (isArr && !prop.array && prop.type != "any")
+                        if (isArr && !prop.array && !isAny)
                         {
                             nit.throw.call (cls, { code: invalidValueCode, source: prop, owner: owner }, { value: v, property: prop });
                         }
 
-                        v = isArr ? v : nit.array (v);
-                        v = v
+                        v = (isArr ? v : nit.array (v))
                             .map (function (v) { return prop.cast (v, owner); })
-                            .filter (function (v) { return !nit.is.undef (v); })
+                            .filter (function (v) { return isAny || !nit.is.undef (v); })
                         ;
 
-                        if (prop.array || (isArr && prop.type == "any"))
+                        if (prop.array || (isArr && isAny))
                         {
                             patchArray (v, owner);
                         }
@@ -4358,6 +4374,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             return this.staticMethod (nit.Object.kConstruct, construct);
         })
+        .staticMethod ("mix", function (mixin)
+        {
+            mixin = nit.lookupComponent (mixin, "mixins");
+
+            return nit.mix (this, mixin);
+        })
         .staticMethod ("toPojo", function (val)
         {
             if (!nit.is.undef (val))
@@ -5018,6 +5040,54 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    nit.defineClass ("nit.Deferred")
+        .m ("error.timeout", "The deferred object has timed out.")
+        .field ("[timeout]", "integer", "The deferred timeout.")
+        .property ("resolve", "function")
+        .property ("reject", "function")
+        .construct (function (timeout)
+        {
+            var self = this;
+            var res, rej;
+            var promise = new Promise (function (resolve, reject)
+            {
+                res = resolve;
+                rej = reject;
+            });
+
+            var timer = timeout && setTimeout (function ()
+            {
+                try
+                {
+                    self.throw ("error.timeout");
+                }
+                catch (e)
+                {
+                    self.reject (e);
+                }
+            }, timeout);
+
+            self.resolve = function (result)
+            {
+                clearTimeout (timer);
+                res (result);
+            };
+
+            self.reject = function (error)
+            {
+                clearTimeout (timer);
+                rej (error);
+            };
+
+            nit.dpv (self, "promise", promise, false);
+        })
+        .method ("then", function (onResolve, onReject)
+        {
+            return this.promise.then (onResolve, onReject);
+        })
+    ;
+
+
     nit.defineClass ("nit.ComponentDescriptor")
         .field ("<name>", "string", "The component name.")
         .field ("<className>", "string", "The component's class name.")
@@ -5122,9 +5192,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return c.name == nn || c.className == name;
         });
 
-        var cls;
+        var cls = nit.lookupClass (component ? component.className : name);
 
-        if (!component || !(cls = nit.lookupClass (component.className)))
+        if (!cls)
         {
             nit.throw ("error.component_not_found", { component: name, category: category });
         }

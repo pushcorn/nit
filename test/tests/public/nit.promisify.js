@@ -24,4 +24,14 @@ test ("nit.promisify ()", async () =>
     expect (await nit.promisify (obj, obj.doLater) (11)).toBe (11);
 
     await expect (() => nit.promisify (doLater) (new Error ("boom!!"))).rejects.toThrow ("boom!!");
+
+    function resultOnlyFunc (cb)
+    {
+        setTimeout (function ()
+        {
+            return cb ("RESULT");
+        }, 50);
+    }
+
+    expect (await nit.promisify (resultOnlyFunc, true) ()).toBe ("RESULT");
 });

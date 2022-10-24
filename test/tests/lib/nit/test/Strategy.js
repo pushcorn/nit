@@ -102,6 +102,12 @@ test ("nit.test.Strategy.ErrorValidator", () =>
 
     validator.expected = "error.test_err";
     validator.validate ({ error: err });
+
+    validator.expected = "another err";
+    validator.validate ({ error: "another err" });
+
+    validator.expected = function (e) { return e == 123; };
+    validator.validate ({ error: 123 });
 });
 
 
@@ -144,10 +150,47 @@ test ("nit.test.Strategy.Mock", () =>
 });
 
 
+test ("nit.test.Strategy.Spy", () =>
+{
+    const A = nit.defineClass ("A")
+        .method ("addOne", function (val)
+        {
+            return (val || 0) + 1;
+        })
+        .method ("addTwo", function ()
+        {
+            throw new Error ("ERR!");
+        })
+    ;
+
+    let a = new A;
+    let spy = new nit.test.Strategy.Spy (a, "addOne");
+    let st = {};
+    spy.apply (st);
+    expect (spy.applied).toBe (true);
+    spy.apply (st);
+    expect (a.addOne ()).toBe (1);
+    expect (a.addOne (100)).toBe (101);
+    expect (spy.invocations.length).toBe (2);
+    spy.restore ();
+    expect (a.addOne (99)).toBe (100);
+
+    spy = new nit.test.Strategy.Spy ("a", "addTwo");
+    spy.apply ({ a });
+    expect (() => a.addTwo ()).toThrow ("ERR!");
+    expect (spy.invocations[0].error).toBeInstanceOf (Error);
+
+    spy = new nit.test.Strategy.Spy ("aaa", "addOne");
+    spy.apply ({ a });
+    expect (spy.applied).toBe (false);
+});
+
+
 test ("nit.test.Strategy.TRANSFORMS.format ()", () =>
 {
     expect (nit.test.Strategy.TRANSFORMS.format ("a string")).toBe ('"a string"');
     expect (nit.test.Strategy.TRANSFORMS.format ({ a: 1 })).toBe ('{"a":1}');
+    expect (nit.test.Strategy.TRANSFORMS.format (/ab/)).toBe ("/ab/");
 });
 
 
@@ -226,6 +269,8 @@ test ("nit.test.Strategy.snapshot ()", () =>
         downs: [],
         ups: [],
         expectors: [],
+        initializers: [],
+        spies: [],
         resultValidator: undefined,
         mocks: [],
         thisOnly: false,
@@ -250,6 +295,8 @@ test ("nit.test.Strategy.snapshot ()", () =>
         downs: [],
         ups: [],
         expectors: [],
+        initializers: [],
+        spies: [],
         resultValidator: undefined,
         mocks: [],
         thisOnly: false,
@@ -303,6 +350,8 @@ test ("nit.test.Strategy.reset ()", () =>
         downs: [],
         ups: [],
         expectors: [],
+        initializers: [],
+        spies: [],
         resultValidator: undefined,
         mocks: [],
         thisOnly: false,
@@ -379,7 +428,7 @@ test ("nit.test.Strategy.should,can ()", () =>
 });
 
 
-test ("nit.test.Strategy.mock... ()", () =>
+test ("nit.test.Strategy.mock ()", () =>
 {
     const PropertyStrategy = nit.test.defineStrategy ("Property")
         .field ("<object>", "object")
@@ -416,6 +465,34 @@ test ("nit.test.Strategy.mock... ()", () =>
 
     strategy.throws (/test errr/);
     expect (strategy.resultValidator).toBeInstanceOf (PropertyStrategy.ErrorValidator);
+});
+
+
+test ("nit.test.Strategy.spy ()", () =>
+{
+    const PropertyStrategy = nit.test.defineStrategy ("Property")
+        .field ("<object>", "object")
+        .field ("<property>", "string")
+        .test (function ()
+        {
+            return this.object[this.property];
+        })
+    ;
+
+    const A = nit.defineClass ("A")
+        .field ("<name>", "string")
+        .method ("upper", function ()
+        {
+            return this.name.toUpperCase ();
+        })
+    ;
+
+    let a = new A ("AAA");
+    let strategy = new PropertyStrategy (new A ("AAA"), "name")
+        .spy (a, "upper")
+    ;
+
+    expect (strategy.spies.length).toBe (1);
 });
 
 
@@ -621,6 +698,11 @@ test ("nit.test.Strategy.commit ()", async () =>
         .should ("pass 5")
             .chdir (test.pathForProject ("project-a"))
             .only ()
+            .spy (A.prototype, "nameLength")
+            .init (function ()
+            {
+                status.initCalled = true;
+            })
             .up (function ()
             {
                 status.upCalled = true;
@@ -632,6 +714,11 @@ test ("nit.test.Strategy.commit ()", async () =>
             .before (function ()
             {
                 status.dirChanged = process.cwd () == this.dir;
+                this.object.nameLength ();
+            })
+            .after (function ()
+            {
+                status.spyCalled = this.spies[0].invocations.length;
             })
             .expectingPropertyToBe ("object.name", "AAA")
             .commit ()
@@ -670,8 +757,10 @@ test ("nit.test.Strategy.commit ()", async () =>
     expect (expectMock.invocations[3].args[0]).toBe ("test error!");
     expect (status.dirChangedForApp).toBe (true);
     expect (status.dirChanged).toBe (true);
+    expect (status.initCalled).toBe (true);
     expect (status.upCalled).toBe (true);
     expect (status.downCalled).toBe (true);
+    expect (status.spyCalled).toBe (1);
     expect (PropertyStrategy.upCalled).toBe (5);
     expect (PropertyStrategy.downCalled).toBe (5);
 
@@ -693,6 +782,9 @@ test ("nit.test.Strategy.addSourceLineToStack ()", () =>
     Strategy.addSourceLineToStack (err, sourceLine);
     expect (err.stack.split ("\n")[1]).not.toBe (sourceLine);
     expect (err.stack.split ("\n")[1]).toMatch (__filename);
+
+    err = Strategy.addSourceLineToStack ("ERRR", sourceLine);
+    expect (err.message).toBe ("ERRR");
 });
 
 

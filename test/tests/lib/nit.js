@@ -146,6 +146,20 @@ test ("nit.resolveAsset ()", () =>
 });
 
 
+
+test ("nit.resolveAssetDir ()", () =>
+{
+    expect (nit.resolveAssetDir ("resources/jest")).toBe (no_path.join (test.HOME, "resources/jest"));
+});
+
+
+test ("nit.fileEncodingForContent ()", () =>
+{
+    expect (nit.fileEncodingForContent ("text")).toBe ("utf8");
+    expect (nit.fileEncodingForContent ("text", null)).toBe (null);
+});
+
+
 test ("nit.classNameToPath ()", () =>
 {
     expect (nit.classNameToPath ("Work")).toBe ("Work.js");

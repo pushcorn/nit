@@ -104,13 +104,13 @@ test ("nit.Model", async () =>
 test ("nit.Model.create ()", async () =>
 {
     const User = nit.defineModel ("User")
-        .field ("<user>", "string")
+        .field ("<u>", "string")
         .field ("cred", "string")
     ;
 
     let user;
 
-    expect (User.create ({ user: "john", cred: "1234" }).toPojo ()).toEqual ({ user: "john", cred: "1234" });
+    expect (User.create ({ u: "john", cred: "1234" }).toPojo ()).toEqual ({ u: "john", cred: "1234" });
     expect (user = User.create ({ cred: "1234" })).toBeInstanceOf (User);
 
     expect (User.update (user, function (u) { u.cred = 5678; }).cred).toBe ("5678");

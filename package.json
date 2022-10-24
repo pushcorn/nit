@@ -1,6 +1,6 @@
 {
     "name": "@pushcorn/nit",
-    "version": "0.9.44",
+    "version": "0.9.45",
     "main": "lib/nit.js",
     "description": "A toolbox for building CLI and web apps in a modular way.",
     "bin": "./bin/nit",
@@ -14,7 +14,7 @@
         "resources/**"
     ],
     "devDependencies": {
-        "eslint": "8.25.0",
+        "eslint": "8.26.0",
         "jest": "29.2.1"
     }
 }

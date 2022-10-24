@@ -636,6 +636,16 @@ test ("nit.Object.toPojo ()", () =>
 });
 
 
+test ("nit.Object.mix ()", () =>
+{
+    const Sub = nit.Object.defineSubclass ("Sub")
+        .mix ("loggable")
+    ;
+
+    expect (Sub.prototype.log).toBeInstanceOf (Function);
+});
+
+
 test ("nit.Object.memo ()", () =>
 {
     nit.Object.memo ("createdAt", function ()
