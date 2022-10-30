@@ -762,6 +762,40 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
       }, {});
 
 
+    nit.registerClass = function (name, cls) // or (cls)
+    {
+        if (nit.is.func (name))
+        {
+            cls = name;
+            name = cls.name;
+        }
+
+        return nit.CLASSES[name] = cls;
+    };
+
+
+    nit.lookupClass = function (name)
+    {
+        var cls;
+
+        if (nit.is.func (cls = nit.CLASSES[name]) || nit.is.func (cls = global[name]))
+        {
+            return cls;
+        }
+    };
+
+
+    nit.listSubclassesOf = function (superclass)
+    {
+        return nit.each (nit.CLASSES, function (cls)
+        {
+            return nit.is.subclassOf (cls, superclass) ? cls : nit.each.SKIP;
+        });
+    };
+
+
+
+
     nit.coalesce = function ()
     {
         for (var i = 0, args = ARRAY (arguments); i < args.length; ++i)
@@ -1758,23 +1792,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     // A simple string template
     // -------------------------
 
-    nit.Template = (function ()
-    {
-        var CHECK_PATTERN = /[?!+-]/;
-        var CHECKS =
+    nit.Template = nit.do (nit.registerClass (nit.createFunction ("nit.Template",
+        function (self, args)
         {
-            "?": nit.is.truthy,
-            "!": nit.is.not.truthy,
-            "-": nit.is.empty,
-            "+": nit.is.not.empty
-        };
-
-
-        function Template (template, config)
-        {
-            var self  = this;
-
-            config = nit.typedArgsToObj (arguments,
+            var cls = self.constructor;
+            var config = nit.typedArgsToObj (args,
             {
                 template: "string",
                 openTag: "string",
@@ -1790,9 +1812,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 delete config.config;
             }
 
-            for (var i in Template.defaults)
+            for (var i in cls.defaults)
             {
-                var def = Template.defaults[i];
+                var def = cls.defaults[i];
 
                 self[i] = config[i] || (nit.is.obj (def) ? nit.assign ({}, def) : def);
             }
@@ -1806,636 +1828,655 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             });
 
             self.tokens = self.parse (self.template);
-
-            return self;
-        }
-
-
-        Template.prototype.parse = function (template)
+        })),
+        function (Template)
         {
-            var self = this;
-
-            return self.parseBlocks (Template.tokenize (template, self.openTag, self.closeTag));
-        };
-
-
-        Template.prototype.parseBlocks = function (tokens, level)
-        {
-            level = level || 0;
-
-            var self = this;
-            var root = { children: [] };
-            var current = root;
-            var blocks = [];
-            var branchBlocks = [];
-            var branchExpr;
-
-            nit.each (tokens, function (token)
+            nit.dpvs (Template.prototype,
             {
-                var children  = current.children;
-                var expr      = token instanceof Array;
-
-                if (expr)
+                parse: function (template)
                 {
-                    token = self.parseBlocks (token, level + 1);
+                    var self = this;
 
-                    var type = token[0][0];
-                    var n;
-
-                    switch (type)
-                    {
-                        case "@": // inline partial
-                        case "#": // block
-                        case ":": // else block
-                            token.type = type;
-                            n = token[0] = token[0].slice (1);
-                            token.children = [];
-
-                            if (type == "@")
-                            {
-                                if (self.partials[n] || Template.PARTIALS[n])
-                                {
-                                    throw new Error ("The partial name '" + n + "' has been used.");
-                                }
-
-                                self.partials[n] = token.children;
-                            }
-                            else
-                            if (type == ":")
-                            {
-                                blocks.pop ();
-                            }
-
-                            blocks.push (current = token);
-
-                            if (type == "#")
-                            {
-                                var check = token[0][0];
-
-                                if (check.match (CHECK_PATTERN))
-                                {
-                                    token.check = check;
-                                    token[0] = token[0].slice (1);
-                                }
-
-                                token.branches = [];
-                                branchBlocks.push (branchExpr = token);
-                            }
-                            else
-                            if (type == ":")
-                            {
-                                branchExpr.branches.push (token);
-
-                                return;
-                            }
-                            break;
-
-                        case "*": // partial expansion
-                            token.type = type;
-                            n = token.name = token[0].slice (1);
-
-                            var partial = self.partials[n] || Template.PARTIALS[n];
-
-                            if (!partial)
-                            {
-                                throw new Error ("The partial '" + n + "' was not registered.");
-                            }
-
-                            token.children = partial;
-                            break;
-
-                        case "/":
-                            if (!blocks.pop ())
-                            {
-                                throw new Error ("Unmatched block closing tag.");
-                            }
-
-                            current = blocks.slice (-1)[0] || root;
-                            branchBlocks.pop ();
-                            branchExpr = branchBlocks[branchBlocks.length - 1];
-                            return;
-                    }
+                    return self.parseBlocks (Template.tokenize (template, self.openTag, self.closeTag));
                 }
-
-                children.push (token);
-            });
-
-            if (!level)
-            {
-                var nodes = [root.children];
-                var nid   = 0;
-                var n;
-
-                while ((n = nodes.shift ()))
+                ,
+                parseBlocks: function (tokens, level)
                 {
-                    n.id = nid++;
+                    level = level || 0;
 
-                    if (n.children)
-                    {
-                        nodes.push (n.children);
-                    }
+                    var self = this;
+                    var root = { children: [] };
+                    var current = root;
+                    var blocks = [];
+                    var branchBlocks = [];
+                    var branchExpr;
 
-                    if (n.branches)
+                    nit.each (tokens, function (token)
                     {
-                        nodes.push.apply (nodes, n.branches);
-                    }
+                        var children  = current.children;
+                        var expr      = token instanceof Array;
 
-                    for (var i = 0; i < n.length; ++i)
-                    {
-                        if (n[i] instanceof Array)
+                        if (expr)
                         {
-                            nodes.push (n[i]);
+                            token = self.parseBlocks (token, level + 1);
+
+                            var type = token[0][0];
+                            var n;
+
+                            switch (type)
+                            {
+                                case "@": // inline partial
+                                case "#": // block
+                                case ":": // else block
+                                    token.type = type;
+                                    n = token[0] = token[0].slice (1);
+                                    token.children = [];
+
+                                    if (type == "@")
+                                    {
+                                        if (n[0] == "*")
+                                        {
+                                            token.expand = true;
+                                            n = token[0] = n.slice (1);
+                                        }
+
+                                        if (self.partials[n] || Template.PARTIALS[n])
+                                        {
+                                            throw new Error ("The partial name '" + n + "' has been used.");
+                                        }
+
+                                        self.partials[n] = token.children;
+                                    }
+                                    else
+                                    if (type == ":")
+                                    {
+                                        blocks.pop ();
+                                    }
+
+                                    blocks.push (current = token);
+
+                                    if (type != "@")
+                                    {
+                                        var check = token[0][0];
+
+                                        if (check && Template.CHECKS[check])
+                                        {
+                                            token.check = check;
+                                            token[0] = token[0].slice (1);
+                                        }
+
+                                        if (type == "#")
+                                        {
+                                            token.branches = [];
+                                            branchBlocks.push (branchExpr = token);
+                                        }
+                                        else // ":"
+                                        {
+                                            branchExpr.branches.push (token);
+
+                                            return;
+                                        }
+                                    }
+                                    break;
+
+                                case "*": // partial expansion
+                                    token.type = type;
+                                    n = token.name = token[0].slice (1);
+
+                                    var partial = self.partials[n] || Template.PARTIALS[n];
+
+                                    if (!partial)
+                                    {
+                                        throw new Error ("The partial '" + n + "' was not registered.");
+                                    }
+
+                                    token.children = partial;
+                                    break;
+
+                                case "/":
+                                    if (!blocks.pop ())
+                                    {
+                                        throw new Error ("Unmatched block closing tag.");
+                                    }
+
+                                    current = blocks.slice (-1)[0] || root;
+                                    branchBlocks.pop ();
+                                    branchExpr = branchBlocks[branchBlocks.length - 1];
+                                    return;
+                            }
+                        }
+
+                        children.push (token);
+                    });
+
+                    if (!level)
+                    {
+                        var nodes = [root.children];
+                        var nid   = 0;
+                        var n;
+
+                        while ((n = nodes.shift ()))
+                        {
+                            n.id = nid++;
+
+                            if (n.children)
+                            {
+                                nodes.push (n.children);
+                            }
+
+                            if (n.branches)
+                            {
+                                nodes.push.apply (nodes, n.branches);
+                            }
+
+                            for (var i = 0; i < n.length; ++i)
+                            {
+                                if (n[i] instanceof Array)
+                                {
+                                    nodes.push (n[i]);
+                                }
+                            }
                         }
                     }
+
+                    return root.children;
                 }
-            }
-
-            return root.children;
-        };
-
-
-        Template.prototype.render = function (data, context)
-        {
-            var self = this;
-
-            context = nit.assign ({}, context,
-            {
-                $PENDING_RESULTS: [],
-                $TOKEN_RESULTS: {},
-                $TEMPLATE: self
-
-            });
-
-            function render (data)
-            {
-                var result = self.renderTokens (self.tokens, data, context);
-
-                if (context.$PENDING_RESULTS.length)
+                ,
+                render: function (data, context, tokens)
                 {
-                    return Promise
-                        .all (context.$PENDING_RESULTS)
-                        .then (function ()
-                        {
-                            context.$PENDING_RESULTS = [];
+                    var self = this;
 
-                            return render (data);
-                        })
-                    ;
-                }
-
-                return result;
-            }
-
-            return render (data);
-        };
-
-
-        Template.prototype.addPendingResult = function (context, token, result, dataIndex)
-        {
-            context.$PENDING_RESULTS.push (result.then (function (result)
-            {
-                dataIndex = dataIndex || 0;
-
-                return context.$TOKEN_RESULTS[token.id + ":" + dataIndex] = result;
-            }));
-        };
-
-
-        Template.prototype.evaluate = function (expr, data, context)
-        {
-            var escPipe = "<" + nit.uuid () + ">";
-            var escPipeRe = new RegExp (escPipe, "g");
-            var self = this;
-            var transforms = expr
-                .replace (/\\\|/g, escPipe)
-                .split ("|")
-                .map (function (t)
-                {
-                    return t.replace (escPipeRe, "|");
-                });
-
-            var path = transforms.shift ().trim ();
-            var value;
-
-            if (!path.length || path == ".")
-            {
-                value = data;
-            }
-            else
-            {
-                try
-                {
-                    value = nit.eval (path, nit.assign ({}, data, context));
-                }
-                catch (e)
-                {
-                    nit.log (e);
-                }
-            }
-
-            function evaluate (value)
-            {
-                var trans = transforms.shift ();
-
-                if (trans)
-                {
-                    var ctx = nit.assign ({}, context, { $$: value, $DATA: data });
-                    var args = [value];
-
-                    trans = Template.parseTransform (trans, self.transforms);
-
-                    if (trans.args)
+                    context = nit.assign ({}, context,
                     {
-                        if (trans.customArgs)
+                        $ROOT: data,
+                        $PENDING_RESULTS: [],
+                        $TOKEN_RESULTS: {},
+                        $TEMPLATE: self
+
+                    });
+
+                    function render (data)
+                    {
+                        var result = self.renderTokens (tokens || self.tokens, data, context);
+
+                        if (context.$PENDING_RESULTS.length)
                         {
-                            args = nit.eval ("[" + trans.args + "]", ctx);
+                            return Promise
+                                .all (context.$PENDING_RESULTS)
+                                .then (function ()
+                                {
+                                    context.$PENDING_RESULTS = [];
+
+                                    return render (data);
+                                })
+                            ;
+                        }
+
+                        return result;
+                    }
+
+                    return render (data);
+                }
+                ,
+                addPendingResult: function (context, token, result, dataIndex)
+                {
+                    context.$PENDING_RESULTS.push (result.then (function (result)
+                    {
+                        dataIndex = dataIndex || 0;
+
+                        return context.$TOKEN_RESULTS[token.id + ":" + dataIndex] = result;
+                    }));
+                }
+                ,
+                evaluate: function (expr, data, context)
+                {
+                    var escPipe = "<" + nit.uuid () + ">";
+                    var escPipeRe = new RegExp (escPipe, "g");
+                    var self = this;
+                    var transforms = expr
+                        .replace (/\\\|/g, escPipe)
+                        .split ("|")
+                        .map (function (t)
+                        {
+                            return t.replace (escPipeRe, "|");
+                        });
+
+                    var path = transforms.shift ().trim ();
+                    var value;
+
+                    if (!path.length || path == ".")
+                    {
+                        value = data;
+                    }
+                    else
+                    {
+                        try
+                        {
+                            value = nit.eval (path, nit.assign ({}, data, context));
+                        }
+                        catch (e)
+                        {
+                            nit.log (e);
+                        }
+                    }
+
+                    function evaluate (value)
+                    {
+                        var trans = transforms.shift ();
+
+                        if (trans)
+                        {
+                            var ctx = nit.assign ({}, context, { $$: value, $DATA: data });
+                            var args = [value];
+
+                            trans = Template.parseTransform (trans, self.transforms);
+
+                            if (trans.args)
+                            {
+                                if (trans.customArgs)
+                                {
+                                    args = nit.eval ("[" + trans.args + "]", ctx);
+                                }
+                                else
+                                {
+                                    args = args.concat (nit.toVal ("[" + trans.args + "]"));
+                                }
+                            }
+
+                            value = trans.func.apply (ctx, args);
+                        }
+
+                        if (value instanceof Promise)
+                        {
+                            return value.then (evaluate);
+                        }
+
+                        return transforms.length ? evaluate (value) : value;
+                    }
+
+                    return evaluate (value);
+                }
+                ,
+                renderTokens: function (tokens, data, context, evaluate, dataIndex)
+                {
+                    var self    = this;
+                    var result  = "";
+                    var resKey  = tokens.id + ":" + (dataIndex = dataIndex || 0);
+
+                    if (resKey in context.$TOKEN_RESULTS)
+                    {
+                        return context.$TOKEN_RESULTS[resKey];
+                    }
+
+                    nit.each (tokens, function (token)
+                    {
+                        var expr = typeof token != "string";
+
+                        if (expr)
+                        {
+                            var type = token.type;
+                            var val;
+
+                            if (type == "@" && token.expand)
+                            {
+                                type = "*";
+                            }
+
+                            switch (type)
+                            {
+                                case "*":
+                                    result += self.renderTokens (token.children, data, context, false, dataIndex);
+                                    break;
+
+                                case "@":
+                                    // noop for inline partial
+                                    break;
+
+                                case "#":
+                                    var branches = [token].concat (token.branches);
+
+                                    for (var i  = 0; i < branches.length; ++i)
+                                    {
+                                        var branch = branches[i];
+                                        var items = self.renderTokens (branch, data, context, true, dataIndex);
+
+                                        if (branch.check)
+                                        {
+                                            items = Template.CHECKS[branch.check] (items) ? [data] : [];
+                                        }
+
+                                        items = nit.array (items);
+
+                                        var count = items.length;
+
+                                        nit.each (items, function (d, idx)
+                                        {
+                                            var ctx = nit.assign ({}, context,
+                                            {
+                                                $INDEX: idx,
+                                                $COUNT: count,
+                                                $FIRST: idx == 0,
+                                                $LAST:  idx == count - 1,
+                                                $DATA:  branch.check ? undefined : data
+                                            });
+
+                                            result += self.renderTokens (branch.children, d, ctx, false, dataIndex + ":" + idx);
+                                        });
+
+                                        if (count)
+                                        {
+                                            break;
+                                        }
+                                    }
+                                    break;
+
+                                default:
+                                    val = self.renderTokens (token, data, context, true, dataIndex);
+                                    result += self.serialize (val);
+                            }
                         }
                         else
                         {
-                            args = args.concat (nit.toVal ("[" + trans.args + "]"));
+                            result += token;
                         }
-                    }
+                    });
 
-                    value = trans.func.apply (ctx, args);
-                }
-
-                if (value instanceof Promise)
-                {
-                    return value.then (evaluate);
-                }
-
-                return transforms.length ? evaluate (value) : value;
-            }
-
-            return evaluate (value);
-        };
-
-
-        Template.prototype.renderTokens = function (tokens, data, context, evaluate, dataIndex)
-        {
-            var self    = this;
-            var result  = "";
-            var resKey  = tokens.id + ":" + (dataIndex = dataIndex || 0);
-
-            if (resKey in context.$TOKEN_RESULTS)
-            {
-                return context.$TOKEN_RESULTS[resKey];
-            }
-
-            nit.each (tokens, function (token)
-            {
-                var expr = typeof token != "string";
-
-                if (expr)
-                {
-                    var type = token.type;
-                    var val;
-
-                    switch (type)
+                    if (evaluate)
                     {
-                        case "*":
-                            result += self.renderTokens (token.children, data, context, false, dataIndex);
-                            break;
+                        result = self.evaluate (result, data, context);
 
-                        case "@":
-                            // noop for inline partial
-                            break;
-
-                        case "#":
-                            var branches = [token].concat (token.branches);
-
-                            for (var i  = 0; i < branches.length; ++i)
-                            {
-                                var branch = branches[i];
-                                var items = self.renderTokens (branch, data, context, true, dataIndex);
-
-                                if (branch.check)
-                                {
-                                    items = CHECKS[branch.check] (items) ? [data] : [];
-                                }
-
-                                items = nit.array (items);
-
-                                var count = items.length;
-
-                                nit.each (items, function (d, idx)
-                                {
-                                    var ctx = nit.assign ({}, context,
-                                    {
-                                        $INDEX: idx,
-                                        $COUNT: count,
-                                        $FIRST: idx == 0,
-                                        $LAST:  idx == count - 1,
-                                        $DATA:  branch.check ? undefined : data
-                                    });
-
-                                    result += self.renderTokens (branch.children, d, ctx, false, dataIndex + ":" + idx);
-                                });
-
-                                if (count)
-                                {
-                                    break;
-                                }
-                            }
-                            break;
-
-                        default:
-                            val = self.renderTokens (token, data, context, true, dataIndex);
-                            result += self.serialize (val);
-                    }
-                }
-                else
-                {
-                    result += token;
-                }
-            });
-
-            if (evaluate)
-            {
-                result = self.evaluate (result, data, context);
-
-                if (result instanceof Promise)
-                {
-                    self.addPendingResult (context, tokens, result, dataIndex);
-                    result = "";
-                }
-                else
-                if (nit.is.not.undef (result))
-                {
-                    context.$TOKEN_RESULTS[tokens.id + ":" + dataIndex] = result;
-                }
-            }
-
-            return result;
-        };
-
-
-        Template.defaults =
-        {
-            template:     "",
-            openTag:      "{{",
-            closeTag:     "}}",
-            serialize:    nit.serialize,
-            transforms:   {},
-            partials:     {}
-        };
-
-
-        Template.render = function (tmpl, data, config) // eslint-disable-line no-unused-vars
-        {
-            var argv = nit.typedArgsToObj (arguments,
-            {
-                tmpl: "string",
-                data: ["undef", "object"],
-                config: "object"
-            });
-
-            return new Template (argv.tmpl, argv.config).render (argv.data);
-        };
-
-
-        Template.TRANSFORM_PATTERN = /^([$a-z0-9_.-]+)\s*(@?\((.*)\))?$/i;
-        Template.BLOCK_SYMBOLS = "#?:@=/";
-        Template.BLOCK_LEADING_WS = /[ \t]+$/;
-        Template.BLOCK_TRAILING_WS = /^\n/;
-
-        Template.TRANSFORMS = { nit: nit };
-        Template.PARTIALS = {};
-
-
-        Template.parseTransform = function (decl, localTransforms)
-        {
-            var match = decl.trim ().match (Template.TRANSFORM_PATTERN);
-
-            if (!match)
-            {
-                throw new Error ("Invalid transform declaration: " + decl);
-            }
-
-            var name  = match[1];
-            var args  = match[3];
-            var trans = localTransforms || {};
-            var func  = name && (nit.get (trans, name) || nit.get (Template.TRANSFORMS, name));
-
-            if (!func)
-            {
-                throw new Error ("The transform '" + name + "' was not registered.");
-            }
-
-            return { name: name, func: func, args: args, customArgs: !!(match[2] && match[2][0] == "@") };
-        };
-
-
-        Template.registerTransform = function (name, func)
-        {
-            Template.TRANSFORMS[name] = func;
-
-            return Template;
-        };
-
-
-        Template.registerPartial = function (name, partial)
-        {
-            Template.PARTIALS[name] = new Template (partial).tokens;
-
-            return Template;
-        };
-
-
-        Template.tokenize = function (tmpl, openTag, closeTag)
-        {
-            openTag   = openTag || Template.defaults.openTag;
-            closeTag  = closeTag || Template.defaults.closeTag;
-
-            var uuid      = nit.uuid ();
-            var openChar  = openTag[0];
-            var closeChar = closeTag[0];
-            var escOpen   = "<O-" + uuid + ">";
-            var escClose  = "<C-" + uuid + ">";
-            var hasEsc    = false;
-
-            tmpl = tmpl
-                // remove newline + spaces
-                .replace (/\\\n[ ]*/g, "")
-
-                // use \{{ to escape the open tag character
-                .replace (new RegExp ("\\\\([" + nit.escapeRegExp (openChar + closeChar) + "])", "g"), function (match, char)
-                {
-                    hasEsc = true;
-
-                    return char == openChar ? escOpen : escClose;
-                });
-
-            var rootTokens    = [];
-            var currentToken  = rootTokens;
-            var parents       = [];
-
-
-            function findTag (str, tag)
-            {
-                var index;
-
-                do
-                {
-                    index = str.indexOf (tag, index);
-
-                    if (index > -1)
-                    {
-                        return { index: index, length: tag.length };
-                    }
-                }
-                while (index != -1);
-            }
-
-
-            function findOpen (str)
-            {
-                return findTag (str, openTag);
-            }
-
-
-            function findClose (str)
-            {
-                return findTag (str, closeTag);
-            }
-
-
-            function throwNotClosed (str)
-            {
-                str = str
-                    .replace (new RegExp (escOpen, "g"), "\\" + openChar)
-                    .replace (new RegExp (escClose, "g"), "\\" + closeChar);
-
-                throw new Error ("The open tag is not closed. (Given: " + str + ")");
-            }
-
-
-            function parse (str)
-            {
-                var open = findOpen (str);
-
-                if (!open)
-                {
-                    currentToken.push (str);
-
-                    return { str: str, end: str.length + 1, more: "" };
-                }
-
-                if (open.index)
-                {
-                    currentToken.push (str.slice (0, open.index));
-                }
-
-                var rest      = str.slice (open.index + open.length);
-                var nextOpen  = findOpen (rest);
-                var close     = findClose (rest);
-                var more      = "";
-                var tokens    = [];
-                var result;
-                var end;
-
-                if (!close)
-                {
-                    throwNotClosed (str);
-                }
-
-                var endIdx = 0;
-
-                parents.push (currentToken);
-                currentToken.push (currentToken = []);
-
-                if (nextOpen && nextOpen.index < close.index) // nested - {{prefix.{{name}}.suffix}}
-                {
-                    do
-                    {
-                        var pre = rest.slice (0, nextOpen.index);
-
-                        if (nextOpen.index)
+                        if (result instanceof Promise)
                         {
-                            currentToken.push (pre);
+                            self.addPendingResult (context, tokens, result, dataIndex);
+                            result = "";
+                        }
+                        else
+                        if (nit.is.not.undef (result))
+                        {
+                            context.$TOKEN_RESULTS[tokens.id + ":" + dataIndex] = result;
+                        }
+                    }
+
+                    return result;
+                }
+            }, true, false);
+
+
+            nit.dpvs (Template,
+            {
+                TRANSFORM_PATTERN: /^([$a-z0-9_.-]+)\s*(@?\((.*)\))?$/i,
+                BLOCK_SYMBOLS: "#?:@=/",
+                BLOCK_LEADING_WS: /[ \t]+$/,
+                BLOCK_TRAILING_WS: /^\n/,
+                CHECKS:
+                {
+                    "?": nit.is.truthy,
+                    "!": nit.is.not.truthy,
+                    "-": nit.is.empty,
+                    "+": nit.is.not.empty
+                }
+                ,
+                TRANSFORMS: { nit: nit },
+                PARTIALS: {},
+
+                defaults:
+                {
+                    template:     "",
+                    openTag:      "{{",
+                    closeTag:     "}}",
+                    serialize:    nit.serialize,
+                    transforms:   {},
+                    partials:     {}
+                }
+                ,
+                render: function (tmpl, data, config, context) // eslint-disable-line no-unused-vars
+                {
+                    var argv = nit.typedArgsToObj (arguments,
+                    {
+                        tmpl: "string",
+                        data: ["undef", "object"],
+                        config: "object",
+                        context: "object"
+                    });
+
+                    return new Template (argv.tmpl, argv.config).render (argv.data, argv.context);
+                }
+                ,
+                parseTransform: function (decl, localTransforms)
+                {
+                    var match = decl.trim ().match (Template.TRANSFORM_PATTERN);
+
+                    if (!match)
+                    {
+                        throw new Error ("Invalid transform declaration: " + decl);
+                    }
+
+                    var name  = match[1];
+                    var args  = match[3];
+                    var trans = localTransforms || {};
+                    var func  = name && (nit.get (trans, name) || nit.get (Template.TRANSFORMS, name));
+
+                    if (!func)
+                    {
+                        throw new Error ("The transform '" + name + "' was not registered.");
+                    }
+
+                    return { name: name, func: func, args: args, customArgs: !!(match[2] && match[2][0] == "@") };
+                }
+                ,
+                registerTransform: function (name, func)
+                {
+                    var cls = this;
+
+                    cls.TRANSFORMS[name] = func;
+
+                    return cls;
+                }
+                ,
+                registerPartial: function (name, partial)
+                {
+                    var cls = this;
+
+                    cls.PARTIALS[name] = new cls (partial).tokens;
+
+                    return cls;
+                }
+                ,
+                tokenize: function (tmpl, openTag, closeTag)
+                {
+                    openTag   = openTag || Template.defaults.openTag;
+                    closeTag  = closeTag || Template.defaults.closeTag;
+
+                    var uuid      = nit.uuid ();
+                    var openChar  = openTag[0];
+                    var closeChar = closeTag[0];
+                    var escOpen   = "<O-" + uuid + ">";
+                    var escClose  = "<C-" + uuid + ">";
+                    var hasEsc    = false;
+
+                    tmpl = tmpl
+                        // remove newline + spaces
+                        .replace (/\\\n[ ]*/g, "")
+
+                        // use \{{ to escape the open tag character
+                        .replace (new RegExp ("\\\\([" + nit.escapeRegExp (openChar + closeChar) + "])", "g"), function (match, char)
+                        {
+                            hasEsc = true;
+
+                            return char == openChar ? escOpen : escClose;
+                        });
+
+                    var rootTokens    = [];
+                    var currentToken  = rootTokens;
+                    var parents       = [];
+
+
+                    function findTag (str, tag)
+                    {
+                        var index;
+
+                        do
+                        {
+                            index = str.indexOf (tag, index);
+
+                            if (index > -1)
+                            {
+                                return { index: index, length: tag.length };
+                            }
+                        }
+                        while (index != -1);
+                    }
+
+
+                    function findOpen (str)
+                    {
+                        return findTag (str, openTag);
+                    }
+
+
+                    function findClose (str)
+                    {
+                        return findTag (str, closeTag);
+                    }
+
+
+                    function throwNotClosed (str)
+                    {
+                        str = str
+                            .replace (new RegExp (escOpen, "g"), "\\" + openChar)
+                            .replace (new RegExp (escClose, "g"), "\\" + closeChar);
+
+                        throw new Error ("The open tag is not closed. (Given: " + str + ")");
+                    }
+
+
+                    function parse (str)
+                    {
+                        var open = findOpen (str);
+
+                        if (!open)
+                        {
+                            currentToken.push (str);
+
+                            return { str: str, end: str.length + 1, more: "" };
                         }
 
-                        tokens.push (pre);
+                        if (open.index)
+                        {
+                            currentToken.push (str.slice (0, open.index));
+                        }
 
-                        endIdx  += pre.length;
-                        rest    = rest.slice (nextOpen.index);
-                        result  = parse (rest);
-
-                        endIdx  += result.end;
-                        rest    = result.more;
-                        close   = findClose (rest);
-
-                        tokens.push (result);
+                        var rest      = str.slice (open.index + open.length);
+                        var nextOpen  = findOpen (rest);
+                        var close     = findClose (rest);
+                        var more      = "";
+                        var tokens    = [];
+                        var result;
+                        var end;
 
                         if (!close)
                         {
-                            throwNotClosed (pre);
+                            throwNotClosed (str);
                         }
 
-                        nextOpen = findOpen (rest);
+                        var endIdx = 0;
+
+                        parents.push (currentToken);
+                        currentToken.push (currentToken = []);
+
+                        if (nextOpen && nextOpen.index < close.index) // nested - {{prefix.{{name}}.suffix}}
+                        {
+                            do
+                            {
+                                var pre = rest.slice (0, nextOpen.index);
+
+                                if (nextOpen.index)
+                                {
+                                    currentToken.push (pre);
+                                }
+
+                                tokens.push (pre);
+
+                                endIdx  += pre.length;
+                                rest    = rest.slice (nextOpen.index);
+                                result  = parse (rest);
+
+                                endIdx  += result.end;
+                                rest    = result.more;
+                                close   = findClose (rest);
+
+                                tokens.push (result);
+
+                                if (!close)
+                                {
+                                    throwNotClosed (pre);
+                                }
+
+                                nextOpen = findOpen (rest);
+                            }
+                            while (nextOpen && close.index > nextOpen.index);
+                        }
+
+                        end   = open.index + open.length + endIdx + close.index + close.length;
+                        more  = str.slice (end);
+                        str   = str.slice (0, open.index);
+
+                        parse (rest.slice (0, close.index));
+
+                        currentToken = parents.pop ();
+
+                        return { str: str, end: end, more: more };
                     }
-                    while (nextOpen && close.index > nextOpen.index);
-                }
-
-                end   = open.index + open.length + endIdx + close.index + close.length;
-                more  = str.slice (end);
-                str   = str.slice (0, open.index);
-
-                parse (rest.slice (0, close.index));
-
-                currentToken = parents.pop ();
-
-                return { str: str, end: end, more: more };
-            }
 
 
-            var result  = parse (tmpl);
-            var tokens  = [result];
-            var more;
+                    var result  = parse (tmpl);
+                    var tokens  = [result];
+                    var more;
 
-            while (result.more && more != result.more)
-            {
-                more    = result.more;
-                result  = parse (more);
-
-                tokens.push (result);
-            }
-
-            var blkSymbols  = Template.BLOCK_SYMBOLS;
-            var blkLeading  = Template.BLOCK_LEADING_WS;
-            var blkTrailing = Template.BLOCK_TRAILING_WS;
-            var prev, next;
-
-            for (var i = 0; i < rootTokens.length; ++i)
-            {
-                var rt = rootTokens[i];
-
-                if (typeof rt == "string")
-                {
-                    if (hasEsc)
+                    while (result.more && more != result.more)
                     {
-                        rootTokens[i] = rt
-                            .replace (new RegExp (escOpen, "g"), openChar)
-                            .replace (new RegExp (escClose, "g"), closeChar);
+                        more    = result.more;
+                        result  = parse (more);
+
+                        tokens.push (result);
                     }
-                }
-                else
-                if (~blkSymbols.indexOf (rt[0][0])
-                    && typeof (prev = rootTokens[i - 1]) == "string"
-                    && typeof (next = rootTokens[i + 1]) == "string"
-                    && prev.match (blkLeading)
-                    && next.match (blkTrailing))
-                {
-                    rootTokens[i - 1] = prev.replace (blkLeading, "");
-                    rootTokens[i + 1] = next.replace (blkTrailing, "");
-                }
-            }
 
-            return rootTokens;
-        };
+                    var blkSymbols  = Template.BLOCK_SYMBOLS;
+                    var blkLeading  = Template.BLOCK_LEADING_WS;
+                    var blkTrailing = Template.BLOCK_TRAILING_WS;
+                    var prev, next;
 
-        return Template;
-    }) ();
+                    for (var i = 0; i < rootTokens.length; ++i)
+                    {
+                        var rt = rootTokens[i];
+
+                        if (typeof rt == "string")
+                        {
+                            if (hasEsc)
+                            {
+                                rootTokens[i] = rt
+                                    .replace (new RegExp (escOpen, "g"), openChar)
+                                    .replace (new RegExp (escClose, "g"), closeChar);
+                            }
+                        }
+                        else
+                        if (~blkSymbols.indexOf (rt[0][0])
+                            && typeof (prev = rootTokens[i - 1]) == "string"
+                            && typeof (next = rootTokens[i + 1]) == "string"
+                            && prev.match (blkLeading)
+                            && next.match (blkTrailing))
+                        {
+                            rootTokens[i - 1] = prev.replace (blkLeading, "");
+                            rootTokens[i + 1] = next.replace (blkTrailing, "");
+                        }
+                    }
+
+                    return rootTokens;
+                }
+
+            }, true, false);
+        })
+    ;
 
 
     // -----------------------------------------
@@ -2656,38 +2697,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return cls[CACHE_KEY].slice ();
         };
     }) ();
-
-
-    nit.registerClass = function (name, cls) // or (cls)
-    {
-        if (nit.is.func (name))
-        {
-            cls = name;
-            name = cls.name;
-        }
-
-        return nit.CLASSES[name] = cls;
-    };
-
-
-    nit.lookupClass = function (name)
-    {
-        var cls;
-
-        if (nit.is.func (cls = nit.CLASSES[name]) || nit.is.func (cls = global[name]))
-        {
-            return cls;
-        }
-    };
-
-
-    nit.listSubclassesOf = function (superclass)
-    {
-        return nit.each (nit.CLASSES, function (cls)
-        {
-            return nit.is.subclassOf (cls, superclass) ? cls : nit.each.SKIP;
-        });
-    };
 
 
     nit.new = function (cls, args)
@@ -5045,6 +5054,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .field ("[timeout]", "integer", "The deferred timeout.")
         .property ("resolve", "function")
         .property ("reject", "function")
+        .getter ("promise", "_promise")
         .construct (function (timeout)
         {
             var self = this;
@@ -5079,7 +5089,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 rej (error);
             };
 
-            nit.dpv (self, "promise", promise, false);
+            nit.dpv (self, "_promise", promise, false);
         })
         .method ("then", function (onResolve, onReject)
         {

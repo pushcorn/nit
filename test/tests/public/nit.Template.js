@@ -120,6 +120,30 @@ test ("nit.Template.render () - inline partial", () =>
 });
 
 
+test ("nit.Template.render () - inline partial and render", () =>
+{
+    var tmpl = `
+    {{label}}
+    {{@*my-frag}}
+        {{#-names}}no names{{:}}{{names.0}} and {{names.1}}{{/}}
+    {{/}}
+    `;
+
+    var expected = `
+    Full name:
+        first and last
+    `;
+
+    var tpl = nit.Template (tmpl);
+    var result = tpl.render ({ label: "Full name:", names: ["first", "last"] });
+
+    expect (result).toBe (expected);
+    expect (tpl.partials["my-frag"]).toBeInstanceOf (Array);
+    expect (tpl.render ({ names: ["one", "two"] }, {}, tpl.partials["my-frag"])).toBe (`        one and two
+`);
+});
+
+
 test ("nit.Template.render () - inline partial", () =>
 {
     var tmpl = `

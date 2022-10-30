@@ -45,4 +45,14 @@ test ("nit.Deferred", async () =>
     }
 
     expect (err.code).toBe ("error.timeout");
+
+    //-------------------
+    d = nit.Deferred ();
+
+    setTimeout (function ()
+    {
+        d.resolve ("OK");
+    }, 50);
+
+    expect (await d.promise).toBe ("OK");
 });

@@ -51,6 +51,17 @@ test ("nit.Queue", async () =>
             expect (ctx.result).toBe (3);
         })
     ;
+
+    await nit.Queue ({ val: 9 })
+        .push (async function (ctx)
+        {
+            ctx.result = ctx.result.val;
+        })
+        .run (function (ctx)
+        {
+            expect (ctx.result).toBe (9);
+        })
+    ;
 });
 
 
