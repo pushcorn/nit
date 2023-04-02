@@ -639,7 +639,7 @@ test ("nit.Object.toPojo ()", () =>
 test ("nit.Object.mix ()", () =>
 {
     const Sub = nit.Object.defineSubclass ("Sub")
-        .mix ("loggable")
+        .mix ("logger")
     ;
 
     expect (Sub.prototype.log).toBeInstanceOf (Function);
@@ -868,6 +868,24 @@ test ("nit.Object.buildConstructorParams ()", async () =>
 
     await nit.User.buildConstructorParams (user, { "info..remoteData": "someurl" }, props, true);
     expect (prepareCalled).toBe (true);
+});
+
+
+test ("nit.Object.buildConstructorParams () - varargs grouping", async () =>
+{
+    let FilterOne = nit.defineClass ("FilterOne")
+        .field ("<keys...>", "string")
+        .field ("[caseInsensitive]", "boolean")
+    ;
+
+    expect (new FilterOne ("a", "b").toPojo ()).toEqual ({ keys: ["a", "b"], caseInsensitive: false });
+
+    let FilterTwo = nit.defineClass ("FilterTwo")
+        .field ("<keys...>", "string")
+        .field ("[value]", "string")
+    ;
+
+    expect (new FilterTwo ("a", "b", "c").toPojo ()).toEqual ({ keys: ["a", "b"], value: "c" });
 });
 
 

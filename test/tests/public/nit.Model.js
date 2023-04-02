@@ -4,20 +4,20 @@ test ("nit.Model", async () =>
 
     const Unique = nit.defineConstraint ("constraints.Unique")
         .throws ("error.not_unique", "The '%{property.name}' has been used.")
-        .validate (async function (value)
+        .validate (async function (ctx)
         {
             checkedConstraints.push (Unique);
             await nit.sleep (20);
-            return value != "johndoe";
+            return ctx.value != "johndoe";
         })
     ;
 
     const MinLength = nit.defineConstraint ("constraints.MinLength")
         .throws ("error.insufficient_length", "The '%{property.name}' is too short.")
-        .validate (function (value)
+        .validate (function (ctx)
         {
             checkedConstraints.push (MinLength);
-            return value.length > 10;
+            return ctx.value.length > 10;
         })
     ;
 
@@ -83,7 +83,7 @@ test ("nit.Model", async () =>
 
     ctx = new User.ValidationContext ();
     ctx.model = user;
-    await field.validate ("", ctx);
+    await field.validate (ctx);
     expect (ctx.violations[0].code).toBe ("error.value_required");
 
     //----------------------------------
@@ -98,6 +98,38 @@ test ("nit.Model", async () =>
     expect (checkedConstraints).toEqual ([Unique, MinLength]);
 
     expect (await User.validate (user)).toBeInstanceOf (nit.Model.ValidationContext);
+});
+
+
+test ("nit.Model.validate () - instance constraints handling", async () =>
+{
+    const Matcher = nit.defineModel ("Matcher")
+        .field ("path", "string")
+        .field ("pattern", "string")
+        .check ("exclusive", "path", "pattern")
+    ;
+
+    let m = Matcher.create ({ path: "/", pattern: "/*" });
+    let error;
+
+    try { await Matcher.validate (m); } catch (e) { error = e; }
+    expect (error.context.validationContext.specified).toBe (2);
+
+    let origValidate = nit.Class.validate;
+
+    nit.Class.validate = function ()
+    {
+        if (this == Matcher)
+        {
+            throw new Error ("FAILED!");
+        }
+    };
+
+    error = null;
+    m = Matcher.create ({ path: "/" });
+    try { await Matcher.validate (m); } catch (e) { error = e; }
+    nit.Class.validate = origValidate;
+    expect (error.context.validationContext.violations[0].constraint).toBe ("");
 });
 
 

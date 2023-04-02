@@ -12,15 +12,15 @@ test ("nit.Constraint", () =>
 
     let cons = new Max;
 
-    expect (() => cons.validate ()).toThrow (/cannot be applied to.*undefined/i);
+    expect (() => cons.validate ({})).toThrow (/cannot be applied to.*undefined/i);
     expect (cons.applicableTo ("integer")).toBe (true);
     expect (cons.applicableTo ("string")).toBe (false);
-    expect (() => cons.validate ("10")).toThrow (/method not implemented/i);
+    expect (() => cons.validate ({ value: "10" })).toThrow (/method not implemented/i);
 
 
-    Max.validate (function (value, ctx)
+    Max.validate (function (ctx)
     {
-        return value * 1 <= ctx.constraint.max;
+        return ctx.value * 1 <= ctx.constraint.max;
     });
 
     cons = new Max;
@@ -32,7 +32,10 @@ test ("nit.Constraint", () =>
         property: nit.Field ("age", "integer")
     });
 
-    expect (() => cons.validate ("aab", ctx)).toThrow (/cannot be applied to.*aab/i);
-    expect (() => cons.validate (500, ctx)).toThrow (/the value is greater than 10/i);
-    expect (cons.validate (5, ctx)).toBe (true);
+    ctx.value = "aab";
+    expect (() => cons.validate (ctx)).toThrow (/cannot be applied to.*aab/i);
+    ctx.value = 500;
+    expect (() => cons.validate (ctx)).toThrow (/the value is greater than 10/i);
+    ctx.value = 5;
+    expect (cons.validate (ctx)).toBe (true);
 });

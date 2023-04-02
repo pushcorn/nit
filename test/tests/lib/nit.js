@@ -61,11 +61,15 @@ test ("nit.dbg ()", () =>
 
     let nit = require (test.HOME);
     let args;
+    let _log = nit.log;
 
     nit.log = function ()
     {
         args = nit.array (arguments);
     };
+
+    nit.log.d = _log.d;
+    nit.log.formatMessage = _log.formatMessage;
 
     nit.dbg ("debug message");
     expect (args).toBeUndefined ();
@@ -78,6 +82,9 @@ test ("nit.dbg ()", () =>
     {
         args = nit.array (arguments);
     };
+    nit.log.d = _log.d;
+    nit.log.formatMessage = _log.formatMessage;
+
     nit.dbg ("debug message");
     expect (args).toEqual (["[DEBUG]", "debug message"]);
 
@@ -426,6 +433,9 @@ test ("nit.handlException ()", async () =>
         logContent = nit.array (arguments);
     };
 
+    nit.log.e = nit._log.e;
+    nit.log.formatMessage = nit._log.formatMessage;
+
     nit.handleException (new Error ("test error"));
 
     expect (logContent).toEqual (["[ERROR]", "test error"]);
@@ -683,6 +693,7 @@ test ("nit.lookupCommand ()", async () =>
     const nit = await test.reloadNit ("project-c");
 
     expect (() => nit.lookupCommand ("error-cmd")).toThrow (/error loading command/);
+    expect (() => nit.lookupCommand ("invalid-type-command")).toThrow (/component.*InvalidPlugin.*not found/i);
 });
 
 

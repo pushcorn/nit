@@ -882,6 +882,33 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    // returns the local date time string
+    nit.timestamp = function (date, dateOnly)
+    {
+        if (nit.is.bool (date))
+        {
+            dateOnly = date;
+            date = undefined;
+        }
+        else
+        if (nit.is.str (date))
+        {
+            date = nit.parseDate (date);
+        }
+        else
+        if (nit.is.int (date))
+        {
+            date = new Date (date);
+        }
+
+        date = date || new Date ();
+
+        var ts = date.toLocaleString ("sv");
+
+        return dateOnly ? ts.split (" ")[0] : ts;
+    };
+
+
     nit.log = function ()
     {
         nit.log.logger.apply (nit.log.logger, arguments);
@@ -890,8 +917,41 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    nit.log.LEVELS = ["debug", "info", "warn", "error"];
+
     nit.log.logger = console.log.bind (console);
 
+    nit.log.formatMessage = function ()
+    {
+        var args = ARRAY (arguments);
+        var message = args[0];
+
+        if (typeof message == "string")
+        {
+            message = nit.format.apply (nit, args);
+        }
+        else
+        if (message instanceof Error)
+        {
+            message = message.stack;
+        }
+        else
+        {
+            message = JSON.stringify (message);
+        }
+
+        return message;
+    };
+
+    nit.log.LEVELS.forEach (function (level)
+    {
+        var ucLevel = level.toUpperCase ();
+
+        nit.log[level] = nit.log[level[0]] = function ()
+        {
+            nit.log ("[" + ucLevel + "]", nit.log.formatMessage.apply (null, arguments));
+        };
+    });
 
     // -----------------------
     // String utils
@@ -996,6 +1056,51 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
     nit.parseRegExp.PATTERN  = /^\/(.*?)\/([gimuy]*)$/;
+
+
+    // parses ISO8601 date string
+    // for time only, at least the hh:mm must be provided
+    // for date only, at least the YYYY-MM must be provided
+    nit.parseDate = function (str)
+    {
+        var d;
+
+        if (str && (d = nit.parseDate.PATTERN.exec (str)))
+        {
+            var now = new Date ();
+
+            d   =
+            {
+                year:     d[2] !== undefined ? ~~d[2] : now.getFullYear (),
+                month:    d[3] !== undefined ? (~~d[3] - 1) : now.getMonth (),
+                day:      d[4] !== undefined ? ~~d[4] : now.getDate (),
+                hour:     (d[6] !== undefined ? ~~d[6] : 0),
+                minute:   (d[7] !== undefined ? ~~d[7] : 0),
+                second:   d[8] !== undefined ? ~~d[8] : 0,
+                msec:     d[9] !== undefined ? ~~d[9] : 0,
+                offHour:  d[10] == "Z" ? 0 : ~~d[11],
+                offMin:   ~~d[12] * (d[11] && d[11][0] == "-" ? -1 : 1),
+                offset:   d[10] !== undefined
+            };
+
+            var diff;
+            var tzOffset = new Date (d.year, d.month, d.day).getTimezoneOffset ();
+
+            if (d.offset)
+            {
+                diff = tzOffset + d.offHour * 60 + d.offMin;
+
+                d.hour    -= ~~(diff / 60);
+                d.minute  -= diff % 60;
+            }
+
+            return new Date (d.year, d.month, d.day, d.hour, d.minute, d.second, d.msec);
+        }
+    };
+
+    //                 0                                1              2        3    4     5               6     7     8     9      10        11     12
+    // sample result: ["2015-03-04T09:45:22.333+04:00", "2015-03-04T", "2015", "03", "04", "09:45:22.333", "09", "45", "22", "333", "+04:00", "+04", "00"]
+    nit.parseDate.PATTERN  = /^((\d{4})(?:-(\d{1,2}))(?:-(\d{1,2}))?[ T]?|)((\d{1,2})(?::(\d{1,2}))(?::(\d{1,2}))?(?:\.(\d+))?)?(Z|([+-]\d{2})(?::?(\d{2}))?)?$/;
 
 
     nit.k = function (cls) // generate a namespaced key for a function
@@ -1729,6 +1834,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             nit.config (k + "." + kk, v[kk]);
                         }
                         break;
+
                     case "?": // set only when undefined
                         if (nit.get (cfg, k) === undefined)
                         {
@@ -2117,19 +2223,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             var type = token.type;
                             var val;
 
-                            if (type == "@" && token.expand)
-                            {
-                                type = "*";
-                            }
-
                             switch (type)
                             {
-                                case "*":
-                                    result += self.renderTokens (token.children, data, context, false, dataIndex);
-                                    break;
-
                                 case "@":
-                                    // noop for inline partial
+                                    if (!token.expand)
+                                    {
+                                        break;
+                                    }
+
+                                case "*": // eslint-disable-line no-fallthrough
+                                    result += self.renderTokens (token.children, data, context, false, dataIndex);
                                     break;
 
                                 case "#":
@@ -2486,7 +2589,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.format = function (/* str, args */)
     {
-        var args = ARRAY (arguments).map (function (arg) { return typeof arg == "object" || typeof arg == "function" ? nit.clone (arg) : arg; });
+        var parsed = nit.format.parse (arguments);
+
+        return nit.Template.render (parsed.message, parsed.data, nit.format.defaults);
+    };
+
+
+    nit.format.parse = function (args)
+    {
+        args = ARRAY (args).map (function (arg) { return typeof arg == "object" || typeof arg == "function" ? nit.clone (arg, undefined, undefined, arg instanceof Error) : arg; });
+
         var message = nit.trim (args.shift ());
         var data = nit.argsToObj (args, null, false);
 
@@ -2499,7 +2611,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             }
         });
 
-        return nit.Template.render (message, data, nit.format.defaults);
+        return { message: message, data: data };
     };
 
 
@@ -2533,6 +2645,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     nit.m.SCOPE_DELIMITER = "|";
+    nit.m.KEY_PATTERN = /^[0-9a-z_|.]+$/i;
     nit.m.MESSAGES = {};
 
     nit
@@ -2569,10 +2682,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             ks = key.split (delimiter);
         }
 
+        if (!ks.join (delimiter).match (nit.m.KEY_PATTERN))
+        {
+            return key;
+        }
+
         args.shift ();
 
         while ((ks.length > 1)
-            && (k = ks.join ("|"))
+            && (k = ks.join (delimiter))
             && !(t = nit.m.MESSAGES[k]))
         {
             ks.splice (ks.length > 2 ? ks.length - 2 : 0, 1);
@@ -2600,6 +2718,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         ctx.source = ctx.source || self; // the source object that triggered the error
         ctx.owner = ctx.owner || self; // the object that owns the error
         ctx.message = ctx.message || (code.match (nit.ERROR_CODE_PATTERN) ? nit.t (self, code) : code);
+        ctx.data = nit.argsToObj (args.slice (1), null, false);
 
         args = [ctx.message, self, ctx].concat (args.slice (1));
 
@@ -2776,6 +2895,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         return nit;
     };
+
+
+    nit.registerArgExpander ("cfg", function (key)
+    {
+        return nit.config (key);
+    });
 
 
     nit.registerArgExpander ("tpl", function (tmpl, data)
@@ -3236,9 +3361,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 var positional = false;
                 var array = !!cfg.array;
                 var writer = cfg.writer;
+                var nullable = !!(type.slice (-1) == "?" && (type = type.slice (0, -1)));
                 var name;
 
                 delete cfg.writer;
+
+                if (nullable)
+                {
+                    defval = undefined;
+                }
 
                 if (ch == "[" || ch == "<")
                 {
@@ -3291,6 +3422,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     name: name,
                     required: required,
                     positional: positional,
+                    nullable: nullable,
                     array: array,
                     kind: cfg.kind || Property.prototype.kind,
                     setter: cfg.setter,
@@ -3303,7 +3435,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                         if (nit.is.undef (v))
                         {
-                            if (nit.is.undef (prop.defval))
+                            if (nullable || nit.is.undef (prop.defval))
                             {
                                 return;
                             }
@@ -3422,7 +3554,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     nit.throw.call (cls, "error.invalid_type", { property: prop });
                 }
 
-                if (nit.is.undef (defval))
+                if (nit.is.undef (defval) && !nullable)
                 {
                     prop.defval = parser.defval;
                 }
@@ -3449,6 +3581,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 positional: false,
                 configurable: undefined,
                 enumerable: undefined,
+                nullable: false,
                 kind: "property",
                 cast: function (v, owner) {}, // eslint-disable-line no-unused-vars
                 get: undefined,
@@ -4136,7 +4269,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var configKey = obj.constructor.name;
             var defvals = cls[cls.kDefvals];
 
-            if (!(n in params))
+            if (params[n] === undefined)
             {
                 var defval = n in defvals ? defvals[n] : prop.defval;
 
@@ -4230,6 +4363,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 if (p.array)
                 {
                     params[p.name] = [v];
+
+                    var np = pargProps[0];
+
+                    if (np && np.type != p.type)
+                    {
+                        while (positionals.length && nit.is[p.type] (positionals[0]))
+                        {
+                            params[p.name].push (positionals.shift ());
+                            delete params[np.name];
+                        }
+                    }
                     break;
                 }
                 else
@@ -4320,7 +4464,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             return obj;
         })
-        .staticMethod ("constructObject", function (obj, args)
+        .staticMethod ("createConstructionQueue", function (obj, args)
         {
             var cls = this;
             var props = cls.getProperties (obj);
@@ -4377,7 +4521,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 })
             ;
 
-            return queue.run ();
+            return queue;
+        })
+        .staticMethod ("constructObject", function (obj, args)
+        {
+            return this.createConstructionQueue (obj, args).run ();
         })
         .staticMethod ("construct", function (construct)
         {
@@ -4590,7 +4738,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .m ("error.validation_failed", "The value '%{value}' is invalid.")
         .m ("error.invalid_target_value_type", "The constraint value type '%{type} is invalid.")
         .m ("error.invalid_target_value", "The constraint cannot be applied to '%{value|nit.Object.serialize}'.")
-        .constant ("ALWAYS", false)
+        .m ("error.constraint_not_defined", "The constraint '%{name}' was not defined.")
         .categorize ("constraints")
         .defineInnerClass ("ValidationContext", function (ValidationContext)
         {
@@ -4600,6 +4748,24 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 .property ("property", "any") // the property
                 .property ("constraint", "nit.Constraint")
             ;
+        })
+        .staticMethod ("lookup", function (name)
+        {
+            try
+            {
+                return nit.lookupComponent (name, "constraints", this);
+            }
+            catch (e)
+            {
+                if (e.code != "error.component_not_found")
+                {
+                    throw e;
+                }
+                else
+                {
+                    this.throw ("error.constraint_not_defined", { name: name });
+                }
+            }
         })
         .staticMethod ("appliesTo", function (types)
         {
@@ -4644,15 +4810,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             return !types.length || !!~types.indexOf (type);
         })
-        .method ("validate", function (value, ctx)
+        .method ("validate", function (ctx)
         {
             var constraint = this;
             var cls = constraint.constructor;
             var validate = cls[cls.kValidate];
 
-            if (constraint.applicableTypes.length && !constraint.applicableTypes.some (function (type) { return nit.is[type] (value); }))
+            if (constraint.applicableTypes.length && !constraint.applicableTypes.some (function (type) { return nit.is[type] (ctx.value); }))
             {
-                constraint.throw ("error.invalid_target_value", { value: value });
+                constraint.throw ("error.invalid_target_value", { value: ctx.value });
             }
 
             if (!validate)
@@ -4665,7 +4831,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return nit.Queue ()
                 .push (function ()
                 {
-                    return validate.call (cls, value, ctx);
+                    return validate.call (cls, ctx);
                 })
                 .push (function (q)
                 {
@@ -4683,11 +4849,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     nit.defineConstraint ("Exclusive")
-        .constant ("ALWAYS", true)
         .throws ("error.exclusive_fields_specified", "Exactly one of following fields must be specified: %{constraint.fields.join (', ')}. (%{specified} specified)")
         .property ("<fields...>")
         .property ("optional", "boolean")
-        .validate (function (value, ctx)
+        .validate (function (ctx)
         {
             var specified = nit.each (nit.keys (ctx.owner), function (name)
             {
@@ -4705,13 +4870,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         });
 
 
-    nit.defineConstraint ("Dependent")
-        .constant ("ALWAYS", true)
-        .throws ("error.value_required", "The %{property.kind} '%{property.name}' is required.")
-        .property ("<source>", "string")
-        .validate (function (value, ctx)
+    nit.defineConstraint ("Dependency")
+        .throws ("error.value_required", "'%{constraint.depender}' is required.")
+        .property ("<depender>", "string")
+        .property ("<dependee>", "string")
+        .validate (function (ctx)
         {
-            return nit.is.empty (ctx.owner[ctx.constraint.source]) || !nit.is.empty (value);
+            return nit.is.empty (ctx.owner[ctx.constraint.dependee]) || !nit.is.empty (ctx.owner[ctx.constraint.depender]);
         })
     ;
 
@@ -4719,7 +4884,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.defineConstraint ("Eval")
         .throws ("error.validation_failed", "The validation has failed.")
         .property ("<expr>", "string")
-        .validate (function (value, ctx)
+        .validate (function (ctx)
         {
             return nit.eval (ctx.constraint.expr, ctx);
         })
@@ -4736,11 +4901,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 return nit.is.obj (c) ? c.value : c;
             });
         })
-        .validate (function (value, ctx)
+        .validate (function (ctx)
         {
             return ctx.constraint.choiceValues.some (function (v)
             {
-                return v === value;
+                return v === ctx.value;
             });
         });
 
@@ -4748,9 +4913,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.defineConstraint ("Min")
         .throws ("error.less_than_min", "The minimum value of '%{property.name}' is '%{constraint.min}'.")
         .property ("<min>", "integer")
-        .validate (function (value, ctx)
+        .validate (function (ctx)
         {
-            return value * 1 >= ctx.constraint.min;
+            return ctx.value * 1 >= ctx.constraint.min;
         });
 
 
@@ -4759,7 +4924,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .m ("error.invalid_superclass", "The superclass '%{superclass}' is invalid.")
         .property ("<superclass>", "string")
         .property ("[inclusive]", "boolean") // including the superclass
-        .validate (function (value, ctx)
+        .validate (function (ctx)
         {
             var superclass = nit.lookupClass (ctx.constraint.superclass);
 
@@ -4768,6 +4933,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 this.throw ("error.invalid_superclass", ctx.constraint);
             }
 
+            var value = ctx.value;
             var subclass = nit.is.str (value) ? nit.lookupClass (value) : value;
 
             return ctx.constraint.inclusive && subclass == superclass || nit.is.subclassOf (subclass, superclass);
@@ -4777,9 +4943,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.defineConstraint ("Type")
         .throws ("error.invalid_type", "The value of '%{property.name}' should be one of the following type: %{constraint.types.join (', ')}. (Given: %{valueType})")
         .property ("<types...>", "string", "The allowed types.")
-        .validate (function (value, ctx)
+        .validate (function (ctx)
         {
-            ctx.valueType = value.constructor.name;
+            ctx.valueType = ctx.value.constructor.name;
 
             return ctx.constraint
                 .types
@@ -4787,7 +4953,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 {
                     var parser = nit.find (nit.Object.TYPE_PARSERS, function (p) { return p.supports (type); });
 
-                    return parser && parser.cast (value, type) !== undefined;
+                    return parser && parser.cast (ctx.value, type) !== undefined;
                 })
             ;
         });
@@ -4807,7 +4973,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             nit.dpv (field.get, nit.Object.kProperty, field);
             nit.dpv (field.set, nit.Object.kProperty, field);
         })
-        .m ("error.constraint_not_defined", "The constraint '%{name}' was not defined.")
         .m ("error.inapplicable_constraint", "The constraint '%{constraint}' cannot be applied to the field '%{field}'.")
         .property ("<spec>")
         .property ("[type]", "string", "string")
@@ -4819,6 +4984,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .property ("array", "boolean")
         .property ("enumerable", "boolean", true)
         .property ("configurable", "boolean")
+        .property ("nullable", "boolean")
         .property ("kind", "string", "field")
         .property ("get", "function")
         .property ("set", "function")
@@ -4841,7 +5007,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 property: field
             });
 
-            field.validate (value, ctx);
+            field.validate (ctx);
 
             return value;
         })
@@ -4849,25 +5015,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .method ("addConstraint", function (name)
         {
             var self = this;
-            var cls;
-
-            try
-            {
-                cls = nit.lookupComponent (name, "constraints", nit.Constraint);
-            }
-            catch (e)
-            {
-                if (e.code != "error.component_not_found")
-                {
-                    throw e;
-                }
-            }
-
-            if (!cls)
-            {
-                self.throw ("error.constraint_not_defined", { name: name });
-            }
-
+            var cls = nit.Constraint.lookup (name);
             var cons = nit.new (cls, ARRAY (arguments).slice (1));
 
             if (!cons.applicableTo (self.type))
@@ -4893,17 +5041,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             return field;
         })
-        .method ("validate", function (value, ctx)
+        .method ("validate", function (ctx)
         {
             var self = this;
 
             self.constraints.forEach (function (cons)
             {
-                var consCls = cons.constructor;
-
-                if (consCls.ALWAYS || !nit.is.empty (value) || self.required)
+                if (!nit.is.empty (ctx.value) || self.required)
                 {
-                    cons.validate (value, ctx);
+                    cons.validate (ctx);
                 }
             });
         })
@@ -4911,11 +5057,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     nit.Object.defineSubclass ("nit.Class")
+        .k ("checks")
         .m ("error.no_field_defined", "No field was defined.")
         .categorize ()
         .constant ("PRIMARY_PROPERTY_TYPE", "nit.Field")
         .constant ("INNER_CLASS_TYPE", "nit.Class")
 
+        .staticProperty (nit.Class.kChecks + "...", "nit.Constraint", [], false, false) // instance constraints
         .staticMethod ("field", function (spec, type, description, defval) // eslint-disable-line no-unused-vars
         {
             nit.new (nit.Field, arguments).bind (this.prototype);
@@ -4947,6 +5095,49 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             field.addConstraint.apply (field, arguments);
 
             return this;
+        })
+        .staticMethod ("check", function (name)
+        {
+            var cls = nit.Constraint.lookup (name);
+            var cons = nit.new (cls, ARRAY (arguments).slice (1));
+            var self = this;
+
+            self[self.kChecks].push (cons);
+
+            return self;
+        })
+        .staticMethod ("validate", function (obj, ctx)
+        {
+            var cls = this;
+            var queue = nit.Queue ();
+            var chain = nit.classChain (cls);
+
+            ctx = ctx || new nit.Constraint.ValidationContext ({ owner: obj });
+
+            chain
+                .reverse ()
+                .forEach (function (cls)
+                {
+                    nit.each (cls[cls.kChecks], function (cons)
+                    {
+                        queue.push (function ()
+                        {
+                            return cons.validate (ctx);
+                        });
+                    });
+                })
+            ;
+
+            return queue.run ();
+        })
+        .staticMethod ("constructObject", function (obj, args)
+        {
+            var cls = this;
+
+            return cls.createConstructionQueue (obj, args)
+                .push (function (ctx) { return cls.validate (obj = ctx.result); })
+                .push (function () { return obj; })
+                .run ();
         })
         .staticMethod ("registerPlugin", function (pluginCls, category, method) // eslint-disable-line no-unused-vars
         {
@@ -5005,7 +5196,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 })
             ;
         })
-        .staticMethod ("definePlugin", function (name, category, builder) // eslint-disable-line no-unused-vars
+        .staticMethod ("defineInnerPlugin", function (name, category, builder) // eslint-disable-line no-unused-vars
         {
             var cls = this;
             var cfg = nit.typedArgsToObj (nit.array (arguments),
@@ -5150,7 +5341,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.listComponents = function (category, returnNames)
     {
-        var cats = category.split (".");
+        var cats = nit.trim (category).split (".");
         var components = nit.each (nit.CLASSES, function (cls, className)
         {
             var ns = className.split (".");
@@ -5193,7 +5384,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.lookupComponent = function (name, category, superclass)
     {
+        name = nit.is.func (name) ? name.name : name;
         superclass = nit.is.func (superclass) ? superclass : nit.lookupClass (superclass);
+        category = nit.trim (category);
 
         var nn = nit.ComponentDescriptor.normalizeName (name);
 
@@ -5266,11 +5459,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         {
                             return function ()
                             {
-                                var consCls = cons.constructor;
-
-                                if (consCls.ALWAYS || !nit.is.empty (ctx.value) || ctx.field.required)
+                                if (!nit.is.empty (ctx.value) || ctx.field.required)
                                 {
-                                    return cons.validate (ctx.value, ctx);
+                                    return cons.validate (ctx);
                                 }
                             };
                         }))
@@ -5281,10 +5472,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 {
                     return "$__" + this.name + "Unchecked";
                 })
-                .method ("validate", function (value, ctx, validators) // owner must be a model
+                .method ("validate", function (ctx, validators) // owner must be a model
                 {
                     var field = this;
 
+                    ctx.field = field;
                     validators = validators || [Field.validateType, Field.validateConstraints];
 
                     return nit.Queue ()
@@ -5292,9 +5484,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         {
                             return function ()
                             {
-                                ctx.value = value;
-                                ctx.field = field;
-
                                 return validator (ctx);
                             };
                         }))
@@ -5325,7 +5514,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 .field ("message", "string", "The error message.")
             ;
         })
-        .definePlugin ("Transform", function (Transform)
+        .defineInnerPlugin ("Transform", function (Transform)
         {
             Transform
                 .method ("preValidate", /* istanbul ignore next */ function (ctx) {}) // eslint-disable-line no-unused-vars
@@ -5403,7 +5592,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             model[this.Field.kUnlocked] = true;
         })
-
+        .staticMethod ("constructObject", function (obj, args)
+        {
+            return this.createConstructionQueue (obj, args).run ();
+        })
         .staticMethod ("validate", function (model, ctx)
         {
             var cls = this;
@@ -5426,11 +5618,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                     return function ()
                     {
-                        return field.validate (
-                            model.hasOwnProperty (uncheckedProp) ? model[uncheckedProp] : model[field.name],
-                            ctx,
-                            cls.Field.validateType
-                        );
+                        ctx.value = model.hasOwnProperty (uncheckedProp) ? model[uncheckedProp] : model[field.name];
+
+                        return field.validate (ctx, cls.Field.validateType);
                     };
                 }))
                 .push (function ()
@@ -5444,9 +5634,40 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 {
                     return function ()
                     {
-                        return field.validate (model[field.name], ctx, cls.Field.validateConstraints);
+                        ctx.value = model[field.name];
+
+                        return field.validate (ctx, cls.Field.validateConstraints);
                     };
                 }))
+                .push (function ()
+                {
+                    if (ctx.violations.length)
+                    {
+                        return new nit.Queue.Stop;
+                    }
+                })
+                .push (function ()
+                {
+                    return nit.Queue ()
+                        .push (function ()
+                        {
+                            return nit.Class.validate.call (cls, model, ctx);
+                        })
+                        .failure (function (qc)
+                        {
+                            var error = qc.error;
+                            var source = nit.get (error, "context.source");
+
+                            ctx.violations.push (
+                            {
+                                constraint: source instanceof nit.Constraint ? source.constructor.name : "",
+                                code: error.code,
+                                message: error.message
+                            });
+                        })
+                        .run ()
+                    ;
+                })
                 .push (function ()
                 {
                     return cls.applyPlugins ("transforms", "postValidate", ctx);

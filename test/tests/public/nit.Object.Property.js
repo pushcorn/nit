@@ -68,6 +68,16 @@ test ("nit.Object.Property", () =>
     nit.dp (A.prototype, arrayProp.name, arrayProp);
     a.defval = [3, 4, 5];
     expect (a.defval).toEqual ([3, 4, 5]);
+
+    let nullableProp = nit.Object.Property.createFor (A, "port", "integer?", 0);
+    expect (nullableProp.defval).toBe (undefined);
+
+    let defvalFuncProp = nit.Object.Property.createFor (A, "port", "integer", () => 9999);
+    expect (defvalFuncProp.defval).toBeInstanceOf (Function);
+    nit.dp (A.prototype, defvalFuncProp.name, defvalFuncProp);
+    let aa = new A;
+    aa.port = null;
+    expect (aa.port).toBe (9999);
 });
 
 

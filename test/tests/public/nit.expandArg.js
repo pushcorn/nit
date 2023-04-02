@@ -8,6 +8,8 @@ test ("nit.expandArg ()", async () =>
     });
 
 
+    nit.config ("api.endpoint..cfg", "defaults.api.endpoint.prod");
+    expect (nit.CONFIG.api.endpoint).toBe ("https://prod.local/api");
     nit.config ("api.endpoint..tpl", "{{defaults.api.endpoint.{{env}}}}");
     expect (nit.CONFIG.api.endpoint).toBe ("https://prod.local/api");
     nit.config ("api.endpoint2..fmt", "%{defaults.api.endpoint.%{env}}");

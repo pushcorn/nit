@@ -54,6 +54,24 @@ test ("nit creates module.exports setter in browser env.", () =>
 });
 
 
+test ("nit.lookupComponent", () =>
+{
+    jest.resetModules ();
+
+    global.document = {};
+    delete global.nit;
+    require (test.PUBLIC_NIT_PATH);
+    const newNit = global.nit;
+
+    let Comp = newNit.defineClass ("a.b.Comp");
+
+    expect (newNit.lookupComponent (Comp)).toBe (Comp);
+
+    delete global.module;
+    delete global.document;
+});
+
+
 test ("nit.listComponents ()", () =>
 {
     jest.resetModules ();

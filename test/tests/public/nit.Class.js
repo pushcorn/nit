@@ -14,9 +14,9 @@ test ("nit.Class", () =>
         .throws ("less_than_min", "The minimum value of '%{property.name}' is '%{constraint.min}'.")
         .property ("<min>", "integer")
         .appliesTo ("integer")
-        .validate (function (value, ctx)
+        .validate (function (ctx)
         {
-            return value >= ctx.constraint.min;
+            return ctx.value >= ctx.constraint.min;
         })
     ;
 

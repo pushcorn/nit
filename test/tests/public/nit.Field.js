@@ -17,9 +17,9 @@ test ("nit.Field", () =>
         .appliesTo ("integer")
         .throws ("error.greater_than_max", "The value is greater than %{constraint.max}.")
         .property ("max", "integer", 10)
-        .validate (function (value, ctx)
+        .validate (function (ctx)
         {
-            return value * 1 <= ctx.constraint.max;
+            return ctx.value * 1 <= ctx.constraint.max;
         })
     ;
 
@@ -33,7 +33,7 @@ test ("nit.Field", () =>
     field.bind (obj);
     field.addConstraint ("maxInt");
     expect (field.getConstraint ("maxInt")).toBeInstanceOf (Max);
-    expect (field.validate (null, obj)).toBeUndefined ();
+    expect (field.validate (obj)).toBeUndefined ();
     expect (nit.propertyDescriptors (obj).age.get[nit.Object.kProperty]).toBeInstanceOf (nit.Field);
     expect (() => obj.age = "abcd").toThrow (/should be an integer/);
     expect (() => obj.age = 100).toThrow (/greater than 10/);
@@ -56,6 +56,8 @@ test ("nit.Field", () =>
     field = new nit.Field ("<height>", "integer");
     field.addConstraint ("maxInt", 300);
     field.bind (obj);
-    expect (() => field.validate ("aa", obj)).toThrow (/constraint cannot be applied/);
-    expect (() => field.validate ("", obj)).toThrow (/constraint cannot be applied/);
+    obj.value = "aa";
+    expect (() => field.validate (obj)).toThrow (/constraint cannot be applied/);
+    obj.value = "";
+    expect (() => field.validate (obj)).toThrow (/constraint cannot be applied/);
 });

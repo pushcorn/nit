@@ -40,7 +40,7 @@ test ("nit.test.Strategy.Application", () =>
     expect (nit.isDir (root)).toBe (true);
 
     app = new nit.test.Strategy.Application ();
-    expect (app.root.path.split (nit.path.sep).pop ()).toMatch (/^[0-f]{32}$/);
+    expect (app.root.path.split (nit.path.sep).pop ()).toMatch (/^[0-9a-f]{32}$/i);
     expect (nit.fs.existsSync (app.root.join ("package.json"))).toBe (true);
 
     app = new nit.test.Strategy.Application ("", test.pathForProject ("project-c"));
