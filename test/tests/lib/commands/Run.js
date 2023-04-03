@@ -5,7 +5,7 @@ test ("commands.Run", async () =>
 
     let file = nit.new ("nit.File", test.pathForProject ("project-c/lib/js/returnString.js"));
 
-    expect (await Run.run ([file.path])).toBe ("return string");
+    expect (await Run ().run (file.path)).toBe ("return string");
 });
 
 
@@ -18,5 +18,5 @@ test ("commands.Run", async () =>
 
     let file = nit.new ("nit.File", "lib/js/returnString.js");
 
-    expect (await Run.run ([file.path])).toBe ("return string");
+    expect (await Run ().run (file.path)).toBe ("return string");
 });

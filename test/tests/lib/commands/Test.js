@@ -11,7 +11,7 @@ test ("commands.Test", async () =>
         testDir = dir;
     });
 
-    await Test.run ();
+    await Test ().run ();
 
     expect (testDir).toBe (process.cwd ());
 });

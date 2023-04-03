@@ -615,7 +615,8 @@ test ("nit.runCommand", async () =>
     {
         return Console;
     });
-    test.mock (Console, "run");
+
+    Console.run (nit.noop);
     await nit.runCommand ();
     expect (mock.invocations[0].args).toEqual (["console"]);
 });

@@ -5,6 +5,6 @@ test ("commands.Help", async () =>
 
     expect (Help.help ().build ()).toMatch (/nit help \[command\]/);
 
-    expect (await Help.run ()).toMatch (/nit help \[command\]/);
-    expect (await Help.run (["console"])).toMatch (/nit console/);
+    expect (await Help ().run ()).toMatch (/nit help \[command\]/);
+    expect (await Help ().run ("console")).toMatch (/nit console/);
 });

@@ -313,18 +313,60 @@ test ("nit.Command.Input.fromArgv ()", () =>
 
 test ("nit.Command.run ()", async () =>
 {
-    const Test = nit.defineClass ("Test", "nit.Command")
-        .method ("run", function ()
+    const Test = nit.defineClass ("Test", "nit.Command");
+
+    expect (await Test ().run ()).toBe (undefined);
+
+    Test
+        .run (function (ctx)
         {
+            ctx.key = "value";
+
             return 10;
         })
     ;
 
-    expect (await Test.run ()).toBe (10);
+    expect (await Test ().run ()).toBe (10);
 
-    const Test2 = nit.defineClass ("Test2", "nit.Command");
+    let ctx = new Test.Context;
 
-    expect (async () => await Test2.run ()).rejects.toThrow (/instance method.*not implemented/);
+    await Test ().run (ctx);
+    expect (ctx.key).toBe ("value");
+});
+
+
+test ("nit.Command.catch/finally ()", async () =>
+{
+    const Test = nit.defineClass ("Test", "nit.Command")
+        .run (function ()
+        {
+            throw new Error ("ERR");
+        })
+        .finally (function ()
+        {
+            Test.finallyCalled = true;
+        })
+    ;
+
+    try
+    {
+        await Test ().run ();
+    }
+    catch (e)
+    {
+    }
+
+    expect (Test.finallyCalled).toBe (true);
+
+    Test
+        .catch (function ()
+        {
+            Test.catchCalled = true;
+        })
+    ;
+
+    await Test ().run ();
+    expect (Test.catchCalled).toBe (true);
 });
 
 
@@ -353,7 +395,7 @@ test ("nit.Command.defineContext ()", async () =>
                 .field ("db", "any", "The database connection.")
             ;
         })
-        .method ("run", function (ctx)
+        .run (function (ctx)
         {
             return ctx.input.a + ctx.input.b;
         })
@@ -362,7 +404,7 @@ test ("nit.Command.defineContext ()", async () =>
     expect (Add.Context.name).toBe ("Add.Context");
     expect (Add.Context.superclass).toBe (nit.Command.Context);
 
-    expect (await Add.run ([3, 4])).toBe (7);
+    expect (await Add ().run (3, 4)).toBe (7);
 
     let ctx = new Add.Context;
     expect (ctx.input).toBeInstanceOf (Add.Input);
@@ -395,16 +437,4 @@ test ("nit.Command.confirm ()", async () =>
 
     await Rmdir ().confirm ("info.confirmation");
     expect (mesg).toBe (nit.m.MESSAGES["Rmdir|info.confirmation"]);
-});
-
-
-test ("nit.Command.log ()", async () =>
-{
-    const Test = nit.defineClass ("Test", "nit.Command")
-        .m ("info.message", "Hello %{name}!")
-    ;
-
-    let mock = test.mock (nit, "log");
-    new Test ().log ("info.message", { name: "John" });
-    expect (mock.invocations[0].args[0]).toEqual ("Hello John!");
 });
