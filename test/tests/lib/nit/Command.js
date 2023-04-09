@@ -409,6 +409,11 @@ test ("nit.Command.defineContext ()", async () =>
     let ctx = new Add.Context;
     expect (ctx.input).toBeInstanceOf (Add.Input);
 
+    ctx = Add.Context.forInput (7, 8);
+    expect (ctx).toBeInstanceOf (Add.Context);
+    expect (ctx.input).toBeInstanceOf (Add.Input);
+    expect (ctx.input.a + ctx.input.b).toBe (15);
+
     Add.Input = null;
     ctx = new Add.Context;
     expect (ctx.input).toBeUndefined ();
