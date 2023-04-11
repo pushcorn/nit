@@ -9,7 +9,7 @@ test ("mixins.Logger", () =>
     A.loggerOptions.registerTransform ("uppercase", (s) => s.toUpperCase ());
 
     let a = new A;
-    let mock = test.mock (nit, "log", null, 3);
+    let mock = test.mock (nit, "log", null, 5);
 
     a.log ("error.invalid_request", { request: "1234_abcd" });
     a.info ("A custom message %{str|uppercase}.", { str: "abcd" });
@@ -21,4 +21,11 @@ test ("mixins.Logger", () =>
 
     a.warn ("A message with the timestamp.");
     expect (mock.invocations[2].args[0]).toMatch (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \[WARN]/);
+
+    let error = new Error ("ERR!");
+    a.error (error);
+    expect (mock.invocations[3].args[0]).toMatch (/\[ERROR] Error: ERR!/);
+
+    a.info ({ a: 3 });
+    expect (mock.invocations[4].args[0]).toMatch (/\[INFO] {"a":3}/);
 });
