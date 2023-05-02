@@ -13,7 +13,7 @@ test.nit = function ()
     os.homedir = function () { return path.join (home, "test/resources/home/test"); };
 
     test.HOME = home;
-    test.PUBLIC_NIT_PATH = path.join (home, "public/nit.js");
+    test.PUBLIC_NIT_PATH = path.join (home, "public/lib/nit.js");
     test.ORIGINAL_NIT_PROJECT_PATHS = process.env.NIT_PROJECT_PATHS || "";
     test.TEST_PROJECT_PATH = path.join (process.cwd (), "test");
 
