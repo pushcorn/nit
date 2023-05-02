@@ -607,8 +607,13 @@ test ("nit.Object.toPojo ()", () =>
 
     let now = new Date ();
 
+    const Permission = nit.defineClass ("Permission")
+        .field ("<type>", "string")
+    ;
+
     const Owner = nit.defineClass ("Owner")
         .field ("<username>", "string")
+        .field ("[permissions...]", "Permission")
         .property ("updatedAt", "date")
     ;
 
@@ -618,8 +623,9 @@ test ("nit.Object.toPojo ()", () =>
         .property ("version", "string")
     ;
 
-    let owner = new Owner ("Somebody");
+    let owner = new Owner ("Somebody", new Permission ("read"), new Permission ("write"));
     owner.updatedAt = now;
+    owner.permissions[0].MARK = "marked";
 
     let doc = new Doc ("12345");
     doc.owner = owner;
@@ -630,9 +636,14 @@ test ("nit.Object.toPojo ()", () =>
         id: "12345",
         owner:
         {
-            username: "Somebody"
+            username: "Somebody",
+            permissions: [{ type: "read" }, { type: "write" }]
         }
     });
+
+    expect (doc.toPojo (true).owner).toBeInstanceOf (Owner);
+    expect (owner.toPojo (true).permissions[0].MARK).toBe ("marked");
+    expect (owner.toPojo ().permissions[0].MARK).toBeUndefined ();
 });
 
 
@@ -795,13 +806,26 @@ test ("nit.Object.assign ()", () =>
 
 test ("nit.Object.getter ()", () =>
 {
-    nit.Object.getter ("now", true, true, function ()
-    {
-        return new Date ();
-    });
+    nit.Object
+        .getter ("now", true, true, function ()
+        {
+            return new Date ();
+        })
+    ;
+
+    let A = nit.Object.defineSubclass ("A")
+        .property ("obj", "object")
+        .getter ("mesg", "obj.mesg")
+    ;
 
     let obj = new nit.Object;
+
     expect (obj.now).toBeInstanceOf (Date);
+
+    let a = new A;
+    a.obj = { mesg: function (m) { this.lastMesg = m; } };
+    a.mesg ("hello");
+    expect (a.obj.lastMesg).toBe ("hello");
 });
 
 
@@ -832,7 +856,7 @@ test ("nit.Object.buildParam ()", async () =>
 
     nit.config ("nit.User.info", { "": { tpl: "email: {{email}}" } });
     field = nit.find (nit.User.getProperties (), "name", "info");
-    expect (nit.Object.buildParam (user, field, {})).toBe ("email: ");
+    expect (nit.Object.buildParam (user, field, { email: "a@b.com" })).toBe ("email: a@b.com");
 
     nit.registerArgExpander ("remoteData", async function ()
     {
@@ -843,6 +867,24 @@ test ("nit.Object.buildParam ()", async () =>
 
     nit.config ("nit.User.info", { "": { remoteData: "someurl" } });
     expect (await nit.Object.buildParam (user, field, {})).toBe ("lastLogin: 2022-01-01");
+
+
+    nit.defineClass ("AsyncB")
+        .field ("time")
+        .construct (async function ()
+        {
+            await nit.sleep (10);
+            this.time = new Date ().toISOString ();
+        })
+    ;
+
+    const AsyncA = nit.defineClass ("AsyncA")
+        .field ("ab", "AsyncB", { defval: "@AsyncB" })
+    ;
+
+    let aa = await new AsyncA;
+
+    expect (aa.ab.time).toMatch (/^\d{4}-/);
 });
 
 
@@ -988,3 +1030,69 @@ test ("nit.Object.do ()", () =>
     });
 });
 
+
+test ("nit.object.staticDelegate ()", () =>
+{
+    const A = nit.Object.defineSubclass ("A")
+        .staticProperty ("target", "object")
+        .staticDelegate ("prop", "target.prop")
+        .staticDelegate ("prop2", "target.prop", true, true)
+    ;
+
+    A.target =
+    {
+        prop: "a"
+    };
+
+    expect (A.target.prop).toBe ("a");
+    expect (A.prop).toBe ("a");
+
+    A.prop = "b";
+    expect (A.prop).toBe ("b");
+});
+
+
+test ("nit.object.delegate ()", () =>
+{
+    const A = nit.Object.defineSubclass ("A")
+        .property ("target", "object")
+        .delegate ("prop", "target.prop")
+        .delegate ("prop2", "invalid.prop", true, true)
+    ;
+
+    let a = new A (
+    {
+        target:
+        {
+            prop: "a"
+        }
+    });
+
+    expect (a.target.prop).toBe ("a");
+    expect (a.prop).toBe ("a");
+
+    a.prop = "b";
+    expect (a.prop).toBe ("b");
+
+    a.prop2 = 9;
+    expect (a.prop2).toBeUndefined ();
+});
+
+
+test ("nit.Object.use ()", () =>
+{
+    nit.Object.use.parsers.splice (2);
+
+    const B = nit.Object.defineSubclass ("test.B");
+    const C = nit.Object.defineSubclass ("nit.tests.C");
+
+    const A = nit.Object.defineSubclass ("A")
+        .use ("test.B")
+        .use ("nit:c", "tests")
+        .use ("notfound")
+    ;
+
+    expect (A.B).toBe (B);
+    expect (A.C).toBe (C);
+    expect (A.notfound).toBeUndefined ();
+});

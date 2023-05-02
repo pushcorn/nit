@@ -68,4 +68,13 @@ test ("nit.memoize.dpg () defines a memoized getter on the target object", async
 
     await nit.sleep (10);
     expect (obj.num).toBe (100);
+
+    let flag = 1;
+    let lastFlag;
+
+    nit.memoize.dpg (obj, "cached", function () { return lastFlag = flag; }, () => flag == lastFlag);
+    expect (obj.cached).toBe (1);
+    expect (obj.cached).toBe (1);
+    flag = 2;
+    expect (obj.cached).toBe (2);
 });

@@ -66,7 +66,7 @@ test ("nit.Class.registerPlugin ()", () =>
     ;
 
 
-    expect (nit.propertyDescriptors (A).conditions).toBeInstanceOf (Object);
+    expect (nit.propertyDescriptors (A, true).conditions).toBeInstanceOf (Object);
     expect (nit.propertyDescriptors (A, true).condition.value).toBeInstanceOf (Function);
 
     A.condition ("check-one", "a");
@@ -75,10 +75,12 @@ test ("nit.Class.registerPlugin ()", () =>
     expect (A.conditions[0].check).toBe ("a");
     expect (A.conditions[1].check).toBe ("b");
 
+    nit.defineClass ("nit.utils.TestPlugin");
+
     const B = nit.defineClass ("B")
-        .registerPlugin ("nit:utils.Condition")
+        .registerPlugin ("nit.utils.TestPlugin")
     ;
 
-    expect (nit.propertyDescriptors (B).utilsConditions).toBeInstanceOf (Object);
-    expect (nit.propertyDescriptors (B, true).utilsCondition.value).toBeInstanceOf (Function);
+    expect (nit.propertyDescriptors (B, true).testplugins).toBeInstanceOf (Object);
+    expect (nit.propertyDescriptors (B, true).testplugin.value).toBeInstanceOf (Function);
 });

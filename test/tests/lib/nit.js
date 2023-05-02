@@ -639,15 +639,23 @@ test ("nit.beep ()", () =>
         cb (beeps);
     }
 
+    let mock = test.mock (nit, "log");
+
     beep (null, function (beeps)
     {
+        expect (mock.invocations[0].args).toEqual (["\x1b[1m\x1b[31m", null, "\x1b[39m\x1b[22m"]);
         expect (beeps === "\x07").toBe (true);
     });
 
+    mock = test.mock (nit, "log");
+
     beep (3, function (beeps)
     {
+        expect (mock.invocations.length).toBe (0);
         expect (beeps === "\x07".repeat (3)).toBe (true);
     });
+
+    mock.restore ();
 });
 
 
@@ -784,6 +792,17 @@ test ("nit.Object type registration", () =>
 
     expect (() => (copy.from = {})).toThrow (/should be a file/);
     expect (() => (copy.from = Copy)).toThrow (/should be a file/);
+
+    const CopyDir = nit.defineClass ("CopyDir")
+        .field ("[from]", "dir")
+    ;
+
+    expect (new CopyDir ("aa").from).toBe ("aa");
+
+    let copyDir = new CopyDir ();
+
+    expect (() => (copyDir.from = {})).toThrow (/should be a dir/);
+    expect (() => (copyDir.from = CopyDir)).toThrow (/should be a dir/);
 });
 
 

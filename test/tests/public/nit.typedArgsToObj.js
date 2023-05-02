@@ -5,6 +5,9 @@ test ("nit.typedArgsToObj () combines typed args into an object.", () =>
     expect (nit.typedArgsToObj ([method, false], { m: "function", b: "boolean" }))
         .toEqual ({ m: method, b: false });
 
+    expect (nit.typedArgsToObj ([method, false, { c: 9 }], { m: "function", b: "boolean" }))
+        .toEqual ({ m: method, b: false, c: 9 });
+
     expect (nit.typedArgsToObj (["my.method", method], { n: "string", m: "function", b: "boolean" }))
         .toEqual ({ n: "my.method", m: method });
 

@@ -22,7 +22,9 @@ test ("nit.test.Jest", async () =>
         watch: false,
         watchAll: false,
         testEnvironment: "node",
-        detectOpenHandles: false
+        detectOpenHandles: false,
+        forceExit: false,
+        runInBand: false
     });
 
     expect (res[1]).toEqual (["."]);

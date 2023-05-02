@@ -28,6 +28,9 @@
             "files": [
                 "public/**/*.js"
             ],
+            "env": {
+                "browser": true
+            },
             "parserOptions": {
                 "ecmaVersion": 5
             }

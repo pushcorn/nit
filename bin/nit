@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+NIT_RESTART_CODE=${NIT_RESTART_CODE:-64}
 SOURCE=${BASH_SOURCE[0]}
 
 while [ -h "$SOURCE" ]
@@ -11,4 +12,11 @@ done
 
 NIT_HOME=$(dirname $(cd $(dirname "$SOURCE") && pwd -P))
 
-/usr/bin/env node --experimental-vm-modules --preserve-symlinks "$NIT_HOME" "$@"
+while true
+do
+    /usr/bin/env node --experimental-vm-modules --preserve-symlinks --trace-deprecation "$NIT_HOME" "$@"
+
+    if [ "$?" != "$NIT_RESTART_CODE" ]; then
+        break
+    fi
+done

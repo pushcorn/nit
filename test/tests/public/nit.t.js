@@ -44,4 +44,6 @@ test ("nit.t () translate a defined message.", () =>
     nit.m.MESSAGES = {};
     nit.m ("a.b.Sup", "message", "Sup message %{name}");
     expect (nit.t (global.c.d.Sub, "message", { name: "hello" })).toBe ("Sup message hello");
+
+    expect (nit.t ("this is not a key", { name: "hello" })).toBe ("this is not a key");
 });

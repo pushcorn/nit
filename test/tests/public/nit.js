@@ -14,11 +14,21 @@ test ("nit sets up CJS env in browser env.", () =>
 {
     jest.resetModules ();
 
-    global.document = {};
+    let event;
+
+    global.document =
+    {
+        addEventListener: function (evt)
+        {
+            event = evt;
+        }
+    };
+
     delete global.nit;
     require (test.PUBLIC_NIT_PATH);
 
     expect (global.module).toBeInstanceOf (Object);
+    expect (event).toBe ("DOMContentLoaded");
 
     delete global.module;
     delete global.document;
@@ -29,7 +39,13 @@ test ("nit creates module.exports setter in browser env.", () =>
 {
     jest.resetModules ();
 
-    global.document = {};
+    global.document =
+    {
+        addEventListener: function ()
+        {
+        }
+    };
+
     delete global.nit;
     require (test.PUBLIC_NIT_PATH);
     const newNit = global.nit;
@@ -58,7 +74,13 @@ test ("nit.lookupComponent", () =>
 {
     jest.resetModules ();
 
-    global.document = {};
+    global.document =
+    {
+        addEventListener: function ()
+        {
+        }
+    };
+
     delete global.nit;
     require (test.PUBLIC_NIT_PATH);
     const newNit = global.nit;
@@ -76,7 +98,13 @@ test ("nit.listComponents ()", () =>
 {
     jest.resetModules ();
 
-    global.document = {};
+    global.document =
+    {
+        addEventListener: function ()
+        {
+        }
+    };
+
     delete global.nit;
     require (test.PUBLIC_NIT_PATH);
     const newNit = global.nit;
@@ -90,3 +118,51 @@ test ("nit.listComponents ()", () =>
     delete global.module;
     delete global.document;
 });
+
+
+test ("check the READY flag", async () =>
+{
+    jest.resetModules ();
+
+    global.document =
+    {
+        addEventListener: function (evt, l)
+        {
+            if (evt == "DOMContentLoaded")
+            {
+                setTimeout (l, 10);
+            }
+        }
+    };
+
+    delete global.nit;
+    require (test.PUBLIC_NIT_PATH);
+
+    let results = [];
+
+    nit.ready (function ()
+    {
+        results.push (1);
+    });
+
+    nit.ready (async function ()
+    {
+        await nit.sleep (20);
+
+        results.push (2);
+    });
+
+
+    expect (global.module).toBeInstanceOf (Object);
+
+    await nit.sleep (15);
+    expect (nit.READY).toBe (true);
+    expect (results).toEqual ([1]);
+
+    await nit.sleep (20);
+    expect (results).toEqual ([1, 2]);
+
+    delete global.module;
+    delete global.document;
+});
+
