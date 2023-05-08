@@ -4011,6 +4011,45 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             });
         }
         ,
+        lifecycleMethod: function (name, impl, cb) // cb could be a function or the boolean value 'true'
+        {
+            var cls = this;
+            var key = cls.name + "." + name;
+
+            if (cb === true) // The callback should be provided, otherwise throw an error when invoked.
+            {
+                cb = function ()
+                {
+                    var cls = this.constructor;
+
+                    cls.throw ("error.lifecycle_callback_not_implemented", { callback: name, class: cls.name });
+                };
+            }
+
+            return cls
+                .k (name)
+                .staticMethod (name, function (cb)
+                {
+                    return this.staticMethod (key, cb);
+                })
+                .do (function ()
+                {
+                    if (cb)
+                    {
+                        this[name] (cb);
+                    }
+                })
+                .method (name, function ()
+                {
+                    var self = this;
+                    var cls = self.constructor;
+                    var method = impl || cls[key];
+
+                    return method ? method.apply (self, arguments) : self;
+                })
+            ;
+        }
+        ,
         invokeParentStaticMethod: function (name, args)
         {
             var superclass = nit.getSuperclass (this);
@@ -4148,6 +4187,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .m ("error.required_arg_after_optional", "The optional positional argument '%{optionalArg}' cannot be followed by a required argument '%{requiredArg}'.")
         .m ("error.not_implemented", "Method not implemented!")
         .m ("error.instance_method_not_implemented", "The instance method '%{method}' of the class '%{class}' was not implemented!")
+        .m ("error.lifecycle_callback_not_implemented", "The lifecycle callback '%{callback}' of the class '%{class}' was not implemented!")
         .m ("error.static_method_not_implemented", "The static method '%{method}' of the class '%{class}' was not implemented!")
         .m ("error.dependency_not_met", "The dependency '%{name}' was not defined.")
         .m ("error.invoke_method_not_defined", "The invoke method for the type-checked method was not defined.")
@@ -5297,7 +5337,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             return self;
         })
-        .staticMethod ("validate", function (obj, ctx)
+        .staticMethod ("validateObject", function (obj, ctx)
         {
             var cls = this;
             var queue = nit.Queue ();
@@ -5326,7 +5366,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var cls = this;
 
             return cls.createConstructionQueue (obj, args)
-                .push (function (ctx) { return cls.validate (obj = ctx.result); })
+                .push (function (ctx) { return cls.validateObject (obj = ctx.result); })
                 .push (function () { return obj; })
                 .run ();
         })
@@ -5865,7 +5905,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     return nit.Queue ()
                         .push (function ()
                         {
-                            return nit.Class.validate.call (cls, model, ctx);
+                            return nit.Class.validateObject.call (cls, model, ctx);
                         })
                         .failure (function (qc)
                         {

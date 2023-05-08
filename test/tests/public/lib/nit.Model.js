@@ -115,9 +115,9 @@ test ("nit.Model.validate () - instance constraints handling", async () =>
     try { await Matcher.validate (m); } catch (e) { error = e; }
     expect (error.context.validationContext.specified).toBe (2);
 
-    let origValidate = nit.Class.validate;
+    let origValidate = nit.Class.validateObject;
 
-    nit.Class.validate = function ()
+    nit.Class.validateObject = function ()
     {
         if (this == Matcher)
         {
@@ -128,7 +128,7 @@ test ("nit.Model.validate () - instance constraints handling", async () =>
     error = null;
     m = Matcher.create ({ path: "/" });
     try { await Matcher.validate (m); } catch (e) { error = e; }
-    nit.Class.validate = origValidate;
+    nit.Class.validateObject = origValidate;
     expect (error.context.validationContext.violations[0].constraint).toBe ("");
 });
 

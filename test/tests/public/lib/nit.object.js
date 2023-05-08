@@ -548,6 +548,38 @@ test ("nit.listSubclassesOf ()", () =>
 });
 
 
+test ("nit.Object.lifecycleMethod ()", () =>
+{
+    let Service = nit.defineClass ("Service", true)
+        .lifecycleMethod ("start", function ()
+        {
+            Service.startCb = Service[Service.kStart];
+        })
+        .lifecycleMethod ("stop", function ()
+        {
+            Service[Service.kStop].call (this);
+
+        }, true)
+        .lifecycleMethod ("run", null, function ()
+        {
+            Service.runCbInvoked = true;
+        })
+        .lifecycleMethod ("noop")
+    ;
+
+    let service = new Service;
+
+    service.start ();
+    service.run ();
+
+    expect (Service.startCb).toBeUndefined ();
+    expect (Service.runCbInvoked).toBe (true);
+    expect (service.noop ()).toBe (service);
+    expect (() => service.stop ()).toThrow (/lifecycle callback.*not implemented/);
+
+});
+
+
 test ("nit.Object.invokeParentStaticMethod ()", () =>
 {
     let parentMethodCalled = false;

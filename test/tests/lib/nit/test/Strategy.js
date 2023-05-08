@@ -5,8 +5,14 @@ test ("nit.test.Strategy.Expector", async () =>
     const STRATEGY = {};
 
     const Strategy = nit.test.Strategy;
+    const NoCbValidator = Strategy.Validator.defineSubclass ("NoCbValidator");
+
+    let noCbValidator = new NoCbValidator (Strategy.getSourceLine ());
+
+    expect (() => noCbValidator.validate ()).toThrow (/lifecycle callback .* was not implemented/);
+
     const TestValidator = Strategy.Validator.defineSubclass ("TestValidator")
-        .method ("validate", function (strategy, value)
+        .validate (function (strategy, value)
         {
             this.validateCalled = true;
             this.strategy = strategy;
