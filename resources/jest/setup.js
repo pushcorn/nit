@@ -1,6 +1,19 @@
 const CWD = process.cwd ();
 
-afterAll (() => process.chdir (CWD));
+process.setMaxListeners (0);
+
+afterAll (async () =>
+{
+    process.chdir (CWD);
+
+    for (let listener of process.listeners ("SHUTDOWN"))
+    {
+        await listener ();
+    }
+});
+
+
+test.unexpectedErrors = [];
 
 
 test.nit = function ()
@@ -255,6 +268,11 @@ test.mock = function (object, method, mockFn, count)
             {
                 mock.restore ();
             }
+
+            if (error)
+            {
+                throw error;
+            }
         }
     };
 
@@ -262,5 +280,26 @@ test.mock = function (object, method, mockFn, count)
 };
 
 
+global.nit = test.nit ()
+    .do (nit =>
+    {
+        let counter = 0;
 
-global.nit = test.nit ();
+        nit.bx = function ()
+        {
+            nit.beep (...arguments);
+            process.exit (0);
+        };
+
+
+        nit.bx.count = function (max, ...args)
+        {
+            nit.beep (...args);
+
+            if (++counter > max)
+            {
+                process.exit (0);
+            }
+        };
+    })
+;

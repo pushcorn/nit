@@ -77,6 +77,49 @@ test ("nit.is () checks the type of the input.", function ()
     expect (nit.is.equal (new Date, new Date)).toBe (true);
     expect (nit.is.equal.strict (Sup, Sup)).toBe (true);
 
+    let a =
+    {
+        a: 3,
+        b: [4, 5],
+        d:
+        {
+            e: [{ k: 10 }, { k: 11 }, { k: 22 }]
+        }
+        ,
+        fa: function fa () {},
+        fb: { name: "fb" },
+        e:
+        {
+            d:
+            {
+                f: 9,
+                g: 10
+            }
+        }
+    };
+
+    let b =
+    {
+        a: 3,
+        d:
+        {
+            e: [{ k: 10 }, { k: 11 }]
+        }
+        ,
+        fa: { name: "fa" },
+        fb: function fb () {},
+        e:
+        {
+            d:
+            {
+                g: 10
+            }
+        }
+    };
+
+    expect (nit.is.equal.partial (a, b)).toBe (true);
+    expect (nit.is.equal.partial ([1, 2], [5])).toBe (false);
+
     expect (nit.is.empty (new Date)).toBe (false);
     expect (nit.is.empty ()).toBe (true);
     expect (nit.is.empty (null)).toBe (true);
@@ -85,6 +128,16 @@ test ("nit.is () checks the type of the input.", function ()
     expect (nit.is.empty ({ a: 1 })).toBe (false);
     expect (nit.is.empty ([3])).toBe (false);
     expect (nit.is.empty ({ "": 1 })).toBe (false);
+
+    expect (nit.is.empty.nested ({ a: null })).toBe (true);
+    expect (nit.is.empty.nested ({ a: { b: null }})).toBe (true);
+    expect (nit.is.empty.nested ({ a: { b: [] }})).toBe (true);
+    expect (nit.is.empty.nested ([null, undefined, []])).toBe (true);
+    expect (nit.is.empty.nested ("")).toBe (true);
+    expect (nit.is.empty.nested (nit.object ({ b: "" }))).toBe (true);
+    expect (nit.is.empty.nested ({ a: nit.object () })).toBe (true);
+    expect (nit.is.empty.nested (10)).toBe (false);
+    expect (nit.is.empty.nested ({ a: 10 })).toBe (false);
 
     expect (nit.is.truthy (new Date)).toBe (true);
     expect (nit.is.truthy (false)).toBe (false);
@@ -96,4 +149,15 @@ test ("nit.is () checks the type of the input.", function ()
 
     expect (nit.is.any (0)).toBe (true);
     expect (nit.is.any ({})).toBe (true);
+
+    expect (nit.is.dto ({})).toBe (true);
+    expect (nit.is.dto (nit.object ({}))).toBe (true);
+
+    const A = nit.defineClass ("A", true);
+    expect (nit.is.privateClass (A)).toBe (true);
+
+    expect (nit.is.errorish (new Error)).toBe (true);
+    expect (nit.is.errorish ("a")).toBe (false);
+    expect (nit.is.errorish ()).toBe (false);
+    expect (nit.is.errorish ({ stack: "", message: "" })).toBe (true);
 });

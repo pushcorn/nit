@@ -5,7 +5,7 @@ test ("constraints.Choice", () =>
             .constraint ("choice", "S", "M", "L", "XL")
     ;
 
-    expect (() => new Shirt ("XXL")).toThrow (/not a valid choice/);
+    expect (() => new Shirt ("XXL")).toThrow (/assigned to an invalid value/);
 
     let Shirt2 = nit.defineClass ("Shirt2")
         .field ("<size>", "string")

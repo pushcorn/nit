@@ -9,10 +9,10 @@ test ("nit.test.Strategy.Expector", async () =>
 
     let noCbValidator = new NoCbValidator (Strategy.getSourceLine ());
 
-    expect (() => noCbValidator.validate ()).toThrow (/lifecycle callback .* was not implemented/);
+    expect (() => noCbValidator.validate ()).toThrow (/hook.*validate.* was not implemented/);
 
     const TestValidator = Strategy.Validator.defineSubclass ("TestValidator")
-        .validate (function (strategy, value)
+        .onValidate (function (strategy, value)
         {
             this.validateCalled = true;
             this.strategy = strategy;
@@ -68,6 +68,34 @@ test ("nit.test.Strategy.ValueValidator", () =>
 
     validator.expected = { v: 123 };
     validator.validate ({ result: { v: 123 } });
+
+    validator.expected = function () { return 9; };
+    validator.validate ({ result: 9 });
+});
+
+
+test ("nit.test.Strategy.SubsetValidator", () =>
+{
+    let validator = new nit.test.Strategy.SubsetValidator (nit.test.Strategy.getSourceLine (), { expected: { a: 1 }});
+
+    expect (() => validator.validate ({ error: new Error ("has err") })).toThrow ("has err");
+
+    validator.validate ({ result: { a: 1, b: 2 } });
+
+    validator.expected = [1, 2];
+    validator.validate ({ result: [3, 1, 4, 2] });
+
+    validator.expected = { a: { b: [1, 2] } };
+    validator.validate ({ result: { a: { b: [3, 1, 4, 2] } } });
+
+    const MyClass = nit.defineClass ("MyClass");
+
+    validator.expected = { name: "MyClass" };
+    validator.validate ({ result: MyClass });
+
+    validator.expected = { class: { name: "MyClass" } };
+    validator.validate ({ result: { class: MyClass } });
+    validator.validate ({}, { class: MyClass });
 });
 
 
@@ -88,6 +116,15 @@ test ("nit.test.Strategy.TypeValidator", () =>
 
     validator.expected = "undefined";
     validator.validate ({ result: undefined });
+
+    const A = nit.defineClass ("A");
+    const B = nit.defineClass ("B", "A");
+
+    validator = new nit.test.Strategy.TypeValidator (nit.test.Strategy.getSourceLine (), { expected: A, subclass: true });
+    validator.validate ({ result: B });
+
+    validator = new nit.test.Strategy.TypeValidator (nit.test.Strategy.getSourceLine (), { expected: "A", subclass: true });
+    validator.validate ({ result: B });
 });
 
 
@@ -197,6 +234,10 @@ test ("nit.test.Strategy.TRANSFORMS.format ()", () =>
     expect (nit.test.Strategy.TRANSFORMS.format ("a string")).toBe ('"a string"');
     expect (nit.test.Strategy.TRANSFORMS.format ({ a: 1 })).toBe ('{"a":1}');
     expect (nit.test.Strategy.TRANSFORMS.format (/ab/)).toBe ("/ab/");
+    expect (nit.test.Strategy.TRANSFORMS.format (function add (a, b)
+    {
+        return a + b;
+    })).toBe ("function add(a, b) { return a + b; }");
 });
 
 
@@ -234,10 +275,10 @@ test ("nit.test.Strategy.test ()", () =>
     }
 
     const CommandStrategy = nit.test.defineStrategy ("Command")
-        .test (tester)
+        .onTest (tester)
     ;
 
-    expect (CommandStrategy.prototype.test).toBe (tester);
+    expect (CommandStrategy["nit.test.Strategy.test"]).toBe (tester);
 });
 
 
@@ -246,7 +287,7 @@ test ("nit.test.Strategy.snapshot ()", () =>
     const PropertyStrategy = nit.test.defineStrategy ("Property")
         .field ("<object>", "object")
         .field ("<property>", "string")
-        .test (function ()
+        .onTest (function ()
         {
             return this.object[this.property];
         })
@@ -275,7 +316,7 @@ test ("nit.test.Strategy.snapshot ()", () =>
         downs: [],
         ups: [],
         expectors: [],
-        initializers: [],
+        inits: [],
         spies: [],
         resultValidator: undefined,
         mocks: [],
@@ -301,7 +342,7 @@ test ("nit.test.Strategy.snapshot ()", () =>
         downs: [],
         ups: [],
         expectors: [],
-        initializers: [],
+        inits: [],
         spies: [],
         resultValidator: undefined,
         mocks: [],
@@ -317,7 +358,7 @@ test ("nit.test.Strategy.reset ()", () =>
         .field ("<object>", "object")
         .field ("<property>", "string")
         .field ("data", "object")
-        .test (function ()
+        .onTest (function ()
         {
             return this.object[this.property];
         })
@@ -356,7 +397,7 @@ test ("nit.test.Strategy.reset ()", () =>
         downs: [],
         ups: [],
         expectors: [],
-        initializers: [],
+        inits: [],
         spies: [],
         resultValidator: undefined,
         mocks: [],
@@ -405,7 +446,7 @@ test ("nit.test.Strategy.should,can ()", () =>
     const PropertyStrategy = nit.test.defineStrategy ("Property")
         .field ("<object>", "object")
         .field ("<property>", "string")
-        .test (function ()
+        .onTest (function ()
         {
             return this.object[this.property];
         })
@@ -439,7 +480,7 @@ test ("nit.test.Strategy.mock ()", () =>
     const PropertyStrategy = nit.test.defineStrategy ("Property")
         .field ("<object>", "object")
         .field ("<property>", "string")
-        .test (function ()
+        .onTest (function ()
         {
             return this.object[this.property];
         })
@@ -459,15 +500,21 @@ test ("nit.test.Strategy.mock ()", () =>
     strategy.before (nit.noop);
     strategy.after (nit.noop);
     strategy.given (1, 2, 3);
+    strategy.assign ({ kk: "vv" });
+
     expect (strategy.befores.length).toBe (1);
     expect (strategy.afters.length).toBe (1);
     expect (strategy.inputs[0]).toEqual ([1, 2, 3]);
+    expect (strategy.kk).toBe ("vv");
 
     strategy.returnsInstanceOf ("string");
     expect (strategy.resultValidator).toBeInstanceOf (PropertyStrategy.TypeValidator);
 
     strategy.returns ("name");
     expect (strategy.resultValidator).toBeInstanceOf (PropertyStrategy.ValueValidator);
+
+    strategy.returnsResultContaining ({ a: 1 });
+    expect (strategy.resultValidator).toBeInstanceOf (PropertyStrategy.SubsetValidator);
 
     strategy.throws (/test errr/);
     expect (strategy.resultValidator).toBeInstanceOf (PropertyStrategy.ErrorValidator);
@@ -479,7 +526,7 @@ test ("nit.test.Strategy.spy ()", () =>
     const PropertyStrategy = nit.test.defineStrategy ("Property")
         .field ("<object>", "object")
         .field ("<property>", "string")
-        .test (function ()
+        .onTest (function ()
         {
             return this.object[this.property];
         })
@@ -507,7 +554,7 @@ test ("nit.test.Strategy.expecting... ()", async () =>
     const PropertyStrategy = nit.test.defineStrategy ("Property")
         .field ("<object>", "object")
         .field ("<property>", "string")
-        .test (function ()
+        .onTest (function ()
         {
             return this.object[this.property];
         })
@@ -515,6 +562,7 @@ test ("nit.test.Strategy.expecting... ()", async () =>
 
     const A = nit.defineClass ("A")
         .field ("<name>", "string")
+        .field ("obj", "any")
         .method ("nameLength", function ()
         {
             return this.name.length;
@@ -523,9 +571,13 @@ test ("nit.test.Strategy.expecting... ()", async () =>
         {
             throw new Error ("problem!");
         })
+        .method ("returnObject", function ()
+        {
+            return { a: 1, b: 2 };
+        })
     ;
 
-    let strategy = new PropertyStrategy (new A ("AAA"), "name");
+    let strategy = new PropertyStrategy (new A ("AAA", { obj: { a: 1, b: 2 } }), "name");
 
     strategy.expectingPropertyToBe ("object.name", "AAA");
     expect (strategy.expectors.length).toBe (1);
@@ -545,13 +597,26 @@ test ("nit.test.Strategy.expecting... ()", async () =>
 
     strategy.expectingMethodToThrow ("object.causeProblem", /problem/);
     expect (strategy.expectors.length).toBe (5);
-    expect (() => strategy.expectors[4].valueGetter (strategy)).toThrow (/problem/);
+    expect (strategy.expectors[4].valueGetter (strategy)).toBeInstanceOf (Error);
 
     strategy.expecting ("causeProblem will throw", Error, function (s)
     {
         try { s.object.causeProblem (); } catch (e) { return e.constructor; }
     });
     expect (await strategy.expectors[5].validate (strategy)).toBeUndefined ();
+
+    strategy.expectingPropertyToBe ("object", { name: "AAA" }, true);
+    expect (strategy.expectors.length).toBe (7);
+    expect (strategy.expectors[6].valueGetter (strategy)).toEqual ({ name: "AAA", obj: { a: 1, b: 2 }});
+
+    strategy.expectingPropertyToContain ("object.obj", { b: 2 });
+    expect (strategy.expectors[7].valueGetter (strategy)).toEqual ({ a: 1, b: 2 });
+
+    strategy.expectingMethodToReturnValue ("object.returnObject", null, { b: 2 }, true);
+    expect (strategy.expectors[8].valueGetter (strategy)).toEqual ({ a: 1, b: 2 });
+
+    strategy.expectingMethodToReturnValueContaining ("object.returnObject", null, { b: 2 });
+    expect (strategy.expectors[9].valueGetter (strategy)).toEqual ({ a: 1, b: 2 });
 });
 
 
@@ -559,8 +624,8 @@ test ("nit.test.Strategy.testUp,testDown ()", () =>
 {
     let st = new nit.test.Strategy ();
 
-    expect (st.testUp ()).toBeUndefined ();
-    expect (st.testDown ()).toBeUndefined ();
+    expect (st.testUp ()).toBe (st);
+    expect (st.testDown ()).toBe (st);
 });
 
 
@@ -635,15 +700,15 @@ test ("nit.test.Strategy.commit ()", async () =>
     const PropertyStrategy = nit.test.defineStrategy ("Property")
         .field ("<object>", "object")
         .field ("<property>", "string")
-        .testUp (function ()
+        .onTestUp (function ()
         {
             PropertyStrategy.upCalled = ~~PropertyStrategy.upCalled + 1;
         })
-        .testDown (function ()
+        .onTestDown (function ()
         {
             PropertyStrategy.downCalled = ~~PropertyStrategy.downCalled + 1;
         })
-        .test (function ()
+        .onTest (function ()
         {
             return this.object[this.property];
         })
@@ -731,15 +796,20 @@ test ("nit.test.Strategy.commit ()", async () =>
     ;
 
     const ErrorStrategy = nit.test.defineStrategy ("Error")
-        .test (function ()
+        .onTest (function ()
         {
             throw new Error ("test error!");
+        })
+        .method ("errorMethod", function ()
+        {
+            throw new Error ("error method!");
         })
     ;
 
     new ErrorStrategy ()
         .should ("throw an error")
             .throws ("test error!")
+            .expectingMethodToReturnValue ("errorMethod", null, "")
             .commit ()
 
         .should ("throw again")
@@ -755,10 +825,11 @@ test ("nit.test.Strategy.commit ()", async () =>
 
     expect (itMock.errors[0].code).toBe ("error.failed2");
     expect (itMock.errors[1].code).toBe ("error.failed3");
-    expect (itMock.errors[2].message).toBe ("test error!");
+    expect (itMock.errors[2].message).toBe ("error method!");
+    expect (itMock.errors[3].message).toBe ("test error!");
     expect (describeMock.invocations.length).toBe (6);
     expect (describeOnlyMock.invocations.length).toBe (1);
-    expect (itMock.invocations.length).toBe (9);
+    expect (itMock.invocations.length).toBe (10);
     expect (expectMock.invocations.length).toBe (4);
     expect (expectMock.invocations[3].args[0]).toBe ("test error!");
     expect (status.dirChangedForApp).toBe (true);

@@ -48,10 +48,10 @@ test ("nit.Object", () =>
     expect (() => nit.Object.defineSubclass (function () {})).toThrow (/class name cannot be empty/);
 
 
-    let emailProp = nit.Object.Property.createFor (MyClass, "<email>", "string");
-    let fileProp = nit.Object.Property.createFor (MyClass, "<file...>", "string");
-    let funcProp = nit.Object.Property.createFor (MyClass, "func", "function");
-    let dateProp = nit.Object.Property.createFor (MyClass, "date", "Date", () => new Date);
+    let emailProp = nit.Object.Property.new (MyClass, "<email>", "string");
+    let fileProp = nit.Object.Property.new (MyClass, "<file...>", "string");
+    let funcProp = nit.Object.Property.new (MyClass, "func", "function");
+    let dateProp = nit.Object.Property.new (MyClass, "date", "Date", () => new Date);
 
     expect (emailProp).toMatchObject (
     {
@@ -75,11 +75,11 @@ test ("nit.Object", () =>
     });
 
     expect (dateProp.get.call ({})).toBeInstanceOf (Date);
-    expect (() => nit.Object.Property.createFor (MyClass, "<>", "string")).toThrow (/name.*required/);
-    expect (() => nit.Object.Property.createFor (MyClass, "arg", "array")).toThrow (/property.*assigned.*invalid type/);
+    expect (() => nit.Object.Property.new (MyClass, "<>", "string")).toThrow (/name.*required/);
+    expect (() => nit.Object.Property.new (MyClass, "arg", "array")).toThrow (/property.*assigned.*invalid type/);
 
-    expect (emailProp.get.call (obj = {})).toBe ("");
-    expect (nit.clone.deep (obj)).toEqual ({ $__email: "" });
+    expect (emailProp.get.call (obj = new nit.Object)).toBe ("");
+    expect (nit.clone.deep (obj)).toEqual (expect.objectContaining ({ $__email: "" }));
     expect (emailProp.get.call (obj)).toBe ("");
 
     expect (() => emailProp.set.call (obj)).toThrow (/email.*required/);
@@ -89,21 +89,25 @@ test ("nit.Object", () =>
     emailProp.set.call (obj, 3);
     expect (obj.$__email).toBe ("3");
 
-    expect (emailProp.set.call (obj, "a@b.com")).toBeUndefined ();
-    expect (fileProp.set.call (obj, ["a.txt", "b.txt"])).toBeUndefined ();
+    expect (emailProp.set.call (obj, "a@b.com")).toBe ("a@b.com");
+    expect (fileProp.set.call (obj, ["a.txt", "b.txt"])).toEqual (["a.txt", "b.txt"]);
 
     expect (funcProp.set.call (obj, undefined)).toBeUndefined ();
-    expect (nit.clone.deep (obj)).toEqual (
+    expect (nit.clone.deep (obj)).toEqual (expect.objectContaining (
     {
       '$__email': 'a@b.com',
       '$__file': ['a.txt', 'b.txt'],
       '$__func': undefined
-    });
+    }));
 
     nit.Object.defineProperty (obj, "age", "integer", 10);
     expect (Object.getOwnPropertyDescriptor (obj, "age").get[nit.Object.kProperty]).toMatchObject ({ array: false, name: "age", defval: 10 });
 
     MyClass.constant ("MAX_SIZE", 20);
+    MyClass.constant ("CONFIG", { a: 1 }, true);
+
+    MyClass.CONFIG.a = 10;
+    expect (MyClass.CONFIG.a).toBe (1);
     expect (MyClass.MAX_SIZE).toBe (20);
     MyClass.MAX_SIZE = 30;
     expect (MyClass.MAX_SIZE).toBe (20);
@@ -292,6 +296,67 @@ test ("nit.Object", () =>
 });
 
 
+test ("nit.Object.staticLifecycleMethod ()", () =>
+{
+    const A = nit.defineClass ("AS")
+        .staticLifecycleMethod ("run",
+            function ()
+            {
+                A.implCalled = true;
+                A[A.kRun] ();
+
+                return true;
+            }
+            ,
+            function ()
+            {
+                A.hookCalled = true;
+            }
+        )
+    ;
+
+    expect (A.run ()).toBe (true);
+    expect (A.implCalled).toBe (true);
+    expect (A.hookCalled).toBe (true);
+
+    const B = nit.defineClass ("BS")
+        .staticLifecycleMethod ("run",
+            function ()
+            {
+                B.implCalled = true;
+                B[B.kRun] ();
+
+                return true;
+            }
+            ,
+            true
+        )
+    ;
+
+    expect (() => B.run ()).toThrow (/not implemented/);
+
+    const C = nit.defineClass ("CS")
+        .staticLifecycleMethod ("run", null, function ()
+        {
+            C.hookCalled = true;
+
+            return true;
+        })
+    ;
+
+    C.onRun (() => 10);
+
+    expect (C.run ()).toBe (10);
+    expect (C.hookCalled).toBeUndefined ();
+
+    const D = nit.defineClass ("DS")
+        .staticLifecycleMethod ("run")
+    ;
+
+    expect (D.run ()).toBe (D);
+});
+
+
 test ("nit.Object.buildConstructorParams ()", () =>
 {
     let Copy = nit.Object.defineSubclass ("commands.Copy")
@@ -362,7 +427,7 @@ test ("nit.Object.invokeConstructor ()", () =>
     let userConstructed = false;
     let User = nit.Object.defineSubclass ("nit.User")
         .property ("email")
-        .construct (function (email) // eslint-disable-line no-unused-vars
+        .onConstruct (function (email) // eslint-disable-line no-unused-vars
         {
             userConstructed = true;
         })
@@ -378,7 +443,7 @@ test ("nit.Object.invokeConstructor ()", () =>
     let Phone = nit.Object.defineSubclass ("nit.Phone")
         .m ("error.invalid_phone_number", "The phone number is invalid")
         .property ("<user>", "nit.User")
-        .construct (function (user)
+        .onConstruct (function (user)
         {
             if (user instanceof User)
             {
@@ -415,7 +480,7 @@ test ("nit.Object.invokeConstructor ()", () =>
 
     expect (() => new Phone (nit.object ())).toThrow (/property 'user' is required/);
     expect (() => new Phone ([3, 4])).toThrow (/should be an instance of nit.User/);
-    expect (new Phone (9).toPojo ()).toEqual ({ user: { email: "" } });
+    expect (() => new Phone (9)).toThrow (/should be an instance of nit.User/);
     expect (new Phone (new User ({ email: "a@b.com" })).user.email).toBe ("a@b.com");
     expect (new Phone (nit.object ({ "@class": "nit.User", email: "a@b.com" })).user.email).toBe ("a@b.com");
     expect (new Phone (nit.object ({ "@class": "nit.Employee", no: "11111" })).user.no).toBe ("11111");
@@ -575,67 +640,14 @@ test ("nit.Object.lifecycleMethod ()", () =>
     expect (Service.startCb).toBeUndefined ();
     expect (Service.runCbInvoked).toBe (true);
     expect (service.noop ()).toBe (service);
-    expect (() => service.stop ()).toThrow (/lifecycle callback.*not implemented/);
-
-});
-
-
-test ("nit.Object.invokeParentStaticMethod ()", () =>
-{
-    let parentMethodCalled = false;
-    let Parent = nit.Object.defineSubclass ("Parent")
-        .staticMethod ("methodA", function ()
-        {
-            parentMethodCalled = true;
-
-            return this.invokeParentStaticMethod ("methodA");
-        })
-    ;
-
-    let childMethodCalled = false;
-    let Child = Parent.defineSubclass ("Child")
-        .staticMethod ("methodA", function ()
-        {
-            childMethodCalled = true;
-            this.invokeParentStaticMethod ("methodA");
-        })
-    ;
-
-    Child.methodA ();
-    expect ([parentMethodCalled, childMethodCalled]).toEqual ([true, true]);
-    expect (Parent.methodA ()).toBeUndefined ();
-});
-
-
-test ("nit.Object.invokeParentMethod ()", () =>
-{
-    let parentMethodCalled = false;
-    let Parent = nit.Object.defineSubclass ("Parent")
-        .method ("methodB", function ()
-        {
-            parentMethodCalled = true;
-            return Parent.invokeParentMethod (this, "methodB");
-        })
-    ;
-
-    let childMethodCalled = false;
-    let Child = Parent.defineSubclass ("Child")
-        .method ("methodB", function ()
-        {
-            childMethodCalled = true;
-            Child.invokeParentMethod (this, "methodB");
-        })
-    ;
-
-    let child = new Child;
-    child.methodB ();
-    expect ([parentMethodCalled, childMethodCalled]).toEqual ([true, true]);
+    expect (() => service.stop ()).toThrow (/lifecycle.*stop.* was not implemented/);
 });
 
 
 test ("nit.Object.toPojo ()", () =>
 {
-    expect (nit.Object.toPojo (null)).toBe (null);
+    expect (nit.Object.toPojo (null)).toBeUndefined ();
+    expect (nit.Object.toPojo (3)).toBeUndefined ();
 
     let now = new Date ();
 
@@ -676,16 +688,51 @@ test ("nit.Object.toPojo ()", () =>
     expect (doc.toPojo (true).owner).toBeInstanceOf (Owner);
     expect (owner.toPojo (true).permissions[0].MARK).toBe ("marked");
     expect (owner.toPojo ().permissions[0].MARK).toBeUndefined ();
+
+    const Capital = nit.defineClass ("Capital")
+        .field ("<name>", "string")
+        .field ("country", "Country")
+    ;
+
+    const Country = nit.defineClass ("Country")
+        .field ("<name>", "string")
+        .field ("capital", "Capital")
+    ;
+
+    let country = new Country ("Taiwan");
+    let capital = new Capital ("Taipei");
+
+    capital.country = country;
+    country.capital = capital;
+
+    expect (capital.toPojo ()).toEqual ({ name: "Taipei", country: { name: "Taiwan", capital: null } });
 });
 
 
-test ("nit.Object.mix ()", () =>
+test ("nit.Object.mixin ()", () =>
 {
-    const Sub = nit.Object.defineSubclass ("Sub")
-        .mix ("logger")
+    const Mix = nit.Object.defineSubclass ("mixins.Mix")
+        .staticMethod ("mixA", function () {})
+        .staticMethod ("mixB", function () {})
+        .method ("mixC", function () {})
+        .method ("mixD", function () {})
     ;
 
-    expect (Sub.prototype.log).toBeInstanceOf (Function);
+    const Sub = nit.Object.defineSubclass ("Sub")
+        .mixin (Mix, ["mixA", "mixC"])
+    ;
+
+    expect (Sub.mixA).toBeUndefined ();
+    expect (Sub.mixB).toBeInstanceOf (Function);
+    expect (Sub.prototype.mixC).toBeUndefined ();
+    expect (Sub.prototype.mixD).toBeInstanceOf (Function);
+
+    const Sub2 = nit.Object.defineSubclass ("Sub")
+        .mixin ("Mix")
+    ;
+
+    expect (Sub2.mixA).toBeInstanceOf (Function);
+    expect (Sub2.mixB).toBeInstanceOf (Function);
 });
 
 
@@ -877,12 +924,17 @@ test ("nit.Object.defaults ()", () =>
 test ("nit.Object.buildParam ()", async () =>
 {
     nit.User.property ("orgIds...", "integer");
+    nit.User.property ("patterns...", "string", "*");
 
     let field = nit.find (nit.User.getProperties (), "name", "orgIds");
     let user = new nit.User;
 
     expect (nit.Object.buildParam (user, field, {})).toEqual ([]);
     expect (nit.Object.buildParam (user, field, { orgIds: [3, 4] })).toEqual ([3, 4]);
+    expect (nit.Object.buildParam (user, field, { orgIds: 3 })).toEqual ([3]);
+
+    field = nit.find (nit.User.getProperties (), "name", "patterns");
+    expect (nit.Object.buildParam (user, field, {})).toEqual (["*"]);
 
     nit.User.property ("info", "string");
 
@@ -903,7 +955,7 @@ test ("nit.Object.buildParam ()", async () =>
 
     nit.defineClass ("AsyncB")
         .field ("time")
-        .construct (async function ()
+        .onConstruct (async function ()
         {
             await nit.sleep (10);
             this.time = new Date ().toISOString ();
@@ -930,18 +982,9 @@ test ("nit.Object.buildConstructorParams ()", async () =>
         {
             email: "",
             info: "lastLogin: 2022-01-01",
-            orgIds: []
+            orgIds: [],
+            patterns: ["*"]
         });
-
-    let prepareCalled = false;
-
-    nit.User.prepareConstructorParams (function ()
-    {
-        prepareCalled = true;
-    });
-
-    await nit.User.buildConstructorParams (user, { "info..remoteData": "someurl" }, props, true);
-    expect (prepareCalled).toBe (true);
 });
 
 
@@ -971,11 +1014,11 @@ test ("nit.Object.constructObject ()", () =>
     nit.CONFIG = {};
 
     nit.User
-        .preConstruct (function ()
+        .onPreConstruct (function ()
         {
             preConstructCalled = true;
         })
-        .postConstruct (function ()
+        .onPostConstruct (function ()
         {
             postConstructCalled = true;
         })
@@ -992,6 +1035,9 @@ test ("nit.Object.PrimitiveTypeParser", () =>
     let parsers = nit.index (nit.Object.TYPE_PARSERS, "type");
 
     expect (parsers.string.cast (undefined)).toBe ("");
+    expect (parsers.pojo.cast ({ a: 1 })).toEqual ({ a: 1 });
+    expect (parsers.pojo.cast ("abc")).toBeUndefined ();
+    expect (parsers.pojo.defval ()).toEqual ({});
 });
 
 
@@ -1013,6 +1059,22 @@ test ("nit.Object.onDefineSubclass ()", () =>
 test ("nit.Object.simpleName", () =>
 {
     expect (nit.Object.simpleName).toBe ("Object");
+});
+
+
+test ("nit.Object.properties", () =>
+{
+    const AP = nit.Object.defineSubclass ("AP")
+        .property ("<name>", "string")
+        .property ("email", "string")
+    ;
+
+    expect (AP.properties.length).toBe (2);
+    expect (AP.properties[0].name).toBe ("name");
+    expect (AP.properties[1].name).toBe ("email");
+    expect (AP.pargs.length).toBe (1);
+    expect (AP.pargs[0].name).toBe ("name");
+    expect (nit.keys (AP.pargMap)).toEqual (["name"]);
 });
 
 

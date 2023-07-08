@@ -18,3 +18,17 @@ test ("nit.each () walks an object or array with a function.", async () =>
     expect (nit.each ([1, 2, 3], async (v) => v * 2)).toBeInstanceOf (Promise);
     expect (await nit.each ([1, 2, 3], async (v) => v * 2)).toEqual ([2, 4, 6]);
 });
+
+
+test ("nit.each.obj ()", async () =>
+{
+    expect (nit.each.obj ({ a: 1, b: 2 }, v => v * 2)).toEqual ({ a: 2, b: 4 });
+
+    async function add (v)
+    {
+        await nit.sleep (10);
+        return v + 1;
+    }
+
+    expect (await  nit.each.obj ({ a: 1, b: 2 }, add)).toEqual ({ a: 2, b: 3 });
+});

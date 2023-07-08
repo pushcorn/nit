@@ -24,6 +24,25 @@ test ("nit.Template.render () - object entries", () =>
 });
 
 
+test ("nit.Template.render () - transform property ($)", () =>
+{
+    [
+        "{{#? !$.nit.is.empty.nested (matches) \\|\\| !$.nit.is.empty.nested (conditions)}}do work{{/}}",
+        "{{#? !$.nit.is.empty.nested ([matches, conditions])}}do work{{/}}",
+        "{{#+ [matches, conditions]}}do work{{/}}"
+    ]
+    .forEach (tmpl =>
+    {
+        expect (nit.Template.render (tmpl)).toBe ("");
+        expect (nit.Template.render (tmpl, { matches: {} })).toBe ("");
+        expect (nit.Template.render (tmpl, { matches: {}, conditions: "" })).toBe ("");
+        expect (nit.Template.render (tmpl, { matches: {}, conditions: "cond" })).toBe ("do work");
+        expect (nit.Template.render (tmpl, { matches: { a: 1 }, conditions: "cond" })).toBe ("do work");
+        expect (nit.Template.render (tmpl, { matches: { a: 1 }, conditions: "" })).toBe ("do work");
+    });
+});
+
+
 test ("nit.Template.render () - escaping transform delimiter", () =>
 {
     var tmpl = "{{#names}}{{|nit.kababCase|append ('|')}} {{/}}";
@@ -436,16 +455,20 @@ test ("nit.Template () - transforms", async () =>
 
 test ("nit.Template () - invalid expr", () =>
 {
-    let oldLog = nit.log;
-    {
-        nit.log = function (e)
-        {
-            throw e;
-        };
+    nit.debug ("nit.Template");
 
-        expect (() => nit.Template.render ("{{&a - 3}}", { a: 5 })).toThrow (/bad syntax/i);
-    }
-    nit.log = oldLog;
+    let error;
+
+    test.mock (nit, "log", function ()
+    {
+        error = arguments[1];
+    });
+
+    nit.Template.render ("{{&a - 3}}", { a: 5 });
+
+    nit.debug.PATTERNS = [];
+
+    expect (error.message).toMatch (/bad syntax/i);
 });
 
 

@@ -18,4 +18,24 @@ test ("nit.copyProperties ()", () =>
 
     nit.copyProperties (nit.Class.prototype, MyStream.prototype);
     expect (MyStream.prototype.throw).toBeInstanceOf (Function);
+
+
+    function aa () {}
+
+    const A = nit.defineClass ("A")
+        .method ("aa", function () {})
+        .method ("cc", function () {})
+    ;
+
+    const B = nit.defineClass ("B")
+        .method ("bb", function () {})
+        .method ("aa", aa)
+    ;
+
+    nit.copyProperties (A.prototype, B.prototype, ["aa"]);
+    expect (B.prototype.aa).toBe (aa);
+    expect (B.prototype.cc).toBe (A.prototype.cc);
+
+    nit.copyProperties (A.prototype, B.prototype, null, true);
+    expect (B.prototype.aa).toBe (A.prototype.aa);
 });

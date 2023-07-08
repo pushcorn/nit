@@ -3,7 +3,7 @@ test ("nit.Cache", async () =>
     const TestEntry = nit.defineClass ("TestEntry", "nit.cache.Entry");
 
     nit.defineClass ("KeyChangingEntry", "nit.cache.Entry")
-        .construct (function (key)
+        .onConstruct (function (key)
         {
             this.key = "prefix:" + key;
         })

@@ -13,4 +13,6 @@ test ("nit.set () set the value of an object at given path.", () =>
     nit.set (A, "b.c", 1);
 
     expect (A.b.c).toBe (1);
+
+    expect (nit.set ({ a: 5 }, "")).toEqual ({ a: 5 });
 });

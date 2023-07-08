@@ -15,10 +15,10 @@ test ("nit.Constraint", () =>
     expect (() => cons.validate ({})).toThrow (/cannot be applied to.*undefined/i);
     expect (cons.applicableTo ("integer")).toBe (true);
     expect (cons.applicableTo ("string")).toBe (false);
-    expect (() => cons.validate ({ value: "10" })).toThrow (/method not implemented/i);
+    expect (() => cons.validate ({ value: "10" })).toThrow (/validate.*was not implemented/i);
 
 
-    Max.validate (function (ctx)
+    Max.onValidate (function (ctx)
     {
         return ctx.value * 1 <= ctx.constraint.max;
     });

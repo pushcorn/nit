@@ -92,7 +92,7 @@ test.method ("nit.utils.Stdio", "readLine", true)
         .expectingPropertyToBe ("mocks.2.invocations.length", 2)
         .commit ()
 
-    .should ("should no show the input if hideInput is true")
+    .should ("should not show the input if hideInput is true")
         .given ("please enter something:", true)
         .before (function ()
         {
@@ -115,7 +115,7 @@ test.method ("nit.utils.Stdio", "readLine", true)
         })
         .mock (process.stdout, "write")
         .returns ("my secret")
-        .expectingPropertyToBe ("mocks.0.invocations.0.result._writeToOutput", nit.noop)
+        .expectingPropertyToBe ("mocks.0.invocations.0.result._writeToOutput", () => nit.noop)
         .commit ()
 ;
 

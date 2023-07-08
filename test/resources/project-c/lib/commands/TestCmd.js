@@ -7,7 +7,7 @@ module.exports = function (nit)
                 .option ("[dir]", "dir")
             ;
         })
-        .method ("run", function ()
+        .onRun (function ()
         {
             return "Test command for project-c.";
         })

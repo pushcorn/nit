@@ -17,23 +17,37 @@ test ("nit.Field", () =>
         .appliesTo ("integer")
         .throws ("error.greater_than_max", "The value is greater than %{constraint.max}.")
         .property ("max", "integer", 10)
-        .validate (function (ctx)
+        .onValidate (function (ctx)
         {
             return ctx.value * 1 <= ctx.constraint.max;
         })
     ;
 
+    let Min = nit.defineConstraint ("test.constraints.MinInt")
+        .appliesTo ("integer")
+        .throws ("error.less_than_min", "The value is less than %{constraint.min}.")
+        .property ("min", "integer", 10)
+        .onValidate (function (ctx)
+        {
+            return ctx.value * 1 <= ctx.constraint.min;
+        })
+    ;
+
     nit.defineClass ("constraints.InvalidCons");
 
-    expect (() => field.addConstraint ("UndefCons")).toThrow (/constraint.*not defined/);
-    expect (() => field.addConstraint ("InvalidCons")).toThrow (/not an instance of nit.Constraint/);
+    expect (() => field.constraint ("UndefCons")).toThrow (/constraint.*not defined/);
+    expect (() => field.constraint ("InvalidCons")).toThrow (/not an instance of nit.Constraint/);
 
-    let obj = {};
+    let obj = new nit.Object;
 
     field.bind (obj);
-    field.addConstraint ("maxInt");
+    field.constraint ("maxInt");
+    field.constraint ("test:min-int", { when: ctx => ctx.value > 5 });
+
     expect (field.getConstraint ("maxInt")).toBeInstanceOf (Max);
-    expect (field.validate (obj)).toBeUndefined ();
+    expect (field.getConstraint ("test:min-int")).toBeInstanceOf (Min);
+    expect (field.validate (obj, 3)).toBe (3);
+    expect (field.validate (obj, 9)).toBe (9);
     expect (nit.propertyDescriptors (obj).age.get[nit.Object.kProperty]).toBeInstanceOf (nit.Field);
     expect (() => obj.age = "abcd").toThrow (/should be an integer/);
     expect (() => obj.age = 100).toThrow (/greater than 10/);
@@ -49,15 +63,13 @@ test ("nit.Field", () =>
     let nameField = new nit.Field ("name", "string", "The name");
     nameField.bind (Student.prototype);
 
-    expect (() => nameField.addConstraint ("maxInt")).toThrow (/constraint.*cannot be applied/);
+    expect (() => nameField.constraint ("maxInt")).toThrow (/constraint.*cannot be applied/);
     expect (nit.Object.getProperties (User.prototype, nit.Field).length).toBe (1);
     expect (nit.Object.getProperties (Student.prototype, nit.Field).length).toBe (2);
 
     field = new nit.Field ("<height>", "integer");
-    field.addConstraint ("maxInt", 300);
+    field.constraint ("maxInt", 300);
     field.bind (obj);
-    obj.value = "aa";
-    expect (() => field.validate (obj)).toThrow (/constraint cannot be applied/);
-    obj.value = "";
-    expect (() => field.validate (obj)).toThrow (/constraint cannot be applied/);
+    expect (() => field.validate (obj, "aa")).toThrow (/constraint cannot be applied/);
+    expect (() => field.validate (obj, "")).toThrow (/constraint cannot be applied/);
 });

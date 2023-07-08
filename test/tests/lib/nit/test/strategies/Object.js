@@ -6,7 +6,7 @@ test ("nit.test.strategies.Object", async () =>
 
     const A = nit.defineClass ("A")
         .staticProperty ("nextId", "integer", 1)
-        .construct (function ()
+        .onConstruct (function ()
         {
             this.id = A.nextId++;
         })
@@ -22,6 +22,7 @@ test ("nit.test.strategies.Object", async () =>
     let st = new nit.test.strategies.Object (A);
     expect (st.description).toMatch ("Object: A");
     expect (st.class).toBe (A);
+
     expect (obj = await st.test ()).not.toBe (a);
     expect (obj.nextId).toBe (2);
 

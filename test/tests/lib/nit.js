@@ -6,7 +6,7 @@ test ("nit getters", () =>
     expect (nit.READY).toBe (true);
     expect (nit.HOME).toBe (no_path.dirname (no_path.dirname (no_path.dirname (__dirname))));
     expect (nit.READY).toBe (true);
-    expect (nit.DEBUG).toBe (false);
+    expect (nit.SHUTDOWN).toBe (false);
 });
 
 
@@ -55,43 +55,6 @@ test ("nit.throw ()", () =>
 });
 
 
-test ("nit.dbg ()", () =>
-{
-    jest.resetModules ();
-
-    let nit = require (test.HOME);
-    let args;
-    let _log = nit.log;
-
-    nit.log = function ()
-    {
-        args = nit.array (arguments);
-    };
-
-    nit.log.d = _log.d;
-    nit.log.formatMessage = _log.formatMessage;
-
-    nit.dbg ("debug message");
-    expect (args).toBeUndefined ();
-
-    process.env.NIT_DEBUG = "true";
-    jest.resetModules ();
-    nit = require (test.HOME);
-
-    nit.log = function ()
-    {
-        args = nit.array (arguments);
-    };
-    nit.log.d = _log.d;
-    nit.log.formatMessage = _log.formatMessage;
-
-    nit.dbg ("debug message");
-    expect (args).toEqual (["[DEBUG]", "debug message"]);
-
-    delete process.env.NIT_DEBUG;
-});
-
-
 test ("nit.inspect ()", () =>
 {
     jest.resetModules ();
@@ -133,6 +96,12 @@ test ("nit.isDir ()", () =>
     expect (nit.isDir (no_path.join (test.HOME, "test/resources/project-link"))).toBe (true);
     expect (nit.isDir (no_path.join (test.HOME, "test/setup.js"))).toBe (false);
     expect (nit.isDir (no_path.join (test.HOME, "test/abc"))).toBe (false);
+});
+
+
+test ("nit.resolvePath ()", () =>
+{
+    expect (nit.resolvePath ()).toBeUndefined ();
 });
 
 
@@ -259,8 +228,10 @@ test ("nit.require ()", async () =>
     expect (nit.projectExtenstionLoaded).toBe (true);
 
     nit.require ("c");
+    nit.require ("Eee");
     await nit.sleep (10);
     expect (nit.require ("d")).toBe ("d");
+    expect (nit.require ("Eee")).toBeInstanceOf (Function);
 
     nit.require ("A");
     expect (nit.require ("B")).toBeInstanceOf (Function);
@@ -436,18 +407,17 @@ test ("nit.handlException ()", async () =>
     nit.log.e = nit._log.e;
     nit.log.formatMessage = nit._log.formatMessage;
 
-    nit.handleException (new Error ("test error"));
-
-    expect (logContent).toEqual (["[ERROR]", "test error"]);
-
-    process.env.NIT_DEBUG = "true";
     const _nit = await test.reloadNit ();
 
     _nit.log = nit.log;
-    _nit.handleException (new Error ("test error 2"));
+    _nit.handleException (new Error ("test error"));
 
     expect (logContent[0]).toBe ("[ERROR]");
-    expect (logContent[1]).toMatch (/error: test error 2/i);
+    expect (logContent[1]).toBe ("test error");
+
+    _nit.debug ("nit");
+    _nit.handleException (new Error ("test error"));
+    expect (logContent[0]).toBe ("[DEBUG] (nit)");
 
     nit.log = nit._log;
 });
@@ -616,7 +586,7 @@ test ("nit.runCommand", async () =>
         return Console;
     });
 
-    Console.run (nit.noop);
+    Console.onRun (nit.noop);
     await nit.runCommand ();
     expect (mock.invocations[0].args).toEqual (["console"]);
 });
@@ -643,7 +613,7 @@ test ("nit.beep ()", () =>
 
     beep (null, function (beeps)
     {
-        expect (mock.invocations[0].args).toEqual (["\x1b[1m\x1b[31m", null, "\x1b[39m\x1b[22m"]);
+        expect (mock.invocations[0].args[0]).toBe ("\x1b[1m\x1b[31m\x1b[39m\x1b[22m");
         expect (beeps === "\x07").toBe (true);
     });
 
@@ -824,4 +794,49 @@ test ("nit.Object.use ()", () =>
     expect (A.path).toBe (require ("path"));
     expect (A.http).toBe (require ("http"));
     expect (A.pkg).toEqual (expect.objectContaining ({ bin: "./bin/nit" }));
+});
+
+
+test ("nit.Object.use ()", async () =>
+{
+    let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");
+    let nit = await test.reloadNit (testProjectPath);
+
+    const A = nit.defineClass ("A")
+        .use ("resources/models/Version.v1.js")
+        .use ("resources/mimeTypes.json")
+    ;
+
+    expect (nit.get (A, "Version.VERSION")).toBe ("v1");
+    expect (nit.get (A, "mimeTypes")).toEqual (
+    {
+        "application/json":
+        {
+            "source": "iana",
+            "charset": "UTF-8",
+            "compressible": true,
+            "extensions": ["json","map"]
+        }
+    });
+});
+
+
+test ("nit.shutdown ()", async () =>
+{
+    const nit = await test.reloadNit ();
+
+    let shutdownCalled = 0;
+
+    nit.shutdown (() =>
+    {
+        ++shutdownCalled;
+    });
+
+    process.emit ("SHUTDOWN");
+
+    expect (shutdownCalled).toBe (1);
+
+    process.emit ("SHUTDOWN");
+
+    expect (shutdownCalled).toBe (1);
 });

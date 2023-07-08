@@ -318,7 +318,7 @@ test ("nit.Command.run ()", async () =>
     expect (await Test ().run ()).toBe (undefined);
 
     Test
-        .run (function (ctx)
+        .onRun (function (ctx)
         {
             ctx.key = "value";
 
@@ -338,11 +338,11 @@ test ("nit.Command.run ()", async () =>
 test ("nit.Command.catch/finally ()", async () =>
 {
     const Test = nit.defineClass ("Test", "nit.Command")
-        .run (function ()
+        .onRun (function ()
         {
             throw new Error ("ERR");
         })
-        .finally (function ()
+        .onFinally (function ()
         {
             Test.finallyCalled = true;
         })
@@ -359,7 +359,7 @@ test ("nit.Command.catch/finally ()", async () =>
     expect (Test.finallyCalled).toBe (true);
 
     Test
-        .catch (function ()
+        .onCatch (function ()
         {
             Test.catchCalled = true;
         })
@@ -395,7 +395,7 @@ test ("nit.Command.defineContext ()", async () =>
                 .field ("db", "any", "The database connection.")
             ;
         })
-        .run (function (ctx)
+        .onRun (function (ctx)
         {
             return ctx.input.a + ctx.input.b;
         })

@@ -22,7 +22,7 @@ test ("nit.test.strategies.Method", async () =>
     st.testUp ();
     expect (st.test (3)).toBe (4);
 
-    st = new nit.test.strategies.Method (A, "addTwo", true);
+    st = new nit.test.strategies.Method (A, "addTwo", true, { recreate: false });
     await st.testUp ();
     expect (st.test (3)).toBe (5);
 

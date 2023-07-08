@@ -14,7 +14,7 @@ test ("nit.Class", () =>
         .throws ("less_than_min", "The minimum value of '%{property.name}' is '%{constraint.min}'.")
         .property ("<min>", "integer")
         .appliesTo ("integer")
-        .validate (function (ctx)
+        .onValidate (function (ctx)
         {
             return ctx.value >= ctx.constraint.min;
         })
@@ -24,7 +24,7 @@ test ("nit.Class", () =>
     expect (() => new User).toThrow (/id.*required/);
     expect (new User ("1234").id).toBe ("1234");
 
-    User.preConstruct (function (params)
+    User.onPreConstruct (function (params)
     {
         User.preConstruct.params = params;
     });
@@ -32,7 +32,7 @@ test ("nit.Class", () =>
     obj = new User ("1234");
     expect (User.preConstruct.params).toEqual ({});
 
-    User.postConstruct (function (obj)
+    User.onPostConstruct (function (obj)
     {
         User.postConstruct.obj = obj;
     });
@@ -83,4 +83,20 @@ test ("nit.Class.registerPlugin ()", () =>
 
     expect (nit.propertyDescriptors (B, true).testplugins).toBeInstanceOf (Object);
     expect (nit.propertyDescriptors (B, true).testplugin.value).toBeInstanceOf (Function);
+});
+
+
+test ("nit.Class.getChecks ()", () =>
+{
+    const DummyConstraint = nit.defineConstraint ("test.constraints.Dummy")
+        .onValidate (() => true)
+    ;
+
+    const Country = nit.defineModel ("Country")
+        .field ("<name>", "string")
+        .check ("test:dummy")
+    ;
+
+    expect (Country.getChecks ("test:dummy")[0]).toBeInstanceOf (DummyConstraint);
+    expect (Country.getChecks ()[0]).toBeInstanceOf (DummyConstraint);
 });

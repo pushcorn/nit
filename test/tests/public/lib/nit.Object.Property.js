@@ -1,18 +1,22 @@
 test ("nit.Object.Property", () =>
 {
     let A = nit.Object.defineSubclass ("A");
+    let B = nit.Object.defineSubclass ("B");
     let a = new A;
-    let stringProp = nit.Object.Property.createFor (A, "items...", "string");
+    let stringProp = nit.Object.Property.new (A, "items...", "string");
+    let objProp = nit.Object.Property.new (A, "b", "B");
 
     nit.dp (A.prototype, stringProp.name, stringProp);
-    expect (() => stringProp.cast ([], a)).toThrow (/items.*should be a string/);
+    expect (() => stringProp.cast (a, [])).toThrow (/items.*should be a string/);
     expect (stringProp.get.call (a)).toEqual ([]);
     expect (stringProp.get.call (a)).toEqual ([]);
+    expect (stringProp.class).toBeUndefined ();
+    expect (objProp.class).toBe (B);
 
-    let funcProp = nit.Object.Property.createFor (A, "work", "function");
-    expect (funcProp.cast (undefined, a)).toBeUndefined ();
+    let funcProp = nit.Object.Property.new (A, "work", "function");
+    expect (funcProp.cast (a)).toBeUndefined ();
 
-    let dateProp = nit.Object.Property.createFor (A, "createdAt", "date");
+    let dateProp = nit.Object.Property.new (A, "createdAt", "date");
     dateProp.defval = function () { return new Date; };
     dateProp.getter = function (v)
     {
@@ -24,7 +28,7 @@ test ("nit.Object.Property", () =>
     expect (dateProp.get.call (a)).toBeInstanceOf (Date);
     expect (dateProp.getter.called).toBe (true);
 
-    let nameProp = nit.Object.Property.createFor (A, "<name>", "string");
+    let nameProp = nit.Object.Property.new (A, "<name>", "string");
     nit.dp (A.prototype, nameProp.name, nameProp);
 
     a.items = "a";
@@ -51,28 +55,28 @@ test ("nit.Object.Property", () =>
     a.name = "a";
     expect (a.name).toBe ("a.");
 
-    let emailProp = nit.Object.Property.createFor (A, "email", "string");
+    let emailProp = nit.Object.Property.new (A, "email", "string");
     nit.dp (A.prototype, emailProp.name, emailProp);
     a.email = undefined;
     expect (a.email).toBe ("");
 
     nit.Field ("email", "string"); // calls prop.get.setDescriptor ()
 
-    expect (() => nit.Object.Property.createFor (A)).toThrow (/name.*is required/);
-    expect (() => nit.Object.Property.createFor (A, "n", "unkown")).toThrow (/assigned to an invalid type/);
+    expect (() => nit.Object.Property.new (A)).toThrow (/name.*is required/);
+    expect (() => nit.Object.Property.new (A, "n", "unkown")).toThrow (/assigned to an invalid type/);
 
     expect (nit.Object.Property.prototype.cast ()).toBeUndefined ();
 
 
-    let arrayProp = nit.Object.Property.createFor (A, "defval", "any");
+    let arrayProp = nit.Object.Property.new (A, "defval", "any");
     nit.dp (A.prototype, arrayProp.name, arrayProp);
     a.defval = [3, 4, 5];
     expect (a.defval).toEqual ([3, 4, 5]);
 
-    let nullableProp = nit.Object.Property.createFor (A, "port", "integer?", 0);
+    let nullableProp = nit.Object.Property.new (A, "port", "integer?", 0);
     expect (nullableProp.defval).toBe (undefined);
 
-    let defvalFuncProp = nit.Object.Property.createFor (A, "port", "integer", () => 9999);
+    let defvalFuncProp = nit.Object.Property.new (A, "port", "integer", () => 9999);
     expect (defvalFuncProp.defval).toBeInstanceOf (Function);
     nit.dp (A.prototype, defvalFuncProp.name, defvalFuncProp);
     let aa = new A;

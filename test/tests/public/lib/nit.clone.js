@@ -21,6 +21,12 @@ test ("nit.clone () clones the given object.", () =>
 
     circular.self = circular;
 
+    let filter = function ()
+    {
+        return true;
+    };
+
+    filter.circular = () => null;
 
 
     expect (nit.clone ([{ a: 3, b: undefined, c: Symbol ("C") }])).toEqual ([{ a: 3 }]);
@@ -30,13 +36,7 @@ test ("nit.clone () clones the given object.", () =>
     expect (nit.clone (B)).toEqual ({ name: "B", prop: "a property" });
 
     expect (nit.clone (circular)).toEqual ({ name: "circ", self: "[circular]" });
-
-    let target = {};
-    {
-        nit.clone ({ a: 3, b: 4 }, target);
-
-        expect (target).toEqual ({ a: 3, b: 4 });
-    }
+    expect (nit.clone (circular, filter)).toEqual ({ name: "circ", self: null });
 
     let D = function () { this.a = 1; };
     {
@@ -78,7 +78,7 @@ test ("nit.clone () clones the given object.", () =>
 
     expect (nit.clone.data ({ a: 1, b: nit })).toEqual ({ a: 1 });
 
-    let filter = (v) => nit.is.not.num (v) || v >= 3;
+    filter = (v) => nit.is.not.num (v) || v >= 3;
     {
         expect (nit.clone ({ a: 1, c: 9 }, filter)).toEqual ({ c: 9 });
         expect (nit.clone.data ({ a: 1, c: 9, b: nit }, filter)).toEqual ({ c: 9, b: nit });

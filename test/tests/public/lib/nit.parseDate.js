@@ -2,6 +2,7 @@ test ("nit.parseDate ()", () =>
 {
     let d;
 
+    expect (nit.parseDate (new Date (2000, 1, 1))).toBeInstanceOf (Date);
     expect (nit.parseDate ("ABC")).toBe (undefined);
     expect (nit.parseDate ("2023-04-01")).toBeInstanceOf (Date);
 

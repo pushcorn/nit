@@ -1,5 +1,7 @@
 test ("nit.arrayRemove () removes the matching element from an array.", () =>
 {
+    expect (nit.arrayRemove (3)).toEqual ([]);
+
     let arr1 = [1, 3, 5];
     {
         let removed = nit.arrayRemove (arr1, 3);
