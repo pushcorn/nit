@@ -86,6 +86,72 @@ test ("nit.Class.registerPlugin ()", () =>
 });
 
 
+test ("nit.Class.registerPlugin", () =>
+{
+    const Condition = nit.defineClass ("test.Condition");
+    const RequestPath = Condition.defineSubclass ("test.RequestPath").field ("<val>");
+    const RequestMethod = Condition.defineSubclass ("test.RequestMethod").field ("<val>");
+    const A = nit.defineClass ("A")
+        .registerPlugin (Condition, true)
+        .condition (new RequestPath ("p1"))
+        .condition (new RequestMethod ("m1"))
+        .condition (new RequestPath ("p2"))
+        .condition (new RequestMethod ("m2"))
+    ;
+
+    const B = nit.defineClass ("B", "A")
+        .condition (new RequestPath ("p3"))
+        .condition (new RequestMethod ("m3"))
+        .condition (new RequestPath ("p4"))
+    ;
+
+    expect (A.conditions.length).toBe (2);
+    expect (A.getPlugins ("conditions").length).toBe (2);
+    expect (A.getPlugins ("conditions", true).length).toBe (2);
+    expect (A.getPlugins ("conditions", true)[0].val).toBe ("p2");
+    expect (A.getPlugins ("conditions", true)[1].val).toBe ("m2");
+
+    expect (B.conditions.length).toBe (2);
+    expect (B.getPlugins ("conditions").length).toBe (4);
+    expect (B.getPlugins ("conditions", true).length).toBe (2);
+    expect (B.getPlugins ("conditions", true)[0].val).toBe ("m3");
+    expect (B.getPlugins ("conditions", true)[1].val).toBe ("p4");
+});
+
+
+test ("nit.Class.getPlugins", () =>
+{
+    const Condition = nit.defineClass ("test.Condition");
+    const RequestPath = Condition.defineSubclass ("test.RequestPath").field ("<val>");
+    const RequestMethod = Condition.defineSubclass ("test.RequestMethod").field ("<val>");
+    const A = nit.defineClass ("A")
+        .registerPlugin (Condition)
+        .condition (new RequestPath ("p1"))
+        .condition (new RequestMethod ("m1"))
+        .condition (new RequestPath ("p2"))
+        .condition (new RequestMethod ("m2"))
+    ;
+
+    const B = nit.defineClass ("B", "A")
+        .condition (new RequestPath ("p3"))
+        .condition (new RequestMethod ("m3"))
+    ;
+
+    expect (A.conditions.length).toBe (4);
+    expect (A.getPlugins ("conditions").length).toBe (4);
+    expect (A.getPlugins ("conditions", true).length).toBe (2);
+    expect (A.getPlugins ("conditions", true)[0].val).toBe ("p1");
+    expect (A.getPlugins ("conditions", true)[1].val).toBe ("m1");
+
+    expect (B.conditions.length).toBe (2);
+    expect (B.getPlugins ("conditions").length).toBe (6);
+    expect (B.getPlugins ("conditions", true).length).toBe (2);
+    expect (B.getPlugins ("conditions", true)[0].val).toBe ("p3");
+    expect (B.getPlugins ("conditions", true)[1].val).toBe ("m3");
+    expect (B.getPlugins ("conditions", () => "p3").length).toBe (1);
+});
+
+
 test ("nit.Class.getChecks ()", () =>
 {
     const DummyConstraint = nit.defineConstraint ("test.constraints.Dummy")

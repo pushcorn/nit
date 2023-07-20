@@ -3992,7 +3992,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             Property.get = function (prop, owner)
             {
                 var privProp = prop.privProp;
-                // var owner = this;
                 var v = owner[privProp];
 
                 if (!owner.hasOwnProperty (privProp))
@@ -4171,6 +4170,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 }
 
                 var parser = nit.Object.findTypeParser (type);
+                var get = cfg.get || Property.get;
+                var set = cfg.set || Property.set;
                 var prop = new Property (spec, type, undefined, configurable, enumerable,
                 {
                     defval: defval,
@@ -4186,8 +4187,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     parser: parser,
                     privProp: nit.PPP + name,
                     constraints: nit.array (cfg.constraints),
-                    get: function () { return Property.get (prop, this); },
-                    set: function (v) { return Property.set (prop, this, v, writer); }
+                    get: function () { return get (prop, this); },
+                    set: function (v) { return set (prop, this, v, writer); }
                 });
 
                 nit.dpv (prop.get, "setDescriptor", function (p)
@@ -4595,6 +4596,40 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return nit.dpg (this, name, function () { return value; }, false, false);
         }
         ,
+        meta: function (spec, type, defval, configurable, enumerable) // eslint-disable-line no-unused-vars
+        {
+            var cls = this;
+            var Property = nit.Object.Property;
+            var cfg = Property.constructObject ({}, arguments);
+
+            cfg.configurable = nit.is.undef (cfg.configurable) ? true : cfg.configurable;
+            cfg.enumerable = nit.is.undef (cfg.enumerable) ? true : cfg.enumerable;
+            cfg.get = function (prop, owner)
+            {
+                var privProp = prop.privProp;
+
+                if (!owner.hasOwnProperty (privProp) && owner == cls)
+                {
+                    var v;
+
+                    if (prop.array)
+                    {
+                        Property.patchArray (prop, owner, v = []);
+                    }
+                    else
+                    {
+                        v = nit.is.func (prop.defval) ? prop.defval (prop, owner) : nit.clone (prop.defval);
+                    }
+
+                    nit.dpv (owner, privProp, v, true, false);
+                }
+
+                return owner.hasOwnProperty (privProp) ? owner[privProp] : owner.superclass[prop.name];
+            };
+
+            return cls.defineProperty (cls, cfg);
+        }
+        ,
         staticGetter: function (name, getter, configurable, enumerable)
         {
             var cls = this;
@@ -4615,9 +4650,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             cfg.configurable = nit.is.undef (cfg.configurable) ? true : cfg.configurable;
             cfg.enumerable = nit.is.undef (cfg.enumerable) ? false : cfg.enumerable;
 
-            cls.defineProperty (cls, cfg);
-
-            return cls;
+            return cls.defineProperty (cls, cfg);
         }
         ,
         staticDelegate: function (from, to, configurable, enumerable)
@@ -4630,16 +4663,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         staticMethod: function (name, method)
         {
             return nit.dpv (this, name, method, true, false);
-        }
-        ,
-        staticAbstractMethod: function (name)
-        {
-            return this.staticMethod (name, function ()
-            {
-                var cls = this;
-
-                cls.throw ("error.static_method_not_implemented", { method: name, class: cls.name });
-            });
         }
         ,
         staticLifecycleMethod: function (name, impl, hook) // hook could be a function or the boolean value 'true'
@@ -4794,16 +4817,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return this;
         }
         ,
-        abstractMethod: function (name)
-        {
-            return this.method (name, function ()
-            {
-                var cls = this.constructor;
-
-                cls.throw ("error.instance_method_not_implemented", { method: name, class: cls.name });
-            });
-        }
-        ,
         categorize: function (prefix, local) // eslint-disable-line no-unused-vars
         {
             var declCfg = nit.typedArgsToObj (arguments,
@@ -4871,9 +4884,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .m ("error.multiple_positional_variadic_args", "Only one positional variadic argument can be defined. Either '%{firstArg}' or '%{secondArg}' must be removed.")
         .m ("error.required_arg_after_optional", "The optional positional argument '%{optionalArg}' cannot be followed by a required argument '%{requiredArg}'.")
         .m ("error.not_implemented", "Method not implemented!")
-        .m ("error.instance_method_not_implemented", "The instance method '%{method}' of the class '%{class}' was not implemented!")
         .m ("error.lifecycle_hook_not_implemented", "The hook for the lifecycle method '%{method}' of the class '%{class}' was not implemented!")
-        .m ("error.static_method_not_implemented", "The static method '%{method}' of the class '%{class}' was not implemented!")
         .m ("error.dependency_not_met", "The dependency '%{name}' was not defined.")
         .m ("error.invoke_method_not_defined", "The invoke method for the type-checked method was not defined.")
         .m ("error.inner_class_name_required", "The inner class name is required.")
@@ -5721,9 +5732,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .m ("error.constraint_not_defined", "The constraint '%{name}' was not defined.")
         .categorize ("constraints")
 
-        .staticProperty ("code", "string", "error.validation_failed")
-        .staticProperty ("message", "string")
-        .staticProperty ("applicableTypes...")
+        .meta ("code", "string", "error.validation_failed")
+        .meta ("message", "string")
+        .meta ("applicableTypes...")
         .staticMemo ("componentName", function ()
         {
             return nit.ComponentDescriptor
@@ -6180,14 +6191,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 .push (function () { return obj; })
                 .run ();
         })
-        .staticMethod ("registerPlugin", function (pluginCls, category, method) // eslint-disable-line no-unused-vars
+        .staticMethod ("registerPlugin", function (pluginCls, category, method, unique) // eslint-disable-line no-unused-vars
         {
             var cls = this;
             var cfg = nit.typedArgsToObj (arguments,
             {
                 pluginCls: ["string", "function"],
                 category: "string",
-                method: "string"
+                method: "string",
+                unique: ["boolean", "function"]
             });
 
             pluginCls = nit.is.str (pluginCls) ? nit.lookupClass (pluginCls) : pluginCls;
@@ -6195,6 +6207,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             category = cfg.category || nit.pluralize (method);
 
             var pn = pluginCls.name;
+            var hash = cfg.unique === true ? function (p) { return p.constructor.name; } : cfg.unique;
 
             return cls
                 .staticProperty (category + "...", pn, undefined, true, false)
@@ -6212,6 +6225,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     else
                     {
                         pluginCls = plugin.constructor;
+                    }
+
+                    if (hash)
+                    {
+                        var key = hash (plugin);
+
+                        nit.arrayRemove (self[category], function (p) { return hash (p) == key; });
                     }
 
                     self[category].push (plugin);
@@ -6241,9 +6261,24 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 .registerPlugin (cls[cfg.name], cfg.category)
             ;
         })
-        .staticMethod ("getPlugins", function (category)
+        .staticMethod ("getPlugins", function (category, unique)
         {
-            return this.getClassChainProperty (category, true);
+            var plugins = this.getClassChainProperty (category, true);
+
+            if (unique)
+            {
+                var hash = unique === true ? function (p) { return p.constructor.name; } : unique;
+                var seen = {};
+
+                plugins = plugins.filter (function (p)
+                {
+                    var key = hash (p);
+
+                    return seen[key] ? false : (seen[key] = true);
+                });
+            }
+
+            return plugins;
         })
         .staticMethod ("applyPlugins", function (category, method)
         {

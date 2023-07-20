@@ -631,26 +631,6 @@ test ("nit.Object.staticMemo ()", () =>
 });
 
 
-test ("nit.Object.staticAbstractMethod ()", () =>
-{
-    const A = nit.defineClass ("A")
-        .staticAbstractMethod ("doSomething")
-    ;
-
-    expect (() => A.doSomething ()).toThrow (/static method.*not implemented/);
-});
-
-
-test ("nit.Object.abstractMethod ()", () =>
-{
-    const A = nit.defineClass ("A")
-        .abstractMethod ("doSomething")
-    ;
-
-    expect (() => new A ().doSomething ()).toThrow (/instance method.*not implemented/);
-});
-
-
 test ("nit.listSubclassesOf ()", () =>
 {
     expect (nit.listSubclassesOf (nit.Constraint).length).toBeGreaterThanOrEqual (4);
@@ -1327,4 +1307,44 @@ test ("nit.Object.getClassChainProperty ()", () =>
 
     expect (CCB.getClassChainProperty ("opt", true)).toEqual (["optval-a"]);
     expect (CCB.getClassChainProperty ("opt")).toBe ("optval-a");
+});
+
+
+test ("nit.Object.meta ()", () =>
+{
+    const A = nit.defineClass ("A")
+        .meta ("code", "string", "error.invalid")
+        .meta ("responses...", "string")
+        .meta ("genval", "string", () => "generated")
+        .meta ("custom", "boolean", true, false, true)
+    ;
+
+    const B = nit.defineClass ("B", "A");
+
+    expect (A.code).toBe ("error.invalid");
+    expect (B.code).toBe ("error.invalid");
+
+    B.code = "error.value_invalid";
+    expect (A.code).toBe ("error.invalid");
+    expect (B.code).toBe ("error.value_invalid");
+
+    expect (A.responses).toEqual ([]);
+    expect (B.responses).toEqual ([]);
+
+    A.responses = ["a1", "a2"];
+    expect (A.responses).toEqual (["a1", "a2"]);
+    expect (B.responses).toEqual (["a1", "a2"]);
+
+    B.responses = ["b1"];
+    expect (A.responses).toEqual (["a1", "a2"]);
+    expect (B.responses).toEqual (["b1"]);
+
+    expect (A.genval).toBe ("generated");
+    expect (B.genval).toBe ("generated");
+
+    B.genval = "non-gen";
+    expect (A.genval).toBe ("generated");
+    expect (B.genval).toBe ("non-gen");
+
+    expect (() => A.meta ("custom", "string")).toThrow (/cannot redefine/i);
 });
