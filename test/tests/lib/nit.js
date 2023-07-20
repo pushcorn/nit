@@ -453,29 +453,32 @@ test ("nit.listComponents ()", async () =>
     let nit = await test.reloadNit (testProjectPath);
 
     expect (nit.clone (nit.listComponents ("apis")))
-        .toEqual (
+        .toEqual (expect.arrayContaining (
         [
-        {
-            className: "apis.TestApi",
-            name: "test-api",
-            path: no_path.join (testProjectPath, "/lib/apis/TestApi.js"),
-            namespace: ""
-        }
-        ,
-        {
-            className: "pkga.apis.Hello",
-            name: "pkga:hello",
-            path: no_path.join (testProjectPath, "/packages/package-a/lib/pkga/apis/Hello.js"),
-            namespace: "pkga"
-        }
-        ,
-        {
-            className: "pkga.apis.World",
-            name: "pkga:world",
-            path: no_path.join (testProjectPath, "/packages/package-a/lib/pkga/apis/World.js"),
-            namespace: "pkga"
-        }
-        ])
+            expect.objectContaining (
+            {
+                className: "apis.TestApi",
+                name: "test-api",
+                path: no_path.join (testProjectPath, "/lib/apis/TestApi.js"),
+                namespace: ""
+            })
+            ,
+            expect.objectContaining (
+            {
+                className: "pkga.apis.Hello",
+                name: "pkga:hello",
+                path: no_path.join (testProjectPath, "/packages/package-a/lib/pkga/apis/Hello.js"),
+                namespace: "pkga"
+            })
+            ,
+            expect.objectContaining (
+            {
+                className: "pkga.apis.World",
+                name: "pkga:world",
+                path: no_path.join (testProjectPath, "/packages/package-a/lib/pkga/apis/World.js"),
+                namespace: "pkga"
+            })
+        ]))
     ;
 
     expect (nit.listComponents ("apis", true)).toEqual (["test-api", "pkga:hello", "pkga:world"]);
@@ -490,7 +493,9 @@ test ("nit.listCommands ()", async () =>
     expect (commands).toEqual (expect.arrayContaining (
     [
     {
+        class: nit.lookupClass ("commands.InvalidCmd"),
         path: test.pathForProject ("project-a/lib/commands/InvalidCmd.js"),
+        category: "commands",
         name: "invalid-cmd",
         className: "commands.InvalidCmd",
         namespace: ""
@@ -782,7 +787,7 @@ test ("nit.Object.use ()", () =>
     const A = nit.defineClass ("A")
         .use ("B")
         .use ("nit.Dir")
-        .use ("nit:function", "strategies", "nit.test.Strategy")
+        .use ("nit:function", "test.strategies", "nit.test.Strategy")
         .use ("path")
         .use ("*http")
         .use (["pkg", "package.json"])

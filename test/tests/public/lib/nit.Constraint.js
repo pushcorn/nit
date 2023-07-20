@@ -8,7 +8,9 @@ test ("nit.Constraint", () =>
 
     expect (() => Max.appliesTo ("magic")).toThrow (/constraint value type.*invalid/);
     expect (Max.name).toBe ("constraints.MaxInt");
-    expect (Max.defaults ()).toEqual ({ code: "error.greater_than_max", applicableTypes: ["integer"] });
+    expect (Max.code).toBe ("error.greater_than_max");
+    expect (Max.message).toBe ("The value is greater than %{constraint.max}.");
+    expect (Max.applicableTypes).toEqual (["integer"]);
 
     let cons = new Max;
 
@@ -23,7 +25,7 @@ test ("nit.Constraint", () =>
         return ctx.value * 1 <= ctx.constraint.max;
     });
 
-    cons = new Max;
+    cons = new Max ({ message: "greater than! %{constraint.max}" });
 
     let ctx = new nit.Constraint.ValidationContext (
     {
@@ -35,7 +37,7 @@ test ("nit.Constraint", () =>
     ctx.value = "aab";
     expect (() => cons.validate (ctx)).toThrow (/cannot be applied to.*aab/i);
     ctx.value = 500;
-    expect (() => cons.validate (ctx)).toThrow (/the value is greater than 10/i);
+    expect (() => cons.validate (ctx)).toThrow (/greater than! 10/i);
     ctx.value = 5;
     expect (cons.validate (ctx)).toBe (true);
 });

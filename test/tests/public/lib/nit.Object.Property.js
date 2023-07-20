@@ -121,3 +121,16 @@ test ("nit.Object.Property: push/unshift invalid values", () =>
     expect (A.bs.unshift  ("c", "d")).toBe (4);
     expect (A.bs.unshift (null)).toBe (4);
 });
+
+
+test ("nit.Object.Property.set () - should check if the value is the array proto before casting it to an array", () =>
+{
+    const A = nit.defineClass ("A")
+        .field ("<obj>", "any")
+            .constraint ("type", "string", "object", "function")
+    ;
+
+    let a = new A (Array.prototype);
+
+    expect (a.obj).toBe (Array.prototype);
+});

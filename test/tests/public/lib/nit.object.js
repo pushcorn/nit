@@ -530,6 +530,21 @@ test ("nit.Object.registerInnerClass ()", () =>
 });
 
 
+test ("nit.Object.defineNamespace ()", () =>
+{
+    const A = nit.defineClass ("A");
+    const B = nit.defineClass ("B", "A");
+
+    A.defineNamespace ("apis");
+
+    A.apis.DoThis = nit.createFunction ("DoThis");
+    B.apis.DoThat = nit.createFunction ("DoThat");
+
+    expect (nit.keys (A.apis)).toEqual (["DoThis"]);
+    expect (nit.keys (B.apis)).toEqual (["DoThis", "DoThat"]);
+});
+
+
 test ("nit.Object.defineInnerClass ()", () =>
 {
     expect (() => nit.Object.defineInnerClass ("DD", "D")).toThrow (/superclass 'D'.*not defined/);
@@ -543,6 +558,35 @@ test ("nit.Object.defineInnerClass ()", () =>
 
     nit.Object.defineInnerClass ("localDd", "D", true);
     expect (nit.CLASSES["nit.Object.localDd"]).toBeUndefined ();
+
+    const EE = nit.defineClass ("EE");
+    const FF = nit.defineClass ("FF", "EE");
+
+    EE.defineNamespace ("helpers");
+    EE.defineInnerClass ("Helper", "nit.Class", "helpers");
+
+    EE.defineHelper ("HelperOne");
+    FF.defineHelper ("HelperTwo");
+
+    expect (EE.helpers.HelperOne.name).toBe ("EE.helpers.HelperOne");
+    expect (FF.helpers.HelperTwo.name).toBe ("FF.helpers.HelperTwo");
+
+    expect (nit.keys (EE.helpers)).toEqual (["HelperOne"]);
+    expect (nit.keys (FF.helpers)).toEqual (["HelperOne", "HelperTwo"]);
+
+    EE.defineInnerClass ("Model", "nit.Class", "models");
+    EE.defineModel ("One");
+    FF.defineModel ("Two");
+    expect (nit.keys (EE.models)).toEqual (["One", "Two"]);
+    expect (nit.keys (FF.models)).toEqual (["One", "Two"]);
+
+    EE.defineInnerClass ("Response", false, true);
+    EE.defineResponse ("RE");
+    FF.defineResponse ("RF");
+    expect (EE.RE).toBeInstanceOf (Function);
+    expect (EE.RF).toBeUndefined ();
+    expect (FF.RE).toBeInstanceOf (Function);
+    expect (FF.RF).toBeInstanceOf (Function);
 });
 
 
@@ -883,6 +927,25 @@ test ("nit.Object.assign ()", () =>
 });
 
 
+test ("nit.Object.assignStatic ()", () =>
+{
+    const AssignStatic = nit.defineClass ("AssignStatic")
+        .staticProperty ("a", "string")
+    ;
+
+    let values = {
+        a: "ab@c.d.com",
+        b: "john"
+    };
+
+    AssignStatic.assignStatic (values);
+
+    expect (AssignStatic.a).toEqual ("ab@c.d.com");
+    expect (AssignStatic.b).toBeUndefined ();
+});
+
+
+
 test ("nit.Object.getter ()", () =>
 {
     nit.Object
@@ -1093,6 +1156,53 @@ test ("nit.Object.extend ()", () =>
 });
 
 
+test ("nit.Object.invalidateProperty ()", () =>
+{
+    let count = 1;
+
+    const A = nit.defineClass ("A")
+        .staticMemo ("count", function ()
+        {
+            return count++;
+        })
+    ;
+
+    expect (A.count).toBe (1);
+    expect (A.count).toBe (1);
+
+    A.invalidateProperty ("count");
+    expect (A.count).toBe (2);
+    expect (A.count).toBe (2);
+});
+
+
+test ("nit.Object.invalidatePropertyCache ()", () =>
+{
+    let count = 1;
+    const A = nit.defineClass ("A")
+        .staticMemo ("count", function ()
+        {
+            return count++;
+        })
+        .field ("f1", "string")
+        .field ("f2", "string")
+    ;
+
+    expect (A.count).toBe (1);
+    expect (A.properties.length).toBe (2);
+    expect (A.properties.length).toBe (2);
+
+    A.field ("f3");
+    expect (A.count).toBe (1);
+    expect (A.properties.length).toBe (3);
+    expect (A.properties.length).toBe (3);
+
+    A.invalidatePropertyCache ("count");
+    expect (A.count).toBe (2);
+    expect (A.properties.length).toBe (3);
+});
+
+
 test ("nit.Object.ClassTypeParser.cast ()", () =>
 {
     let parser = new nit.Object.ClassTypeParser;
@@ -1189,4 +1299,32 @@ test ("nit.Object.use ()", () =>
     expect (A.B).toBe (B);
     expect (A.C).toBe (C);
     expect (A.notfound).toBeUndefined ();
+});
+
+
+test ("nit.Object.getClassChainProperty ()", () =>
+{
+    const CCA = nit.defineClass ("CCA")
+        .staticProperty ("items...", "string")
+        .staticProperty ("opt", "string?")
+    ;
+
+    const CCB = nit.defineClass ("CCB", "CCA")
+    ;
+
+    CCA.items = ["a1", "a2"];
+    CCA.opt = "optval-a";
+    CCB.items = ["b1"];
+
+    expect (CCA.getClassChainProperty ("items", true)).toEqual (["a1", "a2"]);
+    expect (CCA.getClassChainProperty ("items")).toBe ("a1");
+
+    expect (CCA.getClassChainProperty ("opt", true)).toEqual (["optval-a"]);
+    expect (CCA.getClassChainProperty ("opt")).toBe ("optval-a");
+
+    expect (CCB.getClassChainProperty ("items", true)).toEqual (["b1", "a1", "a2"]);
+    expect (CCB.getClassChainProperty ("items")).toBe ("b1");
+
+    expect (CCB.getClassChainProperty ("opt", true)).toEqual (["optval-a"]);
+    expect (CCB.getClassChainProperty ("opt")).toBe ("optval-a");
 });

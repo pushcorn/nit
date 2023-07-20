@@ -42,9 +42,9 @@ test ("nit.Field", () =>
 
     field.bind (obj);
     field.constraint ("maxInt");
-    field.constraint ("test:min-int", { when: ctx => ctx.value > 5 });
+    field.constraint ("test:min-int", { condition: "this.value > 5" });
 
-    expect (field.getConstraint ("maxInt")).toBeInstanceOf (Max);
+    expect (field.getConstraint ("max-int")).toBeInstanceOf (Max);
     expect (field.getConstraint ("test:min-int")).toBeInstanceOf (Min);
     expect (field.validate (obj, 3)).toBe (3);
     expect (field.validate (obj, 9)).toBe (9);

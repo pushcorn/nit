@@ -6,11 +6,8 @@
 
     factory (nit, global, getPromise (), getSubscript ());
 
-    if (typeof exports == "object" && !global.document)
-    {
-        module.exports = nit;
-    }
-    else
+
+    if (global.document)
     {
         global.nit = nit;
 
@@ -25,6 +22,9 @@
             }
         });
     }
+
+    nit.set (module, "exports", nit);
+
 }) (
 function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-shadow-restricted-names
 {
@@ -39,9 +39,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     var ARRAY = ARR_SLICE.call.bind (ARR_SLICE);
     var TYPED_ARRAY = PROTO (Int8Array.prototype).constructor;
     var NIT = "nit";
+    var EUC = encodeURIComponent;
     var READY = false;
     var IGNORED_PROPS = OBJECT.keys (OBJECT.getOwnPropertyDescriptors (OBJECT_PROTO));
     var IGNORED_FUNC_PROPS = OBJECT.keys (OBJECT.getOwnPropertyDescriptors (Function.prototype)).concat ("prototype");
+    var PROPERTY_WRITER;
 
 
     //--------------------------------------------
@@ -75,7 +77,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.dpv = function (o, p, v, configurable, enumerable)
     {
-        if (typeof v == "function" && !v.name)
+        if (typeof v == "function" && !v.name && p.indexOf (nit.PPP) != 0)
         {
             nit.dpv (v, "name", p, true, false);
         }
@@ -205,9 +207,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             {
                 // https://stackoverflow.com/questions/105034/how-do-i-create-a-guid-uuid
 
-                uuid = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace (/[018]/g, function (c)
+                uuid = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace (/[018]/g, function (v)
                 {
-                    return (c ^ f.call (c, new Uint8Array(1))[0] & 15 >> c / 4).toString (16);
+                    return (v ^ f.call (c, new Uint8Array(1))[0] & 15 >> v / 4).toString (16);
                 });
             }
         }
@@ -597,7 +599,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 {
                     var v = src[k];
 
-                    if (!filter || filter (v, k))
+                    if (!filter || filter (v, target[k], k))
                     {
                         target[k] = v;
                     }
@@ -745,9 +747,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.is.bool       = nit.is.boolean   = function (v) { return typeof v == "boolean"; };
     nit.is.arr        = nit.is.array     = function (v) { return v instanceof Array; };
     nit.is.obj        = nit.is.object    = function (v) { return v !== null && !(v instanceof Array) && typeof v == "object"; };
+    nit.is.float      = function (v) { return nit.is.num (v) && !nit.is.int (v); };
     nit.is.async      = function (v) { return nit.is (v, "AsyncFunction"); };
     nit.is.undef      = function (v) { return v === null || v === undefined; };
-    nit.is.arrayish   = function (v) { return v && (v instanceof Array || v instanceof TYPED_ARRAY || nit.is (v, "arguments") || (typeof v == "object" && typeof v.hasOwnProperty == "function" && v.hasOwnProperty ("length"))); };
+    nit.is.arrayish   = function (v) { return v && v != ARR_PROTO && (v instanceof Array || v instanceof TYPED_ARRAY || nit.is (v, "arguments") || (typeof v == "object" && typeof v.hasOwnProperty == "function" && v.hasOwnProperty ("length"))); };
     nit.is.errorish   = function (v) { return !!(v && typeof v == "object" && (v instanceof Error || "message" in v && "stack" in v)); };
     nit.is.symbol     = function (v) { return nit.is (v, "symbol"); };
     nit.is.typedArray = function (v) { return v instanceof TYPED_ARRAY; };
@@ -1163,6 +1166,39 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     });
 
 
+    nit.glob = function (name, pattern)
+    {
+        if (!(pattern instanceof RegExp))
+        {
+            pattern = nit.glob.parse (pattern);
+        }
+
+        var negate = !!pattern.negate;
+        var matched = !!name.match (pattern);
+
+        return (!negate && matched) || (negate && !matched);
+    };
+
+
+    nit.glob.parse = function (pattern)
+    {
+        pattern = nit.trim (pattern);
+
+        var negate = pattern[0] == "~";
+        var re = new RegExp ("^" + pattern.slice (negate ? 1 : 0)
+            .replace (/\./g, "[.]")
+            .replace (/\?/g, ".")
+            .replace (/\*/g, ".*")
+            .replace (/%/g, "[^.]+")
+            + "$", "i"
+        );
+
+        re.negate = negate;
+
+        return re;
+    };
+
+
     nit.debug = function (pattern, message) // eslint-disable-line no-unused-vars
     {
         var args = ARRAY (arguments);
@@ -1175,18 +1211,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         if (!args.length)
         {
-            var negate = pattern[0] == "~";
-
-            if (negate)
-            {
-                pattern = pattern.slice (1);
-            }
-
-            var re = new RegExp ("^" + pattern.replace (/\./g, "[.]").replace (/\?/g, ".").replace (/\*/g, ".*") + "$", "i");
-
-            re.negate = negate;
-
-            patterns.push (re);
+            patterns.push (nit.glob.parse (pattern));
         }
         else
         if (patterns.length && nit.debug.allows (pattern))
@@ -1199,22 +1224,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.debug.PATTERNS = [];
 
 
-    nit.debug.allows = function (pattern)
+    nit.debug.allows = function (name)
     {
-        var patterns  = nit.debug.PATTERNS;
-
-        for (var i = 0; i < patterns.length; ++i)
-        {
-            var re = patterns[i];
-            var negate  = re.negate;
-            var matched = pattern.match (re);
-
-            if ((!negate && matched)
-                || (negate && !matched))
-            {
-                return true;
-            }
-        }
+        return nit.debug.PATTERNS.some (function (p) { return nit.glob (name, p); });
     };
 
 
@@ -1302,8 +1314,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.escapeRegExp  = function (exp)
     {
-        return nit.trim (exp).replace (/([.*+?^=!:${}()|/[\]\\])/g, "\\$1");
+        return nit.trim (exp).replace (nit.escapeRegExp.PATTERN, "\\$1");
     };
+
+
+    nit.escapeRegExp.PATTERN = /([.*+?^=!:${}()|/[\]\\])/g;
 
 
     nit.parseRegExp = function (exp)
@@ -1579,6 +1594,127 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         }
 
         return array;
+    };
+
+
+    nit.sort = function (arr, comparators, descending)
+    {
+        var comps = {};
+        var descs = {};
+        var cfg = nit.typedArgsToObj (arguments,
+        {
+            arr: "array",
+            comparators: ["string", "function", "object"],
+            descending: ["boolean", "object"]
+        });
+
+        arr = cfg.arr;
+        comparators = cfg.comparators;
+        descending = cfg.descending;
+
+        if (nit.is.str (comparators))
+        {
+            comps[comparators] = "auto";
+        }
+        else
+        if (nit.is.func (comparators))
+        {
+            comps[""] = comparators;
+        }
+        else
+        {
+            comps = comparators || { "": "auto" };
+        }
+
+        if (nit.is.bool (descending))
+        {
+            descs[""] = descending;
+        }
+        else
+        if (nit.is.obj (descending))
+        {
+            descs = descending;
+        }
+
+        var compFuncs = nit.each (comps, function (comp, prop)
+        {
+            return function (a, b)
+            {
+                var va = nit.get (a, prop);
+                var vb = nit.get (b, prop);
+                var desc = nit.coalesce (descs[prop], descending) === true;
+
+                comp = nit.coalesce (comps[prop], "");
+                comp = nit.is.func (comp) ? comp : NIT_SORT_COMPARATORS[comp || "auto"];
+
+                return comp (va, vb) * (desc ? -1 : 1);
+            };
+
+        }, true);
+
+        return arr.sort (function (a, b)
+        {
+            var result = 0;
+
+            nit.each (compFuncs, function (cf)
+            {
+                if ((result = cf (a, b)))
+                {
+                    return nit.each.STOP;
+                }
+            });
+
+            return result;
+        });
+    };
+
+
+    var NIT_SORT_COMPARATORS = nit.sort.COMPARATORS =
+    {
+        undef: function (a, b)
+        {
+            var ua = nit.is.undef (a);
+            var ub = nit.is.undef (b);
+
+            return (ua && ub || !ua && !ub) ? 0 : (ua ? 1 : -1);
+        }
+        ,
+        string: function (a, b)
+        {
+            return NIT_SORT_COMPARATORS.undef (a, b) || ((a += "") > (b += "") ? 1 : (a < b ? -1 : 0));
+        }
+        ,
+        cistring: function (a, b)
+        {
+            return NIT_SORT_COMPARATORS.undef (a, b) || NIT_SORT_COMPARATORS.string ((a + "").toLowerCase (), (b + "").toLowerCase ());
+        }
+        ,
+        integer: function (a, b)
+        {
+            return NIT_SORT_COMPARATORS.undef (a, b) || ((a = nit.int (a) - nit.int (b)) > 0 ? 1 : (a < 0 ? -1 : 0));
+        }
+        ,
+        float: function (a, b)
+        {
+            return NIT_SORT_COMPARATORS.undef (a, b) || ((a = nit.float (a) - nit.float (b)) > 0 ? 1 : (a < 0 ? -1 : 0));
+        }
+        ,
+        auto: function (a, b)
+        {
+            var comp = "string";
+
+            if (nit.is.float (a) || nit.is.float (b))
+            {
+                comp = "float";
+            }
+            else
+            if (nit.is.int (a) || nit.is.int (b))
+            {
+                comp = "integer";
+            }
+
+            return NIT_SORT_COMPARATORS[comp] (a, b);
+        }
     };
 
 
@@ -1923,6 +2059,40 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.toVal.ARRAY_EXP  = /^\[[\s\S]*\]$/;
     nit.toVal.OBJECT_EXP = /^\{[\s\S]*\}$/;
+
+
+    nit.uriEncode = function (data, name)
+    {
+        var isArr = nit.is.arr (data);
+        var isObj = nit.is.obj (data);
+
+        name = nit.array (name);
+
+        if (isArr || isObj)
+        {
+            return nit.each (data, function (v, k)
+            {
+                return nit.uriEncode (v, name.concat (k));
+
+            }, isObj).join ("&");
+        }
+        else
+        {
+            if (name.length)
+            {
+                var rest = name.map (EUC);
+                var first = rest.shift ();
+
+                name = first + (rest.length ? "[" + rest.join ("][") + "]" : "") + "=";
+            }
+            else
+            {
+                name = "";
+            }
+
+            return name + (nit.is.undef (data) ? "" : EUC (data));
+        }
+    };
 
 
     nit.serialize = function (value, indent)
@@ -3154,7 +3324,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             ks.splice (ks.length > 2 ? ks.length - 2 : 0, 1);
         }
 
-        if (!t && (scope = nit.getSuperclass (scope)))
+        if (!t && scope && (scope = scope.classChain && scope.classChain[1] || nit.getSuperclass (scope)))
         {
             return nit.t.apply (null, [scope, key].concat (args));
         }
@@ -3781,6 +3951,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             };
 
 
+            PROPERTY_WRITER = new Writer;
+
+
             Property.constructObject = function (obj, args)
             {
                 return nit.assign (obj, nit.argsToObj (args, ["spec", "type", "defval", "configurable", "enumerable"], true));
@@ -4186,7 +4359,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return self;
         }
         ,
-        defineInnerClass: function (name, superclass, builder, local, pargs) // eslint-disable-line no-unused-vars
+        defineInnerClass: function (name, superclass, builder, local, categorize, pargs) // eslint-disable-line no-unused-vars
         {
             var self = this;
             var cfg = nit.typedArgsToObj (arguments,
@@ -4195,6 +4368,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 superclass: "string",
                 builder: "function",
                 local: "boolean",
+                categorize: ["string", "boolean"],
                 pargs: "array"
             });
 
@@ -4209,6 +4383,26 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 self.throw ("error.superclass_not_defined", cfg);
             }
 
+            var ns = nit.kvSplit (cfg.name, ".", true);
+            var p = ns[0];
+            var target = self;
+
+            if (p)
+            {
+                p.split (".").forEach (function (n)
+                {
+                    if (!target[n])
+                    {
+                        nit.dpv (target, n, {}, true, true);
+                    }
+
+                    target = target[n];
+                });
+            }
+
+            target = nit.get (self, p);
+            name = ns[1];
+
             var innerClass;
 
             if (nit.is.func (superclass.defineSubclass))
@@ -4220,7 +4414,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 innerClass = nit.extend (nit.createFunction (fqn, true, cfg.pargs), superclass);
             }
 
-            nit.dpv (self, cfg.name, innerClass, true, cfg.local);
+            nit.dpv (target, name, innerClass, true, nit.is.obj (target) || cfg.local); // enumerable for local classes
             nit.dpv (innerClass, "outerClass", self, true, false);
 
             if (!cfg.local)
@@ -4231,6 +4425,23 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             if (cfg.builder)
             {
                 cfg.builder.call (self, innerClass);
+            }
+
+            if ((categorize = cfg.categorize))
+            {
+                var prefix = nit.is.str (categorize) ? categorize + "." : "";
+
+                self.staticMethod ("define" + name, function (name, superclass, builder) // eslint-disable-line no-unused-vars
+                {
+                    var cfg = nit.typedArgsToObj (arguments,
+                    {
+                        name: "string",
+                        superclass: "string",
+                        builder: "function"
+                    });
+
+                    return this.defineInnerClass (prefix + cfg.name, cfg.superclass || innerClass.name, cfg.builder);
+                });
             }
 
             return self;
@@ -4331,14 +4542,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         ,
         invalidatePropertyCache: function ()
         {
-            return this
-                .invalidateProperty ("properties")
-                .invalidateProperty ("propertyNames")
-                .invalidateProperty ("propertyMap")
-                .invalidateProperty ("pargs")
-                .invalidateProperty ("pargNames")
-                .invalidateProperty ("pargMap")
+            var cls = this;
+
+            nit.array (arguments).concat ("properties", "propertyNames", "propertyMap", "pargs", "pargNames", "pargMap")
+                .forEach (function (p) { cls.invalidateProperty (p); })
             ;
+
+            return cls;
         }
         ,
         validatePropertyDeclarations: function ()
@@ -4814,6 +5024,24 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             return nit.getSuperclass (this);
         })
+        .staticMethod ("defineNamespace", function (ns)
+        {
+            return this.staticMemo (ns, function ()
+            {
+                var sp = this.superclass;
+
+                return Object.create (sp && sp[ns] || {});
+            });
+        })
+        .staticMethod ("getClassChainProperty", function (property, all)
+        {
+            var cls = this;
+            var vals = nit.array (cls.classChain.map (function (cls) { return cls[property]; }), true)
+                .filter (nit.is.not.empty)
+            ;
+
+            return all ? vals : vals[0];
+        })
         .staticMethod ("require", function (name)
         {
             var self = this;
@@ -4967,6 +5195,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             }
 
             return cls;
+        })
+        .staticMethod ("assignStatic", function (values)
+        {
+            var cls = this;
+
+            return cls.assign (cls, values, nit.Object.Property);
         })
         .staticMethod ("defaults", function (k, v) // or (vals)
         {
@@ -5486,6 +5720,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .m ("error.invalid_target_value", "The constraint cannot be applied to '%{value|nit.Object.serialize}'.")
         .m ("error.constraint_not_defined", "The constraint '%{name}' was not defined.")
         .categorize ("constraints")
+
+        .staticProperty ("code", "string", "error.validation_failed")
+        .staticProperty ("message", "string")
+        .staticProperty ("applicableTypes...")
+        .staticMemo ("componentName", function ()
+        {
+            return nit.ComponentDescriptor
+                .normalizeName (this.name)
+                .replace ("constraints:", "")
+            ;
+        })
         .defineInnerClass ("ValidationContext", function (ValidationContext)
         {
             ValidationContext
@@ -5513,11 +5758,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 }
             }
         })
-        .staticMethod ("appliesTo", function (types)
+        .staticMethod ("appliesTo", function (types) // eslint-disable-line no-unused-vars
         {
             var cls = this;
 
-            types = ARRAY (arguments).map (function (type)
+            cls.applicableTypes = ARRAY (arguments).map (function (type)
             {
                 if (!nit.is[type])
                 {
@@ -5527,40 +5772,47 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 return type;
             });
 
-            return this.defaults ("applicableTypes", types);
+            return cls;
         })
         .staticMethod ("throws", function (code, message)
         {
-            return this
-                .defaults ("code", code)
-                .m (code, message)
-            ;
+            return this.assignStatic ({ code: code, message: message }).m (code, message);
         })
         .property ("name")
-        .property ("code", "string", "error.validation_failed")
-        .property ("message", "string")
-        .property ("applicableTypes...")
-        .property ("when", "function")
+        .property ("code")
+        .property ("message")
+        .property ("condition")
+        .memo ("conditionFn", function ()
+        {
+            if (this.condition)
+            {
+                return nit.expr (this.condition);
+            }
+        })
         .onConstruct (function ()
         {
             var self = this;
+            var cls = self.constructor;
 
-            self.name = self.name || self.constructor.name.split (".").pop ();
+            self.name = self.name || cls.componentName;
+            self.code = self.code || cls.code;
+            self.message = self.message || cls.message;
         })
         .method ("nameMatches", function (name)
         {
             var self = this;
-            var pcName = nit.pascalCase (name);
-            var cn = self.constructor.name;
+            var cls = self.constructor;
 
-            return self.name == pcName
-                || cn == name
-                || nit.ComponentDescriptor.normalizeName (cn).replace ("constraints:", "") == name
+            return self.name == name
+                || cls.name == name
+                || cls.simpleName == name
+                || cls.componentName == name
             ;
         })
         .method ("applicableTo", function (type)
         {
-            var types = this.applicableTypes;
+            var cls = this.constructor;
+            var types = cls.applicableTypes;
 
             return !types.length || !!~types.indexOf (type);
         })
@@ -5570,7 +5822,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var cls = constraint.constructor;
             var validate = cls[cls.kValidate];
 
-            if (constraint.applicableTypes.length && !constraint.applicableTypes.some (function (type) { return nit.is[type] (ctx.value); }))
+            if (cls.applicableTypes.length && !cls.applicableTypes.some (function (type) { return nit.is[type] (ctx.value); }))
             {
                 constraint.throw ("error.invalid_target_value", { value: ctx.value });
             }
@@ -5580,7 +5832,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return nit.Queue ()
                 .push (function ()
                 {
-                    return constraint.when ? constraint.when (ctx) : true;
+                    return !constraint.conditionFn || constraint.conditionFn (nit.assign ({ nit: nit, this: ctx }, ctx.owner));
                 })
                 .push (function (q)
                 {
@@ -5594,9 +5846,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 {
                     if (!q.result)
                     {
-                        var message = constraint.message || cls.t (constraint.code, ctx);
-
-                        constraint.throw ({ code: constraint.code, property: ctx.property, message: message, owner: ctx.owner }, ctx);
+                        constraint.throw ({ code: constraint.code, property: ctx.property, message: constraint.message, owner: ctx.owner }, ctx);
                     }
                 })
                 .failure (function (q)
@@ -5993,10 +6243,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         })
         .staticMethod ("getPlugins", function (category)
         {
-            var cls = this;
-            var chain = cls.classChain.filter (function (c) { return nit.is.arr (c[category]); });
-
-            return nit.array (chain.map (function (cls) { return cls[category]; }), true);
+            return this.getClassChainProperty (category, true);
         })
         .staticMethod ("applyPlugins", function (category, method)
         {
@@ -6065,9 +6312,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.defineClass ("nit.Deferred")
         .m ("error.timeout", "The deferred object has timed out.")
         .field ("[timeout]", "integer", "The deferred timeout.")
-        .property ("resolve", "function")
-        .property ("reject", "function")
-        .getter ("promise", "_promise")
+        .property ("resolve", "function", { writer: PROPERTY_WRITER })
+        .property ("reject", "function", { writer: PROPERTY_WRITER })
+        .property ("promise", "Promise", { writer: PROPERTY_WRITER })
         .onConstruct (function (timeout)
         {
             var self = this;
@@ -6090,19 +6337,19 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 }
             }, timeout);
 
-            self.resolve = function (result)
+            self.resolve = PROPERTY_WRITER.value (function (result)
             {
                 clearTimeout (timer);
                 res (result);
-            };
+            });
 
-            self.reject = function (error)
+            self.reject = PROPERTY_WRITER.value (function (error)
             {
                 clearTimeout (timer);
                 rej (error);
-            };
+            });
 
-            nit.dpv (self, "_promise", promise, false);
+            self.promise = PROPERTY_WRITER.value (promise);
         })
         .method ("then", function (onResolve, onReject)
         {
@@ -6112,9 +6359,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     nit.defineClass ("nit.ComponentDescriptor")
-        .field ("<name>", "string", "The component name.")
+        .m ("error.invalid_category", "The class '%{className}' does not belong to the category '%{category}'.")
         .field ("<className>", "string", "The component's class name.")
-        .field ("namespace", "string", "The component's namespace.")
+        .field ("<category>", "string", "The component's category.")
+        .field ("name", "string", "The component name.", { writer: PROPERTY_WRITER })
+        .field ("namespace", "string", "The component's namespace.", { writer: PROPERTY_WRITER })
+
         .staticMethod ("normalizeName", function (name)
         {
             return name.split (/[.:/]/)
@@ -6122,9 +6372,51 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 .join (":")
             ;
         })
-        .onConstruct (function ()
+        .staticMethod ("toClassName", function (name, category)
         {
-            nit.COMPONENT_DESCRIPTORS[this.className] = this;
+            if (name.match (nit.CLASS_NAME_PATTERN))
+            {
+                return name;
+            }
+
+            var ns = [];
+
+            if (~name.indexOf (":"))
+            {
+                ns = name.split (":");
+                name = ns.pop ();
+            }
+
+            if (category)
+            {
+                ns.push (category);
+            }
+
+            return ns.map (nit.camelCase).concat (nit.pascalCase (name)).join (".");
+        })
+        .onConstruct (function (className, category)
+        {
+            var self = this;
+            var cats = nit.trim (category).split (".");
+            var ns = className.split (".");
+            var cn = ns.pop ();
+
+            if (!nit.is.equal (ns.slice (-cats.length), cats))
+            {
+                self.throw ("error.invalid_category", { className: className, category: category });
+            }
+
+            ns = ns.slice (0, -cats.length);
+            ns = ns.concat (cn).map (nit.kababCase);
+
+            self.name = PROPERTY_WRITER.value (ns.join (":"));
+            self.namespace = PROPERTY_WRITER.value (ns.slice (0, -1).join (":"));
+
+            nit.COMPONENT_DESCRIPTORS[className] = self;
+        })
+        .memo ("class", function ()
+        {
+            return nit.lookupClass (this.className);
         })
         .method ("compareTo", function (that)
         {
@@ -6137,20 +6429,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 {
                     var va = na[i];
                     var vb = nb[i];
-                    var res = va.localeCompare (vb);
+                    var res = va > vb ? 1 : (va < vb ? -1 : 0);
 
                     if (res != 0)
                     {
                         return res;
                     }
                 }
+            }
 
-                return 0;
-            }
-            else
-            {
-                return na.length - nb.length;
-            }
+            return na.length - nb.length;
         })
     ;
 
@@ -6163,29 +6451,24 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.listComponents = function (category, returnNames)
     {
-        var cats = nit.trim (category).split (".");
         var components = nit.each (nit.CLASSES, function (cls, className)
         {
-            var ns = className.split (".");
-            var cn = ns.pop ();
-            var matched = nit.is.equal (ns.slice (-cats.length), cats);
+            var cd = nit.getComponentDescriptor (className);
 
-            if (!matched)
+            if (cd && cd.category == category)
             {
-                return nit.each.SKIP;
+                return cd;
             }
-            else
-            {
-                ns = ns.slice (0, -cats.length);
-                ns = ns.concat (cn).map (nit.kababCase);
 
-                return new nit.ComponentDescriptor (
-                {
-                    name: ns.join (":"),
-                    className: className,
-                    namespace: ns.slice (0, -1).join (":")
-                });
+            var ns = nit.ComponentDescriptor.normalizeName (className).split (":").slice (0, -1);
+            var cats = nit.ComponentDescriptor.normalizeName (category).split (":");
+
+            if (nit.is.equal (ns.slice (-cats.length), cats))
+            {
+                return new nit.ComponentDescriptor (className, category);
             }
+
+            return nit.each.SKIP;
         });
 
         return returnNames ? components.map (function (c) { return c.name; }) : components;
@@ -6355,7 +6638,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                 .method ("shouldValidate", function (entity)
                 {
-                    return !this.entities.includes (entity) && !!this.entities.push (entity);
+                    return !~this.entities.indexOf (entity) && !!this.entities.push (entity);
                 })
                 .method ("addViolation", function (error, field)
                 {
@@ -6363,7 +6646,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     var violation = new nit.Model.Violation (
                     {
                         field: field && this.keyPath.concat (field.name).join ("."),
-                        constraint: source instanceof nit.Constraint ? "@" + source.constructor.name : "",
+                        constraint: source instanceof nit.Constraint ? source.constructor.componentName : "",
                         code: error.code,
                         message: error.message
                     });

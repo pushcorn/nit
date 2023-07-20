@@ -1,3 +1,18 @@
+test ("nit.t () - should use classChain to find the superclass if available", () =>
+{
+    let stream = require ("stream");
+    let A;
+
+    (A = nit.defineClass ("A"))
+        .extend (stream.Readable, nit.Class)
+        .do (() => A.classChain.splice (1, 0, ...nit.Class.classChain))
+        .field ("<name>", "string")
+    ;
+
+    expect (() => new A).toThrow (/field.*name.*is required/);
+});
+
+
 test ("nit.t () translate a defined message.", () =>
 {
     nit.Obj = nit.createFunction ("nit.Obj");

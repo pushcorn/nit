@@ -57,7 +57,7 @@ test.log = console.log.bind (console);
 
 test.pathForProject = function (name)
 {
-    return nit.path.isAbsolute (name) ? name : nit.path.join (test.HOME, "test/resources", name);
+    return nit.path.isAbsolute (name) ? name : nit.path.join (test.TEST_PROJECT_PATH, "resources", name);
 };
 
 

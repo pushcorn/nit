@@ -19,10 +19,10 @@ test.method (nit.new ("nit.lint.EsLint",
     }), "lint")
 
     .should ("lint JavaScript files")
-        .app ()
+        .application ()
         .before (function ()
         {
-            this.application.root.writeFile ("lib/myscript.js", "var a = 3");
+            this.app.root.writeFile ("lib/myscript.js", "var a = 3");
         })
         .given ("lib/*.js")
         .returns (/Missing semicolon/)

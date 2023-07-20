@@ -1,5 +1,3 @@
-jest.setTimeout (100000);
-
 test ("nit.test.Strategy.Expector", async () =>
 {
     const STRATEGY = {};
@@ -54,6 +52,42 @@ test ("nit.test.Strategy.Application", () =>
 });
 
 
+test ("nit.test.Strategy.Project", () =>
+{
+    const Project = nit.test.Strategy.Project;
+
+    let projectPathA = test.pathForProject ("project-a");
+    let projectPathB = test.pathForProject ("project-b");
+    let proj = new Project ("project-a");
+    let projB = new Project (projectPathB);
+
+    expect (nit.isDir (proj.root.path)).toBe (true);
+    expect (nit.isDir (projB.root.path)).toBe (true);
+
+    let oldProjectPaths = nit.PROJECT_PATHS;
+    let oldAssetPaths = nit.ASSET_PATHS;
+
+    proj.begin ();
+
+    let newProjectPaths = nit.PROJECT_PATHS;
+    let newAssetPaths = nit.ASSET_PATHS;
+
+    proj.end ();
+
+    let afterProjectPaths = nit.PROJECT_PATHS;
+    let afterAssetPaths = nit.ASSET_PATHS;
+
+    expect (newProjectPaths.filter (p => !oldProjectPaths.includes (p)))
+        .toEqual ([projectPathA]);
+
+    expect (newAssetPaths.filter (p => !oldAssetPaths.includes (p)))
+        .toEqual ([projectPathA, nit.path.join (projectPathA, "packages/package-a")]);
+
+    expect (oldProjectPaths).toEqual (afterProjectPaths);
+    expect (oldAssetPaths).toEqual (afterAssetPaths);
+});
+
+
 test ("nit.test.Strategy.ValueValidator", () =>
 {
     let validator = new nit.test.Strategy.ValueValidator (nit.test.Strategy.getSourceLine (), { expected: 123 });
@@ -96,6 +130,32 @@ test ("nit.test.Strategy.SubsetValidator", () =>
     validator.expected = { class: { name: "MyClass" } };
     validator.validate ({ result: { class: MyClass } });
     validator.validate ({}, { class: MyClass });
+
+    validator.expected =
+    {
+        arr:
+        [
+        {
+            a: "a",
+            c: ["ddd"]
+        }
+        ]
+    };
+
+    validator.validate (
+    {
+        result:
+        {
+            arr:
+            [
+            {
+                a: "a",
+                b: 1,
+                c: ["ddd", "eee"]
+            }
+            ]
+        }
+    });
 });
 
 
@@ -311,12 +371,14 @@ test ("nit.test.Strategy.snapshot ()", () =>
         error: undefined,
         object: a,
         property: "name",
-        application: undefined,
+        app: undefined,
+        proj: undefined,
         args: [],
         downs: [],
         ups: [],
         expectors: [],
         inits: [],
+        deinits: [],
         spies: [],
         resultValidator: undefined,
         mocks: [],
@@ -337,12 +399,14 @@ test ("nit.test.Strategy.snapshot ()", () =>
         error: undefined,
         object: a,
         property: "name",
-        application: undefined,
+        app: undefined,
+        proj: undefined,
         args: [],
         downs: [],
         ups: [],
         expectors: [],
         inits: [],
+        deinits: [],
         spies: [],
         resultValidator: undefined,
         mocks: [],
@@ -392,12 +456,14 @@ test ("nit.test.Strategy.reset ()", () =>
         object: a,
         property: "name",
         data: { d: 1 },
-        application: undefined,
+        app: undefined,
+        proj: undefined,
         args: [],
         downs: [],
         ups: [],
         expectors: [],
         inits: [],
+        deinits: [],
         spies: [],
         resultValidator: undefined,
         mocks: [],
@@ -421,13 +487,23 @@ test ("nit.test.Strategy.reset ()", () =>
 });
 
 
-test ("nit.test.Strategy.app ()", () =>
+test ("nit.test.Strategy.application ()", () =>
 {
     let strategy = new nit.test.Strategy;
 
-    strategy.app ("my app");
+    strategy.application ("my app");
 
-    expect (strategy.application.name).toBe ("my app");
+    expect (strategy.app.name).toBe ("my app");
+});
+
+
+test ("nit.test.Strategy.project ()", () =>
+{
+    let strategy = new nit.test.Strategy;
+
+    strategy.project ("project-a");
+
+    expect (strategy.proj.root.path).toBe (test.pathForProject ("project-a"));
 });
 
 
@@ -750,18 +826,21 @@ test ("nit.test.Strategy.commit ()", async () =>
             .commit ()
 
         .should ("pass 3")
+            .project ("project-a")
             .before (async function ()
             {
+                status.dirChangedForProject = process.cwd () == this.proj.root.path;
+
                 await nit.sleep (10);
                 this.throw ("error.failed3");
             })
             .commit ()
 
         .should ("pass 4")
-            .app ("", test.pathForProject ("project-c"))
+            .application ("", test.pathForProject ("project-c"))
             .before (function ()
             {
-                status.dirChangedForApp = process.cwd () == this.application.root.path;
+                status.dirChangedForApp = process.cwd () == this.app.root.path;
             })
             .expectingPropertyToBe ("object.name", "AAA")
             .commit ()
@@ -773,6 +852,10 @@ test ("nit.test.Strategy.commit ()", async () =>
             .init (function ()
             {
                 status.initCalled = true;
+            })
+            .deinit (function ()
+            {
+                status.deinitCalled = true;
             })
             .up (function ()
             {
@@ -832,14 +915,16 @@ test ("nit.test.Strategy.commit ()", async () =>
     expect (itMock.invocations.length).toBe (10);
     expect (expectMock.invocations.length).toBe (4);
     expect (expectMock.invocations[3].args[0]).toBe ("test error!");
+    expect (status.dirChangedForProject).toBe (true);
     expect (status.dirChangedForApp).toBe (true);
     expect (status.dirChanged).toBe (true);
     expect (status.initCalled).toBe (true);
+    expect (status.deinitCalled).toBe (true);
     expect (status.upCalled).toBe (true);
     expect (status.downCalled).toBe (true);
     expect (status.spyCalled).toBe (1);
     expect (PropertyStrategy.upCalled).toBe (5);
-    expect (PropertyStrategy.downCalled).toBe (5);
+    expect (PropertyStrategy.downCalled).toBe (3);
 
 
 });
