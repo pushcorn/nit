@@ -1053,10 +1053,15 @@ test ("nit.Object.constructObject ()", () =>
 {
     let preConstructCalled = false;
     let postConstructCalled = false;
+    let preBuildConstructorParams = false;
 
     nit.CONFIG = {};
 
     nit.User
+        .onPreBuildConstructorParams (function ()
+        {
+            preBuildConstructorParams = true;
+        })
         .onPreConstruct (function ()
         {
             preConstructCalled = true;
@@ -1068,6 +1073,7 @@ test ("nit.Object.constructObject ()", () =>
     ;
 
     let user = new nit.User; // eslint-disable-line no-unused-vars
+    expect (preBuildConstructorParams).toBe (true);
     expect (preConstructCalled).toBe (true);
     expect (postConstructCalled).toBe (true);
 });

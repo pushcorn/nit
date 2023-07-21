@@ -1,7 +1,6 @@
 test ("nit.Class", () =>
 {
     let User = nit.defineClass ("nit.User");
-    let obj;
 
     expect (nit.classChain (User)).toEqual ([User, nit.Class, nit.Object]);
     expect (() => User.constraint ("minInt", 10)).toThrow (/no field was defined/i);
@@ -24,21 +23,21 @@ test ("nit.Class", () =>
     expect (() => new User).toThrow (/id.*required/);
     expect (new User ("1234").id).toBe ("1234");
 
-    User.onPreConstruct (function (params)
+    User.onPreConstruct (function (arg)
     {
-        User.preConstruct.params = params;
+        User.preConstruct.arg = arg;
     });
 
-    obj = new User ("1234");
-    expect (User.preConstruct.params).toEqual ({});
+    User ("1234");
+    expect (User.preConstruct.arg).toEqual ("1234");
 
-    User.onPostConstruct (function (obj)
+    User.onPostConstruct (function (arg)
     {
-        User.postConstruct.obj = obj;
+        User.postConstruct.arg = arg;
     });
 
-    obj = new User ("5555");
-    expect (User.postConstruct.obj).toBe (obj);
+    User ("5555");
+    expect (User.postConstruct.arg).toBe ("5555");
     expect (() => new User (nit.noop)).toThrow (/given.*function/i);
 
     User

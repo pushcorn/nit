@@ -7,9 +7,9 @@ module.exports = function (nit)
         .property ("startTime", "integer", { writer: writer })
         .property ("lapTime", "integer", { writer: writer })
         .property ("laps...", "integer")
-        .onPostConstruct (function (self)
+        .onPostConstruct (function ()
         {
-            self.start ();
+            this.start ();
         })
         .method ("start", function ()
         {

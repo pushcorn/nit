@@ -5233,34 +5233,29 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             return v === undefined ? "<undefined>" : nit.serialize (v, indent);
         })
-        .staticLifecycleMethod ("preConstruct", function (params, obj, args)
+        .staticLifecycleMethod ("preBuildConstructorParams", function (obj, params)
         {
             var cls = this;
 
-            return cls.invokeClassChainMethod (cls.kPreConstruct, [params, obj, args]);
+            return cls.invokeClassChainMethod ([obj, cls.kPreBuildConstructorParams], [params]);
         })
-        .staticLifecycleMethod ("construct", function (obj, params)
+        .staticLifecycleMethod ("preConstruct", function (obj, args)
         {
             var cls = this;
-            var args = [];
 
-            cls.properties.forEach (function (p)
-            {
-                if (p.positional)
-                {
-                    args.push.apply (args, nit.array (params[p.name]));
-                }
-            });
-
-            args.push (params);
+            return cls.invokeClassChainMethod ([obj, cls.kPreConstruct], args);
+        })
+        .staticLifecycleMethod ("construct", function (obj, args)
+        {
+            var cls = this;
 
             return cls.invokeClassChainMethod ([obj, cls.kConstruct], args, true);
         })
-        .staticLifecycleMethod ("postConstruct", function (obj)
+        .staticLifecycleMethod ("postConstruct", function (obj, args)
         {
             var cls = this;
 
-            return cls.invokeClassChainMethod (cls.kPostConstruct, [obj]);
+            return cls.invokeClassChainMethod ([obj, cls.kPostConstruct], args);
         })
         .staticLifecycleMethod ("defineSubclass", function (name, construct, local, pargs) // eslint-disable-line no-unused-vars
         {
@@ -5456,6 +5451,20 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             return queue.run (function () { return params; });
         })
+        .staticMethod ("constructorParamsToArgs", function (params)
+        {
+            var cls = this;
+            var args = [];
+
+            cls.pargs.forEach (function (p)
+            {
+                args.push.apply (args, nit.array (params[p.name]));
+            });
+
+            args.push (params);
+
+            return args;
+        })
         .staticMethod ("createConstructionQueue", function (obj, args)
         {
             var cls = this;
@@ -5464,7 +5473,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return nit.Queue ()
                 .push (function ()
                 {
-                    return cls.preConstruct (params, obj, args);
+                    return cls.preBuildConstructorParams (obj, params);
                 })
                 .push (function ()
                 {
@@ -5473,14 +5482,19 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 .push (function (ctx)
                 {
                     params = ctx.result;
+                    args = cls.constructorParamsToArgs (params);
                 })
                 .push (function ()
                 {
-                    return cls.construct (obj, params);
+                    return cls.preConstruct (obj, args);
                 })
                 .push (function ()
                 {
-                    return cls.postConstruct (obj);
+                    return cls.construct (obj, args);
+                })
+                .push (function ()
+                {
+                    return cls.postConstruct (obj, args);
                 })
                 .push (function ()
                 {
@@ -6603,8 +6617,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .defineInnerClass ("Field", "nit.Field", function (Field)
         {
             Field
-                .onPostConstruct (function (field)
+                .onPostConstruct (function ()
                 {
+                    var field = this;
                     var __set = field.set;
                     var privProp = field.privProp;
 
