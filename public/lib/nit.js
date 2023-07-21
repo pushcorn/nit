@@ -1994,7 +1994,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             if (nit.is.num (indent))
             {
-                indent = nit.lpad ("", indent, " ");
+                indent = nit.lpad ("", indent + 1, " ");
             }
             else
             if (nit.is.bool (indent))
@@ -3996,16 +3996,23 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                 if (!owner.hasOwnProperty (privProp))
                 {
-                    if (prop.array)
+                    var defval = nit.is.func (prop.defval) ? prop.defval (prop, owner) : nit.clone (prop.defval);
+
+                    if (prop.array && !nit.is.arr (defval))
                     {
-                        Property.patchArray (prop, owner, v = []);
-                    }
-                    else
-                    {
-                        v = nit.is.func (prop.defval) ? prop.defval (prop, owner) : nit.clone (prop.defval);
+                        if (!nit.is.empty (defval) && prop.parser.defval !== defval)
+                        {
+                            defval = [defval];
+                        }
+                        else
+                        {
+                            defval = [];
+                        }
                     }
 
-                    nit.dpv (owner, privProp, v, true, false);
+                    Property.set (prop, owner, defval, true);
+
+                    v = owner[privProp];
                 }
 
                 return prop.getter ? prop.getter.call (owner, v, prop) : v;
@@ -4014,21 +4021,24 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             Property.set = function (prop, owner, v, writer)
             {
-                if (writer)
+                if (writer !== true)
                 {
-                    if (v instanceof Value && writer.id == v.id)
+                    if (writer)
                     {
-                        v = v.value;
+                        if (v instanceof Value && writer.id == v.id)
+                        {
+                            v = v.value;
+                        }
+                        else
+                        {
+                            return;
+                        }
                     }
-                    else
-                    {
-                        return;
-                    }
-                }
 
-                if (prop.required && nit.is.empty (v))
-                {
-                    nit.throw.call (owner, { code: "error.value_required", source: prop, owner: owner, class: owner.constructor.name }, { property: prop });
+                    if (prop.required && nit.is.empty (v))
+                    {
+                        nit.throw.call (owner, { code: "error.value_required", source: prop, owner: owner, class: owner.constructor.name }, { property: prop });
+                    }
                 }
 
                 var isArr = nit.is.arr (v);
@@ -4054,7 +4064,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     v = v.length ? v[0] : prop.cast (owner);
                 }
 
-                if (prop.setter)
+                if (writer !== true && prop.setter)
                 {
                     v = prop.setter.call (owner, v, prop);
                 }
@@ -4610,18 +4620,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                 if (!owner.hasOwnProperty (privProp) && owner == cls)
                 {
-                    var v;
-
-                    if (prop.array)
-                    {
-                        Property.patchArray (prop, owner, v = []);
-                    }
-                    else
-                    {
-                        v = nit.is.func (prop.defval) ? prop.defval (prop, owner) : nit.clone (prop.defval);
-                    }
-
-                    nit.dpv (owner, privProp, v, true, false);
+                    nit.Object.Property.get (prop, owner);
                 }
 
                 return owner.hasOwnProperty (privProp) ? owner[privProp] : owner.superclass[prop.name];
@@ -4974,7 +4973,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         v = nit.assign ({}, v);
                     }
 
-                    if (cls && (v === undefined || isPojo || cls.pargs.length))
+                    if (cls && (v === undefined || isPojo || cls.pargs && cls.pargs.length))
                     {
                         return self.new (cls, v);
                     }
@@ -5876,6 +5875,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 .run ()
             ;
         }, true)
+    ;
+
+
+    nit.defineConstraint ("Custom")
+        .property ("<validator>", "function")
+        .onValidate (function (ctx)
+        {
+            return ctx.constraint.validator (ctx);
+        })
     ;
 
 

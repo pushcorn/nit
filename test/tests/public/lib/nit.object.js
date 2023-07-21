@@ -1348,3 +1348,17 @@ test ("nit.Object.meta ()", () =>
 
     expect (() => A.meta ("custom", "string")).toThrow (/cannot redefine/i);
 });
+
+
+test ("nit.Object.meta () - array", () =>
+{
+    const A = nit.defineClass ("A")
+        .meta ("vals...", "RegExp", [/c/, /f/])
+        .meta ("ints...", "integer")
+        .meta ("ones...", "integer", 1)
+    ;
+
+    expect (A.vals).toEqual ([/c/, /f/]);
+    expect (A.ints).toEqual ([]);
+    expect (A.ones).toEqual ([1]);
+});

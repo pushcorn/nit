@@ -7,3 +7,6 @@
 [submodule "packages/http"]
 	path = packages/http
 	url = git@pushcorn.github.com:pushcorn/http.git
+[submodule "packages/cron"]
+	path = packages/cron
+	url = git@pushcorn.github.com:pushcorn/cron.git

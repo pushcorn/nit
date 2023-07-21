@@ -693,6 +693,21 @@ test ("nit.test.Strategy.expecting... ()", async () =>
 
     strategy.expectingMethodToReturnValueContaining ("object.returnObject", null, { b: 2 });
     expect (strategy.expectors[9].valueGetter (strategy)).toEqual ({ a: 1, b: 2 });
+
+    strategy.expectingExprToReturnValue ("object.nameLength () + 3", 6);
+    expect (strategy.expectors[10].valueGetter (strategy)).toBe (6);
+
+    strategy.expectingExprToReturnValueOfType ("object.nameLength () + 4", "integer");
+    expect (strategy.expectors[11].valueGetter (strategy)).toBe (7);
+
+    strategy.expectingExprToReturnValueContaining ("nit.assign (object.obj, { e: 9 })", { b: 2, e: 9 });
+    expect (strategy.expectors[12].valueGetter (strategy)).toEqual ({ a: 1, b: 2, e: 9 });
+
+    strategy.expectingExprToThrow ("object.causeProblem ()", /problem/);
+    expect (strategy.expectors[13].valueGetter (strategy)).toBeInstanceOf (Error);
+
+    strategy.expectingExprToReturnValue ("object.returnObject ()", { b: 2 }, true);
+    expect (strategy.expectors[14].valueGetter (strategy)).toEqual ({ a: 1, b: 2 });
 });
 
 

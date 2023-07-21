@@ -134,3 +134,21 @@ test ("nit.Object.Property.set () - should check if the value is the array proto
 
     expect (a.obj).toBe (Array.prototype);
 });
+
+
+test ("nit.Object.Property.get () - array", () =>
+{
+    const A = nit.defineClass ("A")
+        .staticProperty ("vals...", "RegExp", [/c/, /f/])
+        .staticProperty ("ints...", "integer")
+        .staticProperty ("ones...", "integer", 1)
+        .field ("vals...", "RegExp", "the vals", [/a/, /b/])
+    ;
+
+    let a = new A;
+
+    expect (a.vals).toEqual ([/a/, /b/]);
+    expect (A.vals).toEqual ([/c/, /f/]);
+    expect (A.ints).toEqual ([]);
+    expect (A.ones).toEqual ([1]);
+});
