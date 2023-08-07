@@ -1,6 +1,6 @@
 {
     "name": "@pushcorn/nit",
-    "version": "1.4.1",
+    "version": "1.4.2",
     "main": "lib/nit.js",
     "description": "A toolbox for building CLI and web apps in a modular way.",
     "bin": "./bin/nit",
