@@ -35,11 +35,28 @@ test ("nit.ASSET_PATHS", async () =>
         no_path.join (test.HOME, "test"),
         testProjectPath,
         no_path.join (testProjectPath, "packages/package-a"),
+        no_path.join (testProjectPath, "packages/package-b"),
         nit.HOME
     ]);
 
     delete process.env.NIT_PROJECT_PATHS;
 });
+
+
+test ("nit.PATH_ALIASES", async () =>
+{
+    let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");
+    let nit = await test.reloadNit (testProjectPath);
+
+    expect (nit.PATH_ALIASES).toEqual (
+    {
+        "@pushcorn/nit": nit.HOME,
+        "@test/project-a": no_path.join (testProjectPath, "packages/package-a")
+    });
+
+    delete process.env.NIT_PROJECT_PATHS;
+});
+
 
 
 test ("nit.throw ()", () =>

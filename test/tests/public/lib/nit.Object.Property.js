@@ -74,7 +74,10 @@ test ("nit.Object.Property", () =>
     expect (a.defval).toEqual ([3, 4, 5]);
 
     let nullableProp = nit.Object.Property.new (A, "port", "integer?", 0);
-    expect (nullableProp.defval).toBe (undefined);
+    expect (nullableProp.defval).toBe (0);
+
+    nullableProp = nit.Object.Property.new (A, "port", "integer?");
+    expect (nullableProp.defval).toBeUndefined ();
 
     let defvalFuncProp = nit.Object.Property.new (A, "port", "integer", () => 9999);
     expect (defvalFuncProp.defval).toBeInstanceOf (Function);

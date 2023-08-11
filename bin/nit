@@ -11,12 +11,17 @@ do
 done
 
 NIT_HOME=$(dirname $(cd $(dirname "$SOURCE") && pwd -P))
+NODE_ARGS=("--experimental-vm-modules" "--preserve-symlinks" "--trace-deprecation" "$NIT_HOME" "$@")
 
-while true
-do
-    /usr/bin/env node --experimental-vm-modules --preserve-symlinks --trace-deprecation "$NIT_HOME" "$@"
+if [ -t 1 ]; then
+    while true
+    do
+        /usr/bin/env node "${NODE_ARGS[@]}"
 
-    if [ "$?" != "$NIT_RESTART_CODE" ]; then
-        break
-    fi
-done
+        if [ "$?" != "$NIT_RESTART_CODE" ]; then
+            break
+        fi
+    done
+else
+    exec /usr/bin/env node "${NODE_ARGS[@]}"
+fi

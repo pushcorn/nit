@@ -81,7 +81,12 @@ test ("nit.test.Strategy.Project", () =>
         .toEqual ([projectPathA]);
 
     expect (newAssetPaths.filter (p => !oldAssetPaths.includes (p)))
-        .toEqual ([projectPathA, nit.path.join (projectPathA, "packages/package-a")]);
+        .toEqual (
+        [
+            projectPathA,
+            nit.path.join (projectPathA, "packages/package-a"),
+            nit.path.join (projectPathA, "packages/package-b")
+        ]);
 
     expect (oldProjectPaths).toEqual (afterProjectPaths);
     expect (oldAssetPaths).toEqual (afterAssetPaths);

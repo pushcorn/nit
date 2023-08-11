@@ -24,7 +24,8 @@ test ("nit.test.Jest", async () =>
         testEnvironment: "node",
         detectOpenHandles: false,
         forceExit: false,
-        runInBand: false
+        runInBand: false,
+        maxWorkers: ""
     });
 
     expect (res[1]).toEqual (["."]);

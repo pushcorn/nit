@@ -123,6 +123,50 @@ test.method ("plugins.Logger.Mixin", "log")
 
 
 test.method ("plugins.Logger.Mixin", "info")
+    .should ("log the without color code if process.stdout.isTTY is false")
+        .before (s =>
+        {
+            process.stdout.isTTY = false;
+            s.Logger = s.class.outerClass;
+            s.Host = nit.defineClass ("Host")
+                .m ("info.hello", "Hello there!")
+                .m ("info.multiline", nit.trim.text`
+                    Line 1
+                    Line 2
+                `)
+            ;
+
+            s.Logger.onUsePlugin (s.Host, new s.Logger);
+            s.object = new s.Host;
+        })
+        .after (() => process.stdout.isTTY = true)
+        .given ("info.hello")
+        .mock (nit, "log")
+        .returnsInstanceOf ("Host")
+        .expectingPropertyToBe ("mocks.0.invocations.0.args.0", "[INFO] Hello there!")
+        .commit ()
+
+    .should ("log the without color code if colorize is false")
+        .before (s =>
+        {
+            s.Logger = s.class.outerClass;
+            s.Host = nit.defineClass ("Host")
+                .m ("info.hello", "Hello there!")
+                .m ("info.multiline", nit.trim.text`
+                    Line 1
+                    Line 2
+                `)
+            ;
+
+            s.Logger.onUsePlugin (s.Host, new s.Logger ({ colorize: false }));
+            s.object = new s.Host;
+        })
+        .given ("info.hello")
+        .mock (nit, "log")
+        .returnsInstanceOf ("Host")
+        .expectingPropertyToBe ("mocks.0.invocations.0.args.0", "[INFO] Hello there!")
+        .commit ()
+
     .should ("log the info message to the console")
         .before (s =>
         {

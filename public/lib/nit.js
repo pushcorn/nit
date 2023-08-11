@@ -3989,16 +3989,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             };
 
 
-            Property.get = function (prop, owner)
+            Property.defval = function (prop, owner, defval)
             {
-                var privProp = prop.privProp;
-                var v = owner[privProp];
+                defval = nit.is.func (defval) ? prop.defval (prop, owner) : nit.clone (defval);
 
-                if (!owner.hasOwnProperty (privProp))
+                if (prop.array)
                 {
-                    var defval = nit.is.func (prop.defval) ? prop.defval (prop, owner) : nit.clone (prop.defval);
-
-                    if (prop.array && !nit.is.arr (defval))
+                    if (!nit.is.arr (defval))
                     {
                         if (!nit.is.empty (defval) && prop.parser.defval !== defval)
                         {
@@ -4009,6 +4006,25 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             defval = [];
                         }
                     }
+
+                    if (prop.nullable && !defval.length)
+                    {
+                        defval = undefined;
+                    }
+                }
+
+                return defval;
+            };
+
+
+            Property.get = function (prop, owner)
+            {
+                var privProp = prop.privProp;
+                var v = owner[privProp];
+
+                if (!owner.hasOwnProperty (privProp))
+                {
+                    var defval = Property.defval (prop, owner, prop.defval);
 
                     Property.set (prop, owner, defval, true);
 
@@ -4055,6 +4071,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     .filter (function (v) { return isAny || !nit.is.undef (v); })
                 ;
 
+                if (prop.array && !isArr && prop.nullable && !v.length)
+                {
+                    v = undefined;
+                }
+                else
                 if (prop.array || (isArr && isAny))
                 {
                     Property.patchArray (prop, owner, v);
@@ -4156,11 +4177,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 var name;
 
                 delete cfg.writer;
-
-                if (nullable)
-                {
-                    defval = undefined;
-                }
 
                 if (ch == "[" || ch == "<")
                 {
@@ -5311,20 +5327,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 var defval = n in defvals ? defvals[n] : prop.defval;
 
                 defval = nit.get (nit.CONFIG, configKey + "." + n, defval);
-                defval = nit.is.func (defval) ? defval (prop, obj) : nit.clone (defval);
-
-                if (prop.array && !nit.is.arr (defval))
-                {
-                    if (!nit.is.empty (defval) && prop.parser.defval !== defval)
-                    {
-                        defval = [defval];
-                    }
-                    else
-                    {
-                        defval = [];
-                    }
-                }
-
+                defval = nit.Object.Property.defval (prop, obj, defval);
                 params[n] = defval;
             }
 
@@ -5335,7 +5338,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             {
                 for (var exp in expand)
                 {
-                    params[n] = nit.expandArg (exp, expand[exp], params);
+                    params[n] = nit.expandArg (exp, expand[exp], nit.CONFIG);
                     break;
                 }
             }

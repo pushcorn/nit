@@ -983,7 +983,8 @@ test ("nit.Object.buildParam ()", async () =>
 
     nit.config ("nit.User.info", { "": { tpl: "email: {{email}}" } });
     field = nit.find (nit.User.getProperties (), "name", "info");
-    expect (nit.Object.buildParam (user, field, { email: "a@b.com" })).toBe ("email: a@b.com");
+    nit.config ("email", "a@b.com");
+    expect (nit.Object.buildParam (user, field, {})).toBe ("email: a@b.com");
 
     nit.registerArgExpander ("remoteData", async function ()
     {

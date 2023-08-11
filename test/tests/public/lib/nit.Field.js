@@ -73,3 +73,57 @@ test ("nit.Field", () =>
     expect (() => field.validate (obj, "aa")).toThrow (/constraint cannot be applied/);
     expect (() => field.validate (obj, "")).toThrow (/constraint cannot be applied/);
 });
+
+
+test ("nit.Field - nullable array", () =>
+{
+    const A = nit.defineClass ("A")
+        .field ("[indexes...]", "string?", "The index files")
+    ;
+
+    let a = new A;
+    expect (a.indexes).toBeUndefined ();
+
+    a = new A ("index.html");
+    expect (a.indexes).toEqual (["index.html"]);
+
+    a.indexes = [];
+    expect (a.indexes).toEqual ([]);
+
+    a.indexes = undefined;
+    expect (a.indexes).toBeUndefined ();
+
+    expect (a.toPojo ()).toEqual ({ indexes: undefined });
+});
+
+
+test ("nit.Field - nullable array", () =>
+{
+    const B = nit.defineClass ("B")
+        .staticProperty ("[indexes...]", "string?")
+    ;
+
+    expect (B.indexes).toBeUndefined ();
+
+    B.indexes = [];
+    expect (B.indexes).toEqual ([]);
+
+    B.indexes = undefined;
+    expect (B.indexes).toBeUndefined ();
+});
+
+
+test ("nit.Field - nullable array", () =>
+{
+    const C = nit.defineClass ("C")
+        .staticProperty ("indexes...", "string?", { defval: ["idx.html"] })
+    ;
+
+    expect (C.indexes).toEqual (["idx.html"]);
+
+    C.indexes = undefined;
+    expect (C.indexes).toBeUndefined ();
+
+    C.indexes = [];
+    expect (C.indexes).toEqual ([]);
+});

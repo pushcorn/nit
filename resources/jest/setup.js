@@ -1,6 +1,7 @@
 const CWD = process.cwd ();
 
 process.setMaxListeners (0);
+process.stdout.isTTY = true;
 
 afterAll (async () =>
 {
