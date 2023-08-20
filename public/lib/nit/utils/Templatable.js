@@ -5,6 +5,7 @@ module.exports = function (nit, Self)
         .defineInnerClass ("Transforms")
         .staticProperty ("openTag", "string", "%{")
         .staticProperty ("closeTag", "string", "}")
+        .staticProperty ("trim", "boolean", false)
 
         .staticMemo ("propertyDescriptors", function ()
         {
@@ -33,12 +34,9 @@ module.exports = function (nit, Self)
             var self = this;
             var cls = self.constructor;
 
-            return nit.Template.render (template, data,
-            {
-                openTag: cls.openTag,
-                closeTag: cls.closeTag,
-                transforms: cls.Transforms
-            });
+            nit.assign (template.transforms, cls.Transforms);
+
+            return template.render (data);
         })
         .onDefineSubclass (function (Subclass)
         {
@@ -46,6 +44,7 @@ module.exports = function (nit, Self)
         })
         .staticMethod ("template", function (name, template)
         {
+            var cls = this;
             var tn = nit.snakeCase (name).toUpperCase ();
 
             function getter ()
@@ -55,7 +54,7 @@ module.exports = function (nit, Self)
 
             nit.dpv (getter, Self.kGetter, true);
 
-            return this.constant (tn, nit.trim.text (template))
+            return cls.constant (tn, new nit.Template (nit.trim.text (template), cls.openTag, cls.closeTag, cls.trim))
                 .getter (nit.camelCase (name), getter)
             ;
         })

@@ -19,4 +19,7 @@ test ("nit.typedArgsToObj () combines typed args into an object.", () =>
 
     expect (nit.typedArgsToObj (["str1", "str2", "str3"], { n: "string", m: "string", z: "boolean" }))
         .toEqual ({ n: "str1", m: "str2" });
+
+    expect (nit.typedArgsToObj (["str1", "str2", { z: 3 }], { n: "string", m: "string", z: "boolean" }))
+        .toEqual ({ n: "str1", m: "str2", z: 3 });
 });

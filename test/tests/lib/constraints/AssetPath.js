@@ -5,6 +5,9 @@ test ("constraints.AssetPath", () =>
             .constraint ("asset-path")
     ;
 
-    expect (new A ("package.json")).toBeInstanceOf (A);
+    let a = new A ("package.json");
+
+    expect (a).toBeInstanceOf (A);
+    expect (a.file).toBe (nit.path.join (nit.HOME, "package.json"));
     expect (() => new A ("package.json2")).toThrow (/asset path.*is invalid/);
 });

@@ -1,8 +1,26 @@
+test ("nit.Template.parseBlocks ()", () =>
+{
+    let tmpl = `{{#name}}
+{{.}}
+        {{:title}}
+{{.}}
+        {{:}}
+no name
+        {{/}}`;
+
+    tmpl = new nit.Template (tmpl);
+
+    expect (tmpl.render ({ name: "my name" })).toBe ("my name");
+    expect (tmpl.render ({ title: "my title" })).toBe ("my title");
+    expect (tmpl.render ()).toBe ("no name");
+});
+
+
 test ("nit.Template.render () - if", () =>
 {
-    var tmpl = "{{#?names}}{{#names}}{{.}}, {{/}}{{/}}";
-    var expected = "first, last, ";
-    var result = nit.Template.render (tmpl, { names: ["first", "last"] });
+    let tmpl = "{{#?names}}{{#names}}{{.}}, {{/}}{{/}}";
+    let expected = "first, last, ";
+    let result = nit.Template.render (tmpl, { names: ["first", "last"] });
 
     expect (result).toBe (expected);
 });
@@ -45,8 +63,8 @@ test ("nit.Template.render () - transform property ($)", () =>
 
 test ("nit.Template.render () - escaping transform delimiter", () =>
 {
-    var tmpl = "{{#names}}{{|nit.kababCase|append ('|')}} {{/}}";
-    var data = { names: ["JohnDoe", "JaneDoe"] };
+    let tmpl = "{{#names}}{{|nit.kababCase|append ('|')}} {{/}}";
+    let data = { names: ["JohnDoe", "JaneDoe"] };
 
     expect (function ()
         {
@@ -81,9 +99,9 @@ test ("nit.Template.render () - escaping transform delimiter", () =>
 
 test ("nit.Template.render () - else", () =>
 {
-    var tmpl = "{{#?names}}{{.}}, {{:}}no names {{names.length}}{{/}}";
-    var expected = "no names 0";
-    var result = nit.Template.render (tmpl, { names: [] });
+    let tmpl = "{{#?names}}{{.}}, {{:}}no names {{names.length}}{{/}}";
+    let expected = "no names 0";
+    let result = nit.Template.render (tmpl, { names: [] });
 
     expect (result).toBe (expected);
 });
@@ -91,9 +109,9 @@ test ("nit.Template.render () - else", () =>
 
 test ("nit.Template.render () - else", () =>
 {
-    var tmpl = "{{#+names}}{{names.0}} and {{names.1}}{{:}}no names {{names.length}}{{/}}";
-    var expected = "first and last";
-    var result = nit.Template.render (tmpl, { names: ["first", "last"] });
+    let tmpl = "{{#+names}}{{names.0}} and {{names.1}}{{:}}no names {{names.length}}{{/}}";
+    let expected = "first and last";
+    let result = nit.Template.render (tmpl, { names: ["first", "last"] });
 
     expect (result).toBe (expected);
 });
@@ -101,9 +119,9 @@ test ("nit.Template.render () - else", () =>
 
 test ("nit.Template.render () - if not", () =>
 {
-    var tmpl = "{{#?names}}{{names.0}} and {{names.1}}{{/}}";
-    var expected = "first and last";
-    var result = nit.Template.render (tmpl, { names: ["first", "last"] });
+    let tmpl = "{{#?names}}{{names.0}} and {{names.1}}{{/}}";
+    let expected = "first and last";
+    let result = nit.Template.render (tmpl, { names: ["first", "last"] });
 
     expect (result).toBe (expected);
 });
@@ -111,9 +129,9 @@ test ("nit.Template.render () - if not", () =>
 
 test ("nit.Template.render () - if empty", () =>
 {
-    var tmpl = "{{#-names}}no names{{:}}{{names.0}} and {{names.1}}{{/}}";
-    var expected = "first and last";
-    var result = nit.Template.render (tmpl, { names: ["first", "last"] });
+    let tmpl = "{{#-names}}no names{{:}}{{names.0}} and {{names.1}}{{/}}";
+    let expected = "first and last";
+    let result = nit.Template.render (tmpl, { names: ["first", "last"] });
 
     expect (result).toBe (expected);
 });
@@ -121,63 +139,62 @@ test ("nit.Template.render () - if empty", () =>
 
 test ("nit.Template.render () - inline partial", () =>
 {
-    var tmpl = `
+    let tmpl = `
     {{@my-frag}}
         {{#-names}}no names{{:}}{{names.0}} and {{names.1}}{{/}}
     {{/}}
 
     {{#?names}}{{*my-frag}}{{/}}`;
 
-    var expected = `
+    let result = nit.Template.render (tmpl, { names: ["first", "last"] });
 
-            first and last
-`;
+    expect (result).toBe ("first and last");
+});
 
-    var result = nit.Template.render (tmpl, { names: ["first", "last"] });
 
-    expect (result).toBe (expected);
+test ("nit.Template.render () - optional partial expansion", () =>
+{
+    let tmpl = `1234
+{{*?optional}}5678`;
+
+    expect (nit.Template.render (tmpl)).toBe (`1234
+5678`);
 });
 
 
 test ("nit.Template.render () - inline partial and render", () =>
 {
-    var tmpl = `
-    {{label}}
+    let tmpl = `{{label}}
+
     {{@*my-frag}}
         {{#-names}}no names{{:}}{{names.0}} and {{names.1}}{{/}}
     {{/}}
     `;
 
-    var expected = `
-    Full name:
-        first and last
-    `;
+    let expected = `Full name:
+first and last`;
 
-    var tpl = nit.Template (tmpl);
-    var result = tpl.render ({ label: "Full name:", names: ["first", "last"] });
+    let tpl = nit.Template (tmpl);
+    let result = tpl.render ({ label: "Full name:", names: ["first", "last"] });
 
     expect (result).toBe (expected);
     expect (tpl.partials["my-frag"]).toBeInstanceOf (Array);
-    expect (tpl.render ({ names: ["one", "two"] }, {}, tpl.partials["my-frag"])).toBe (`        one and two
-`);
+    expect (tpl.render ({ names: ["one", "two"] }, {}, tpl.partials["my-frag"])).toBe (`one and two`);
 });
 
 
 test ("nit.Template.render () - inline partial", () =>
 {
-    var tmpl = `
+    let tmpl = `
     {{@inline-part}}
         {{#-names}}no names{{:}}{{names.0}} and {{names.1}}{{/}}
     {{/}}
 
     {{#?|len}}{{*inline-part}}{{/}}`;
 
-    var expected = `
+    let expected = `5 and 4`;
 
-            5 and 4
-`;
-
-    var result = nit.Template.render (tmpl, { names: ["first", "last"] },
+    let result = nit.Template.render (tmpl, { names: ["first", "last"] },
     {
         transforms:
         {
@@ -196,10 +213,10 @@ test ("nit.Template.render () - inline partial", () =>
 
 test ("nit.Template.render () - partial", () =>
 {
-    var tmpl = `{{#+names}}{{*my-part}}{{/}}`;
-    var expected = `first and last`;
+    let tmpl = `{{#+names}}{{*my-part}}{{/}}`;
+    let expected = `first and last`;
 
-    var result = nit.Template.render (tmpl, { names: ["first", "last"] },
+    let result = nit.Template.render (tmpl, { names: ["first", "last"] },
     {
         partials:
         {
@@ -213,12 +230,12 @@ test ("nit.Template.render () - partial", () =>
 
 test ("nit.Template.render () - partial", () =>
 {
-    var tmpl = `{{#+names}}{{*my-part}}{{/}}`;
-    var expected = `first and last`;
+    let tmpl = `{{#+names}}{{*my-part}}{{/}}`;
+    let expected = `first and last`;
 
     nit.Template.registerPartial ("my-part", `{{#-names}}no names{{:}}{{names.0}} and {{names.1}}{{/}}`);
 
-    var result = nit.Template.render (tmpl, { names: ["first", "last"] });
+    let result = nit.Template.render (tmpl, { names: ["first", "last"] });
 
     expect (result).toBe (expected);
 });
@@ -226,7 +243,7 @@ test ("nit.Template.render () - partial", () =>
 
 test ("nit.Template.render () - partial", () =>
 {
-    var tmpl = `{{#+names}}{{*my-part2}}{{/}}`;
+    let tmpl = `{{#+names}}{{*my-part2}}{{/}}`;
 
     expect (() => nit.Template.render (tmpl, { names: ["first", "last"] })).toThrow (/not registered/);
 });
@@ -234,7 +251,7 @@ test ("nit.Template.render () - partial", () =>
 
 test ("nit.Template.render () - partial", () =>
 {
-    var tmpl = `
+    let tmpl = `
     {{@my-part}}test{{/}}
     {{#+names}}{{*my-part}}{{/}}
 `;
@@ -252,7 +269,7 @@ test ("nit.Template.render () - partial", () =>
 
 test ("nit.Template.render () - partial", () =>
 {
-    var tmpl = `
+    let tmpl = `
     {{@my-part}}test{{/}}
     {{#+names}}{{*my-part}}{{/}}
 `;
@@ -265,10 +282,10 @@ test ("nit.Template.render () - partial", () =>
 
 test ("nit.Template.render () - partial", () =>
 {
-    var tmpl = `{{#+names}}{{*my-part}}{{/}}`;
-    var expected = `first and last`;
+    let tmpl = `{{#+names}}{{*my-part}}{{/}}`;
+    let expected = `first and last`;
 
-    var result = nit.Template.render (tmpl, { names: ["first", "last"] },
+    let result = nit.Template.render (tmpl, { names: ["first", "last"] },
     {
         partials:
         {
@@ -525,4 +542,55 @@ test ("nit.Template.tokenize ()", () =>
     expect (nit.Template.tokenize ("[[a]]", "[[", "]]")).toEqual ([["a"]]);
     expect (nit.Template.tokenize ("\\[[a]]", "[[", "]]")).toEqual (["[[a]]"]);
     expect (() => nit.Template.tokenize ("[[a\\]]", "[[", "]]")).toThrow (/not closed/);
+});
+
+
+test ("nit.Template.untokenize ()", () =>
+{
+    let tmpl = `
+    {{@*layout}}
+    <html>
+        <head></head>
+        <body>
+            {{*content}}
+            {{#? a}}
+                large
+            {{:? b > 4}}
+        medium
+            {{:}}
+small
+            {{/}}
+        </body>
+    </html>
+    {{/}}
+--
+    {{@content}}
+    this is content
+    {{firstname|nit.camelCase}}
+        {{#emails}}{{/}}
+        {{#-names}}no names{{:}}{{names.0}} and {{names.1}}{{/}}
+        {{@*title}}
+            Title: {{.}}
+        {{/}}
+    {{/}}
+    `;
+
+    let t = new nit.Template (tmpl, false);
+    let parts =
+    {
+        title: "Title: {{.}}"
+    };
+
+    [parts.layout, parts.content] = tmpl
+        .split ("--")
+        .map (t => nit.trim (t).split ("\n").slice (1, -1).join ("\n"))
+        .map (t => nit.trim (t))
+    ;
+
+    for (let n in t.partials)
+    {
+        let token = t.partials[n];
+
+        expect (nit.trim (nit.Template.untokenize (token))).toBe (parts[n]);
+    }
 });

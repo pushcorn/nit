@@ -1,7 +1,7 @@
 test.method ("nit.utils.Templatable", "template", true)
     .should ("define the template constant and getter")
         .given ("select", "SELECT * FROM %{table}")
-        .expectingPropertyToBe ("class.SELECT", "SELECT * FROM %{table}")
+        .expectingPropertyToBeOfType ("class.SELECT", "nit.Template")
         .commit ()
 ;
 

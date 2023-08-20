@@ -8,11 +8,11 @@ test ("nit.cache.Entry", async () =>
 
     const AsyncEntry = nit.defineClass ("AsyncEntry", "nit.cache.Entry")
         .field ("delay", "integer", "The fetch value delay.", 10)
-        .method ("buildTags", async function ()
+        .onBuildTags (async function ()
         {
             return { v: 1 };
         })
-        .method ("buildValue", async function ()
+        .onBuildValue (async function ()
         {
             await nit.sleep (this.delay);
 

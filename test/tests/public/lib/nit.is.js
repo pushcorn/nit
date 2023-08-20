@@ -37,6 +37,7 @@ test ("nit.is () checks the type of the input.", function ()
     expect (nit.is.arrayish (new Int8Array (8))).toBe (true);
     expect (nit.is.arrayish (arguments)).toBe (true);
     expect (nit.is.arrayish ({ length: 9 })).toBe (true);
+    expect (nit.is.arrayish (Buffer.from ("test"))).toBe (false);
 
     expect (nit.is.symbol ("string")).toBe (false);
     expect (nit.is.symbol (Symbol ("S"))).toBe (true);

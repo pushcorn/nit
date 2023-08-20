@@ -22,4 +22,12 @@ test ("nit.Cache", async () =>
     cache = nit.new ("nit.Cache", "KeyChangingEntry");
     expect (cache.get ("aa").key).toBe ("prefix:aa");
     expect (nit.keys (cache.entries)).toEqual (["prefix:aa"]);
+
+
+    nit.defineClass ("ErrorEntry", "nit.cache.Entry")
+        .onBuildValue (() => { throw new Error ("build error"); })
+    ;
+
+    cache = nit.new ("nit.Cache", "ErrorEntry");
+    expect (() => cache.fetch ("err")).rejects.toThrow ("build error");
 });

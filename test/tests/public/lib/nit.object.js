@@ -639,7 +639,8 @@ test ("nit.listSubclassesOf ()", () =>
 
 test ("nit.Object.lifecycleMethod ()", () =>
 {
-    let Service = nit.defineClass ("Service", true)
+    let checkedBy = [];
+    let Service = nit.defineClass ("Service")
         .lifecycleMethod ("start", function ()
         {
             Service.startCb = Service[Service.kStart];
@@ -654,6 +655,11 @@ test ("nit.Object.lifecycleMethod ()", () =>
             Service.runCbInvoked = true;
         })
         .lifecycleMethod ("noop")
+        .lifecycleMethod ("check")
+        .onCheck (function ()
+        {
+            checkedBy.push ("service");
+        })
     ;
 
     let service = new Service;
@@ -665,6 +671,20 @@ test ("nit.Object.lifecycleMethod ()", () =>
     expect (Service.runCbInvoked).toBe (true);
     expect (service.noop ()).toBe (service);
     expect (() => service.stop ()).toThrow (/lifecycle.*stop.* was not implemented/);
+
+
+    let MyService = nit.defineClass ("MyService", "Service")
+        .onCheck (function ()
+        {
+            MyService.superclass[Service.kCheck]?. ();
+            checkedBy.push ("my service");
+        })
+    ;
+
+    let myService = new MyService;
+
+    myService.check ();
+    expect (checkedBy).toEqual (["service", "my service"]);
 });
 
 

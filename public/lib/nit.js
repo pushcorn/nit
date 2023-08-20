@@ -524,8 +524,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.keys = function (obj, all)
     {
-        var keys  = [];
-        var pds   = nit.propertyDescriptors (obj, all);
+        var keys = [];
+        var pds = nit.propertyDescriptors (obj, all);
 
         for (var k in pds)
         {
@@ -750,11 +750,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.is.float      = function (v) { return nit.is.num (v) && !nit.is.int (v); };
     nit.is.async      = function (v) { return nit.is (v, "AsyncFunction"); };
     nit.is.undef      = function (v) { return v === null || v === undefined; };
-    nit.is.arrayish   = function (v) { return v && v != ARR_PROTO && (v instanceof Array || v instanceof TYPED_ARRAY || nit.is (v, "arguments") || (typeof v == "object" && typeof v.hasOwnProperty == "function" && v.hasOwnProperty ("length"))); };
+    nit.is.buffer     = function (v) { return typeof Buffer !== "undefined" && v instanceof Buffer; };
+    nit.is.arrayish   = function (v) { return v && v != ARR_PROTO && !nit.is.buffer (v) && (v instanceof Array || v instanceof TYPED_ARRAY || nit.is (v, "arguments") || (typeof v == "object" && typeof v.hasOwnProperty == "function" && v.hasOwnProperty ("length"))); };
     nit.is.errorish   = function (v) { return !!(v && typeof v == "object" && (v instanceof Error || "message" in v && "stack" in v)); };
     nit.is.symbol     = function (v) { return nit.is (v, "symbol"); };
     nit.is.typedArray = function (v) { return v instanceof TYPED_ARRAY; };
-    nit.is.buffer     = function (v) { return typeof Buffer !== "undefined" && v instanceof Buffer; };
     nit.is.promise    = function (v) { return v instanceof Promise; };
     nit.is.instanceOf = function (o, cls) { return o instanceof cls; };
     nit.is.subclassOf = function (subclass, superclass, inclusive) { return !!(subclass && (subclass.prototype instanceof superclass || inclusive && subclass === superclass)); };
@@ -2522,21 +2522,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 openTag: "string",
                 closeTag: "string",
                 serialize: "function",
-                config: "object"
+                trim: "boolean"
             });
-
-            if (config.config)
-            {
-                nit.assign (config, config.config);
-
-                delete config.config;
-            }
 
             for (var i in cls.defaults)
             {
                 var def = cls.defaults[i];
 
-                self[i] = config[i] || (nit.is.obj (def) ? nit.assign ({}, def) : def);
+                self[i] = i in config ? config[i] : (nit.is.obj (def) ? nit.assign ({}, def) : def);
             }
 
             nit.each (self.partials, function (partial, n)
@@ -2557,7 +2550,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 {
                     var self = this;
 
-                    return self.parseBlocks (Template.tokenize (template, self.openTag, self.closeTag));
+                    return self.parseBlocks (Template.tokenize (template, self.openTag, self.closeTag, self.trim));
                 }
                 ,
                 parseBlocks: function (tokens, level)
@@ -2600,6 +2593,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                                             n = token[0] = n.slice (1);
                                         }
 
+                                        token.name = n;
+
                                         if (self.partials[n] || Template.PARTIALS[n])
                                         {
                                             throw new Error ("The partial name '" + n + "' has been used.");
@@ -2632,6 +2627,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                                         }
                                         else // ":"
                                         {
+                                            if (nit.trim (token[0]))
+                                            {
+                                                token.elif = true;
+                                            }
+                                            else
+                                            {
+                                                token.else = true;
+                                            }
+
                                             branchExpr.branches.push (token);
 
                                             return;
@@ -2641,16 +2645,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                                 case "*": // partial expansion
                                     token.type = type;
-                                    n = token.name = token[0].slice (1);
-
-                                    var partial = self.partials[n] || Template.PARTIALS[n];
-
-                                    if (!partial)
-                                    {
-                                        throw new Error ("The partial '" + n + "' was not registered.");
-                                    }
-
-                                    token.children = partial;
+                                    n = token.name = token[0] = token[0].slice (1);
+                                    token.optional = n[0] == "?";
                                     break;
 
                                 case "/":
@@ -2837,7 +2833,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         if (expr)
                         {
                             var type = token.type;
-                            var val;
+                            var val, children, n;
 
                             switch (type)
                             {
@@ -2848,7 +2844,22 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                                     }
 
                                 case "*": // eslint-disable-line no-fallthrough
-                                    result += self.renderTokens (token.children, data, context, false, dataIndex);
+                                    if (token.expand)
+                                    {
+                                        children = token.children;
+                                    }
+                                    else
+                                    {
+                                        n = token.name;
+                                        children = self.partials[n] || Template.PARTIALS[n] || (token.optional && []);
+
+                                        if (!children)
+                                        {
+                                            throw new Error ("The partial '" + n + "' was not registered.");
+                                        }
+                                    }
+
+                                    result += self.renderTokens (children, data, context, false, dataIndex);
                                     break;
 
                                 case "#":
@@ -2862,6 +2873,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                                         if (branch.check)
                                         {
                                             items = Template.CHECKS[branch.check] (items) ? [data] : [];
+                                        }
+                                        else
+                                        if (branch.type == ":" && branch.else)
+                                        {
+                                            items = [data];
                                         }
 
                                         items = nit.array (items);
@@ -2924,9 +2940,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             nit.dpvs (Template,
             {
                 TRANSFORM_PATTERN: /^([$a-z0-9_.-]+)\s*(@?\((.*)\))?$/i,
-                BLOCK_SYMBOLS: "#?:@=/",
-                BLOCK_LEADING_WS: /[ \t]+$/,
-                BLOCK_TRAILING_WS: /^\n/,
+                BLOCK_SYMBOLS: "#?:@/",
+                BLOCK_LEADING_WS: /[ \t]*\n[ \t]*$/,
+                BLOCK_TRAILING_WS: /^[ \t]*\n[ \t]*/,
                 CHECKS:
                 {
                     "?": nit.is.truthy,
@@ -2943,6 +2959,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     template:     "",
                     openTag:      "{{",
                     closeTag:     "}}",
+                    trim:         true,
                     serialize:    nit.serialize,
                     transforms:   {},
                     partials:     {}
@@ -2985,26 +3002,25 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 ,
                 registerTransform: function (name, func)
                 {
-                    var cls = this;
+                    Template.TRANSFORMS[name] = func;
 
-                    cls.TRANSFORMS[name] = func;
-
-                    return cls;
+                    return Template;
                 }
                 ,
-                registerPartial: function (name, partial)
+                registerPartial: function (name, partial, openTag, closeTag)
                 {
-                    var cls = this;
+                    openTag = openTag || Template.defaults.openTag;
+                    closeTag = closeTag || Template.defaults.closeTag;
 
-                    cls.PARTIALS[name] = new cls (partial).tokens;
+                    Template.PARTIALS[name] = new Template (partial, openTag, closeTag).tokens;
 
-                    return cls;
+                    return Template;
                 }
                 ,
-                tokenize: function (tmpl, openTag, closeTag)
+                tokenize: function (tmpl, openTag, closeTag, trim)
                 {
-                    openTag   = openTag || Template.defaults.openTag;
-                    closeTag  = closeTag || Template.defaults.closeTag;
+                    openTag = openTag || Template.defaults.openTag;
+                    closeTag = closeTag || Template.defaults.closeTag;
 
                     var uuid      = nit.uuid ();
                     var openChar  = openTag[0];
@@ -3013,17 +3029,18 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     var escClose  = "<C-" + uuid + ">";
                     var hasEsc    = false;
 
-                    tmpl = tmpl
-                        // remove newline + spaces
-                        .replace (/\\\n[ ]*/g, "")
+                    if (trim)
+                    {
+                        tmpl = tmpl.replace (/\\\n[ ]*/g, "");
+                    }
 
-                        // use \{{ to escape the open tag character
-                        .replace (new RegExp ("\\\\([" + nit.escapeRegExp (openChar + closeChar) + "])", "g"), function (match, char)
-                        {
-                            hasEsc = true;
+                    // use \{{ to escape the open tag character
+                    tmpl = tmpl.replace (new RegExp ("\\\\([" + nit.escapeRegExp (openChar + closeChar) + "])", "g"), function (match, char)
+                    {
+                        hasEsc = true;
 
-                            return char == openChar ? escOpen : escClose;
-                        });
+                        return char == openChar ? escOpen : escClose;
+                    });
 
                     var rootTokens    = [];
                     var currentToken  = rootTokens;
@@ -3179,18 +3196,79 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             }
                         }
                         else
-                        if (~blkSymbols.indexOf (rt[0][0])
-                            && typeof (prev = rootTokens[i - 1]) == "string"
-                            && typeof (next = rootTokens[i + 1]) == "string"
-                            && prev.match (blkLeading)
-                            && next.match (blkTrailing))
+                        if (trim && ~blkSymbols.indexOf (rt[0][0]))
                         {
-                            rootTokens[i - 1] = prev.replace (blkLeading, "");
-                            rootTokens[i + 1] = next.replace (blkTrailing, "");
+                            if (typeof (prev = rootTokens[i - 1]) == "string" && prev.match (blkLeading))
+                            {
+                                rootTokens[i - 1] = prev.replace (blkLeading, "");
+                            }
+
+                            if (typeof (next = rootTokens[i + 1]) == "string" && next.match (blkTrailing))
+                            {
+                                rootTokens[i + 1] = next.replace (blkTrailing, "");
+                            }
                         }
                     }
 
                     return rootTokens;
+                }
+                ,
+                untokenize: function (token, openTag, closeTag, level)
+                {
+                    level = level || 0;
+                    openTag = openTag || Template.defaults.openTag;
+                    closeTag = closeTag || Template.defaults.closeTag;
+
+                    if (token instanceof Array)
+                    {
+                        var children = "";
+                        var branches = "";
+                        var isBlock = false;
+                        var self = this;
+                        var untokenize = function (t) { return self.untokenize (t, openTag, closeTag, level + 1); };
+
+                        switch (token.type)
+                        {
+                            case "@":
+                            case "#":
+                            case ":":
+                                isBlock = true;
+
+
+                                if (!nit.is.empty (token.children))
+                                {
+                                    children = token.children.map (untokenize).join ("");
+                                }
+
+                                if (!nit.is.empty (token.branches))
+                                {
+                                    branches = token.branches.map (untokenize).join ("");
+                                }
+                                break;
+                        }
+
+                        var str = (level || token.type ? openTag : "")
+                            + (token.type || "")
+                            + (token.expand ? "*" : "")
+                            + (token.check || "")
+                            + token.map (untokenize).join ("")
+                            + (level || token.type ? closeTag : "")
+                        ;
+
+                        if (isBlock)
+                        {
+                            str += children
+                                + branches
+                                + (token.type != ":" ? (openTag + "/" + closeTag) : "")
+                            ;
+                        }
+
+                        return str;
+                    }
+                    else
+                    {
+                        return token;
+                    }
                 }
 
             }, true, false);
