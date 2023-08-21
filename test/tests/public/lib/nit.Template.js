@@ -1,18 +1,18 @@
 test ("nit.Template.parseBlocks ()", () =>
 {
     let tmpl = `{{#name}}
-{{.}}
+    {{.}}
         {{:title}}
-{{.}}
+  {{.}}
         {{:}}
 no name
         {{/}}`;
 
     tmpl = new nit.Template (tmpl);
 
-    expect (tmpl.render ({ name: "my name" })).toBe ("my name");
-    expect (tmpl.render ({ title: "my title" })).toBe ("my title");
-    expect (tmpl.render ()).toBe ("no name");
+    expect (tmpl.render ({ name: "my name" })).toBe ("\n    my name\n");
+    expect (tmpl.render ({ title: "my title" })).toBe ("\n  my title\n");
+    expect (tmpl.render ()).toBe ("\nno name\n");
 });
 
 
@@ -148,7 +148,12 @@ test ("nit.Template.render () - inline partial", () =>
 
     let result = nit.Template.render (tmpl, { names: ["first", "last"] });
 
-    expect (result).toBe ("first and last");
+    expect (result).toBe (`
+
+
+
+first and last
+`);
 });
 
 
@@ -172,14 +177,18 @@ test ("nit.Template.render () - inline partial and render", () =>
     `;
 
     let expected = `Full name:
-first and last`;
+
+
+first and last
+
+    `;
 
     let tpl = nit.Template (tmpl);
     let result = tpl.render ({ label: "Full name:", names: ["first", "last"] });
 
     expect (result).toBe (expected);
     expect (tpl.partials["my-frag"]).toBeInstanceOf (Array);
-    expect (tpl.render ({ names: ["one", "two"] }, {}, tpl.partials["my-frag"])).toBe (`one and two`);
+    expect (tpl.render ({ names: ["one", "two"] }, {}, tpl.partials["my-frag"])).toBe ("\none and two\n");
 });
 
 
@@ -192,7 +201,12 @@ test ("nit.Template.render () - inline partial", () =>
 
     {{#?|len}}{{*inline-part}}{{/}}`;
 
-    let expected = `5 and 4`;
+    let expected = `
+
+
+
+5 and 4
+`;
 
     let result = nit.Template.render (tmpl, { names: ["first", "last"] },
     {

@@ -2940,9 +2940,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             nit.dpvs (Template,
             {
                 TRANSFORM_PATTERN: /^([$a-z0-9_.-]+)\s*(@?\((.*)\))?$/i,
-                BLOCK_SYMBOLS: "#?:@/",
-                BLOCK_LEADING_WS: /[ \t]*\n[ \t]*$/,
-                BLOCK_TRAILING_WS: /^[ \t]*\n[ \t]*/,
+                BLOCK_SYMBOLS: "#:@/",
+                BLOCK_LEADING_WS: /\n[ \t]*$/,
+                BLOCK_TRAILING_WS: /^[ \t]*\n/,
                 CHECKS:
                 {
                     "?": nit.is.truthy,
@@ -3200,12 +3200,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         {
                             if (typeof (prev = rootTokens[i - 1]) == "string" && prev.match (blkLeading))
                             {
-                                rootTokens[i - 1] = prev.replace (blkLeading, "");
+                                rootTokens[i - 1] = prev.replace (blkLeading, "\n");
                             }
 
                             if (typeof (next = rootTokens[i + 1]) == "string" && next.match (blkTrailing))
                             {
-                                rootTokens[i + 1] = next.replace (blkTrailing, "");
+                                rootTokens[i + 1] = next.replace (blkTrailing, "\n");
                             }
                         }
                     }

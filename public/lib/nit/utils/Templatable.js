@@ -3,9 +3,9 @@ module.exports = function (nit, Self)
     return (Self = nit.defineClass ("nit.utils.Templatable"))
         .k ("getter")
         .defineInnerClass ("Transforms")
-        .staticProperty ("openTag", "string", "%{")
-        .staticProperty ("closeTag", "string", "}")
-        .staticProperty ("trim", "boolean", false)
+        .meta ("openTag", "string", "%{")
+        .meta ("closeTag", "string", "}")
+        .meta ("trim", "boolean", true)
 
         .staticMemo ("propertyDescriptors", function ()
         {
@@ -36,7 +36,7 @@ module.exports = function (nit, Self)
 
             nit.assign (template.transforms, cls.Transforms);
 
-            return template.render (data);
+            return template.render (data).trim ();
         })
         .onDefineSubclass (function (Subclass)
         {
