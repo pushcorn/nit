@@ -34,5 +34,6 @@ test.method ("nit.AssetResolver", "resolve")
         .up (s => s.createArgs = "resources")
         .given ("eslint/eslintrc.json")
         .returns (nit.path.join (nit.HOME, "resources/eslint/eslintrc.json"))
+        .expectingPropertyToBe ("object.roots.0", /^\/.*\/resources$/)
         .commit ()
 ;

@@ -116,6 +116,31 @@ test ("nit.isDir ()", () =>
 });
 
 
+test ("nit.isDirAsync ()", async () =>
+{
+    expect (await nit.isDirAsync (no_path.join (test.HOME, "test/resources/project-a"))).toBe (true);
+    expect (await nit.isDirAsync (no_path.join (test.HOME, "test/resources/project-link"))).toBe (true);
+    expect (await nit.isDirAsync (no_path.join (test.HOME, "test/setup.js"))).toBe (false);
+    expect (await nit.isDirAsync (no_path.join (test.HOME, "test/abc"))).toBe (false);
+});
+
+
+test ("nit.isFile ()", () =>
+{
+    expect (nit.isFile (no_path.join (test.HOME, "test/resources/project-a"))).toBe (false);
+    expect (nit.isFile (no_path.join (test.HOME, "test/resources/project-a/nit.json"))).toBe (true);
+    expect (nit.isFile (no_path.join (test.HOME, "test/resources/project-a/abcd"))).toBe (false);
+});
+
+
+test ("nit.isFileAsync ()", async () =>
+{
+    expect (await nit.isFileAsync (no_path.join (test.HOME, "test/resources/project-a"))).toBe (false);
+    expect (await nit.isFileAsync (no_path.join (test.HOME, "test/resources/project-a/nit.json"))).toBe (true);
+    expect (await nit.isFileAsync (no_path.join (test.HOME, "test/resources/project-a/abcd"))).toBe (false);
+});
+
+
 test ("nit.resolvePath ()", () =>
 {
     expect (nit.resolvePath ()).toBeUndefined ();
@@ -542,6 +567,7 @@ test ("nit.runCommand", async () =>
             })
         ;
     }
+
 
     await testRunCommand ("test-cmd", test.pathForProject ("project-c"))
         .lpush (function (ctx)

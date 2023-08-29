@@ -1070,15 +1070,16 @@ test ("nit.Object.buildConstructorParams () - varargs grouping", async () =>
 });
 
 
-test ("nit.Object.constructObject ()", () =>
+test ("nit.Object.constructObject ()", async () =>
 {
     let preConstructCalled = false;
     let postConstructCalled = false;
     let preBuildConstructorParams = false;
+    let User = nit.User;
 
     nit.CONFIG = {};
 
-    nit.User
+    User
         .onPreBuildConstructorParams (function ()
         {
             preBuildConstructorParams = true;
@@ -1093,7 +1094,7 @@ test ("nit.Object.constructObject ()", () =>
         })
     ;
 
-    let user = new nit.User; // eslint-disable-line no-unused-vars
+    let user = await new User; // eslint-disable-line no-unused-vars
     expect (preBuildConstructorParams).toBe (true);
     expect (preConstructCalled).toBe (true);
     expect (postConstructCalled).toBe (true);
@@ -1337,13 +1338,13 @@ test ("nit.Object.getClassChainProperty ()", () =>
 });
 
 
-test ("nit.Object.meta ()", () =>
+test ("nit.Object.defineMeta ()", () =>
 {
     const A = nit.defineClass ("A")
-        .meta ("code", "string", "error.invalid")
-        .meta ("responses...", "string")
-        .meta ("genval", "string", () => "generated")
-        .meta ("custom", "boolean", true, false, true)
+        .defineMeta ("code", "string", "error.invalid")
+        .defineMeta ("responses...", "string")
+        .defineMeta ("genval", "string", () => "generated")
+        .defineMeta ("custom", "boolean", true, false, true)
     ;
 
     const B = nit.defineClass ("B", "A");
@@ -1373,16 +1374,26 @@ test ("nit.Object.meta ()", () =>
     expect (A.genval).toBe ("generated");
     expect (B.genval).toBe ("non-gen");
 
-    expect (() => A.meta ("custom", "string")).toThrow (/cannot redefine/i);
+    expect (() => A.defineMeta ("custom", "string")).toThrow (/cannot redefine/i);
+
+
+    A.meta ({ code: "error.not_found" });
+    expect (A.code).toBe ("error.not_found");
+
+    A.meta ("code", "error.invalid_value");
+    expect (A.code).toBe ("error.invalid_value");
+
+    A.meta ("invalid", "error.invalid_value");
+    expect (A.invalid).toBeUndefined ();
 });
 
 
-test ("nit.Object.meta () - array", () =>
+test ("nit.Object.defineMeta () - array", () =>
 {
     const A = nit.defineClass ("A")
-        .meta ("vals...", "RegExp", [/c/, /f/])
-        .meta ("ints...", "integer")
-        .meta ("ones...", "integer", 1)
+        .defineMeta ("vals...", "RegExp", [/c/, /f/])
+        .defineMeta ("ints...", "integer")
+        .defineMeta ("ones...", "integer", 1)
     ;
 
     expect (A.vals).toEqual ([/c/, /f/]);

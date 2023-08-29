@@ -678,7 +678,7 @@ test ("nit.test.Strategy.expecting... ()", async () =>
 
     strategy.expectingMethodToThrow ("object.causeProblem", /problem/);
     expect (strategy.expectors.length).toBe (5);
-    expect (strategy.expectors[4].valueGetter (strategy)).toBeInstanceOf (Error);
+    expect (await strategy.expectors[4].valueGetter (strategy)).toBeInstanceOf (Error);
 
     strategy.expecting ("causeProblem will throw", Error, function (s)
     {
@@ -709,7 +709,7 @@ test ("nit.test.Strategy.expecting... ()", async () =>
     expect (strategy.expectors[12].valueGetter (strategy)).toEqual ({ a: 1, b: 2, e: 9 });
 
     strategy.expectingExprToThrow ("object.causeProblem ()", /problem/);
-    expect (strategy.expectors[13].valueGetter (strategy)).toBeInstanceOf (Error);
+    expect (await strategy.expectors[13].valueGetter (strategy)).toBeInstanceOf (Error);
 
     strategy.expectingExprToReturnValue ("object.returnObject ()", { b: 2 }, true);
     expect (strategy.expectors[14].valueGetter (strategy)).toEqual ({ a: 1, b: 2 });

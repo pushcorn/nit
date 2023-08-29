@@ -102,7 +102,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         return o;
     };
 
-
     nit.dpvs (nit,
     {
         ARG_EXPANDERS: {},
@@ -112,10 +111,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         CLASS_TAG: "@class",
         COMPONENT_DESCRIPTORS: {},
         CONFIG: {},
-        ENV: {},
         ERROR_CODE_PATTERN: /^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$/,
         EXPANDABLE_ARG_PATTERN: /\.\.(([a-z][a-z0-9_$]+)(\|[a-z][a-z0-9_$]+)*)(!?)$/i,
-        PPP: "$__", // private property prefix
+        PPP: "$__" // private property prefix
+    });
+
+
+    nit.dpvs (nit,
+    {
+        ENV: {},
         NS: { nit: nit }
 
     }, true, false);
@@ -619,7 +623,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
-    nit.object = function ()
+    nit.o = nit.object = function ()
     {
         return nit.assign.apply (nit, [OBJECT_CREATE (nit.object.prototype)].concat (ARRAY (arguments)));
     };
@@ -2206,7 +2210,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.find = function (o, func) // or find (o, k, v)
     {
-        var found;
         var args  = ARRAY (arguments);
 
         if (args.length == 3)
@@ -2227,18 +2230,51 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             func = function (v) { return val === v; };
         }
 
-        nit.each (o, function (item)
+        var kvs = nit.each (o, function (v, k)
         {
-            if (func (item))
-            {
-                found = item;
-
-                return nit.each.STOP;
-            }
+            return [k, v];
         });
 
-        return found;
+
+        function checkResult (res, v)
+        {
+            return res ? (res instanceof nit.find.Result ? res.value : v) : next ();
+        }
+
+        function next ()
+        {
+            var kv = kvs.shift ();
+
+            if (!kv)
+            {
+                return;
+            }
+
+            var k = kv[0];
+            var v = kv[1];
+            var res = func (v, k);
+
+            if (res instanceof Promise)
+            {
+                return res.then (function (res)
+                {
+                    return checkResult (res, v);
+                });
+            }
+            else
+            {
+                return checkResult (res, v);
+            }
+        }
+
+        return next ();
     };
+
+
+    nit.find.Result = nit.createFunction ("nit.find.Result",
+        function (obj, args) { obj.value = args[0]; },
+        ["value"]
+    );
 
 
     nit.argsToObj = function (args, pargs, cleanup)
@@ -4044,6 +4080,34 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             };
 
 
+            Property.filterValues = function (prop, owner, values)
+            {
+                var isAny = prop.type == "any";
+
+                return values
+                    .map (function (v) // eslint-disable-line array-callback-return
+                    {
+                        if (isAny
+                            || (!prop.array && !prop.required)
+                            || (prop.emptyAllowed && !nit.is.undef  (v))
+                            || !nit.is.empty (v))
+                        {
+                            v = prop.cast (owner, v);
+                        }
+
+                        if (isAny
+                            || (!prop.array && !prop.required)
+                            || (prop.emptyAllowed && !nit.is.undef  (v))
+                            || !nit.is.empty (v))
+                        {
+                            return v;
+                        }
+                    })
+                    .filter (function (v) { return isAny || !nit.is.undef (v); })
+                ;
+            };
+
+
             Property.patchArray = function (prop, owner, arr)
             {
                 ["push", "unshift"].forEach (function (method)
@@ -4053,15 +4117,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                     nit.dpv (arr, method, function (v) // eslint-disable-line no-unused-vars
                     {
-                        var vs = ARRAY (arguments)
-                            .map (function (v)
-                            {
-                                return prop.cast (owner, v);
-                            })
-                            .filter (function (v) { return isAny || !nit.is.undef (v); })
-                        ;
+                        var vs = Property.filterValues (prop, owner, ARRAY (arguments));
 
-                        return vs.length ? arrayMethod.apply (this, vs) : this.length;
+                        return vs.length || isAny ? arrayMethod.apply (this, vs) : this.length;
                     });
                 });
             };
@@ -4128,11 +4186,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             return;
                         }
                     }
-
-                    if (prop.required && nit.is.empty (v))
-                    {
-                        nit.throw.call (owner, { code: "error.value_required", source: prop, owner: owner, class: owner.constructor.name }, { property: prop });
-                    }
                 }
 
                 var isArr = nit.is.arr (v);
@@ -4144,10 +4197,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     nit.throw.call (owner, { code: Property.invalidValueCode (prop), source: prop, owner: owner }, { value: v, property: prop });
                 }
 
-                v = (isArr ? v : nit.array (v))
-                    .map (function (v) { return prop.cast (owner, v); })
-                    .filter (function (v) { return isAny || !nit.is.undef (v); })
-                ;
+
+                v = Property.filterValues (prop, owner, isArr ? v : nit.array (v));
 
                 if (prop.array && !isArr && prop.nullable && !v.length)
                 {
@@ -4163,9 +4214,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     v = v.length ? v[0] : prop.cast (owner);
                 }
 
-                if (writer !== true && prop.setter)
+                if (writer !== true)
                 {
-                    v = prop.setter.call (owner, v, prop);
+                    if (prop.setter)
+                    {
+                        v = prop.setter.call (owner, v, prop);
+                    }
+
+                    if (prop.required && nit.is.empty (v))
+                    {
+                        nit.throw.call (owner, { code: "error.value_required", source: prop, owner: owner, class: owner.constructor.name }, { property: prop });
+                    }
                 }
 
                 if (nit.is.func (v) && !v.name) // reset the anonymous function name
@@ -4252,6 +4311,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 var array = !!cfg.array;
                 var writer = cfg.writer;
                 var nullable = !!(type.slice (-1) == "?" && (type = type.slice (0, -1)));
+                var emptyAllowed = !!(type.slice (-1) == "*" && (type = type.slice (0, -1)));
                 var name;
 
                 delete cfg.writer;
@@ -4283,10 +4343,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     required: required,
                     positional: positional,
                     nullable: nullable,
+                    emptyAllowed: emptyAllowed,
                     array: array,
                     kind: cfg.kind || Property.prototype.kind,
                     setter: cfg.setter,
                     getter: cfg.getter,
+                    caster: cfg.caster,
                     primitive: parser instanceof nit.Object.PrimitiveTypeParser,
                     parser: parser,
                     privProp: nit.PPP + name,
@@ -4340,12 +4402,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 configurable: undefined,
                 enumerable: undefined,
                 nullable: false,
+                emptyAllowed: false,
                 primitive: false,
                 kind: "property",
                 get: undefined,
                 set: undefined,
                 getter: undefined,
                 setter: undefined,
+                caster: undefined,
                 parser: undefined,
                 privProp: "",
                 constraints: [],
@@ -4353,14 +4417,20 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 // which parameter is an object of owner, value, and property.
 
                 shouldValidate: function (owner) // eslint-disable-line no-unused-vars
-
                 {
                     return true;
                 }
                 ,
                 cast: function (owner, value, parser)
                 {
-                    return Property.cast (this, owner, value, parser);
+                    var prop = this;
+
+                    if (prop.caster)
+                    {
+                        value = prop.caster.call (owner, value, prop, parser);
+                    }
+
+                    return Property.cast (prop, owner, value, parser);
                 }
                 ,
                 createValidationContext: function (owner, value)
@@ -4700,7 +4770,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return nit.dpg (this, name, function () { return value; }, false, false);
         }
         ,
-        meta: function (spec, type, defval, configurable, enumerable) // eslint-disable-line no-unused-vars
+        defineMeta: function (spec, type, defval, configurable, enumerable) // eslint-disable-line no-unused-vars
         {
             var cls = this;
             var Property = nit.Object.Property;
@@ -4720,7 +4790,46 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 return owner.hasOwnProperty (privProp) ? owner[privProp] : owner.superclass[prop.name];
             };
 
-            return cls.defineProperty (cls, cfg);
+            var prop = nit.Object.Property.new (cls, cfg);
+
+            nit.dpv (prop.get, cls.kProperty, prop);
+            nit.dpv (prop.get, cls.kMeta, true);
+            nit.dp (cls, prop.name, prop);
+
+            return cls;
+        }
+        ,
+        meta: function (key, value)
+        {
+            var meta = {};
+
+            if (nit.is.obj (key))
+            {
+                meta = key;
+            }
+            else
+            {
+                meta[key] = value;
+            }
+
+            var cls = this;
+
+            for (key in meta)
+            {
+                var isMeta = nit.classChain (cls).find (function (cls)
+                {
+                    var prop = Object.getOwnPropertyDescriptor (cls, key);
+
+                    return prop && prop.get[nit.Object.kMeta];
+                });
+
+                if (isMeta)
+                {
+                    cls[key] = meta[key];
+                }
+            }
+
+            return cls;
         }
         ,
         staticGetter: function (name, getter, configurable, enumerable)
@@ -4966,7 +5075,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     nit.Object
-        .k ("property", "defvals")
+        .k ("property", "meta", "defvals")
         .m ("error.name_required", "The %{property.kind} name is required.")
         .m ("error.value_required", "The %{property.kind} '%{property.name}' is required. (Class: %{class})")
         .m ("error.class_name_required", "The class name cannot be empty.")
@@ -5826,9 +5935,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .m ("error.constraint_not_defined", "The constraint '%{name}' was not defined.")
         .categorize ("constraints")
 
-        .meta ("code", "string", "error.validation_failed")
-        .meta ("message", "string")
-        .meta ("applicableTypes...")
+        .defineMeta ("code", "string", "error.validation_failed")
+        .defineMeta ("message", "string")
+        .defineMeta ("applicableTypes...")
         .staticMemo ("componentName", function ()
         {
             return nit.ComponentDescriptor
@@ -6148,12 +6257,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .property ("set", "function")
         .property ("getter", "function")
         .property ("setter", "function")
+        .property ("caster", "function")
         .property ("cast", "function")
         .property ("target", "any") // the prototype to which the field was bound
         .property ("primitive", "boolean") // should not be set manually
         .property ("parser", "nit.Object.ITypeParser")
         .property ("writer", "nit.Object.Property.Writer")
         .property ("privProp", "string", "", true, false)
+        .property ("emptyAllowed", "boolean")
         .property ("constraints...", "nit.Constraint")
 
         .getter ("class", function ()

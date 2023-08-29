@@ -3,9 +3,9 @@ module.exports = function (nit, Self)
     return (Self = nit.defineClass ("nit.utils.Templatable"))
         .k ("getter")
         .defineInnerClass ("Transforms")
-        .meta ("openTag", "string", "%{")
-        .meta ("closeTag", "string", "}")
-        .meta ("trim", "boolean", true)
+        .defineMeta ("openTag", "string", "%{")
+        .defineMeta ("closeTag", "string", "}")
+        .defineMeta ("trim", "boolean", true)
 
         .staticMemo ("propertyDescriptors", function ()
         {

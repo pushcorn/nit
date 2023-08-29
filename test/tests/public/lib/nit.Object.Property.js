@@ -155,3 +155,74 @@ test ("nit.Object.Property.get () - array", () =>
     expect (A.ints).toEqual ([]);
     expect (A.ones).toEqual ([1]);
 });
+
+
+test ("nit.Object.Property.caster ()", () =>
+{
+    const A = nit.defineClass ("A")
+        .field ("<extensions...>", "string",
+        {
+            caster: function (v)
+            {
+                v = nit.trim (v);
+
+                return v[0] != "." ? ("." + v) : v;
+            }
+        })
+    ;
+
+    let a = new A (...["a", "b", "c"]);
+
+    expect (a.extensions).toEqual ([".a", ".b", ".c"]);
+});
+
+
+
+test ("nit.Object.Property.set () - array", () =>
+{
+    const A = nit.defineClass ("A")
+        .field ("<extensions...>", "string")
+    ;
+
+    expect (new A ("a", "b", "c").extensions).toEqual (["a", "b", "c"]);
+    expect (new A ("a", "", "c").extensions).toEqual (["a", "c"]);
+});
+
+
+test ("nit.Object.Property - empty args", () =>
+{
+    const Json = nit.defineClass ("Json")
+        .field ("[json]", "any", "The JSON content.")
+        .field ("[contentType]", "string", "The content type.", "application/json")
+    ;
+
+    expect (new Json ("bb").contentType).toBe ("application/json");
+    expect (new Json ("bb", "").contentType).toBe ("");
+    expect (new Json ("bb", undefined).contentType).toBe ("application/json");
+    expect (new Json ("bb", "text/html").contentType).toBe ("text/html");
+
+    let j = new Json ("bb", "text/html");
+    expect (j.contentType).toBe ("text/html");
+    j.contentType = null;
+    expect (j.contentType).toBe ("application/json");
+});
+
+
+test ("nit.Object.Property - emptyAllowed", () =>
+{
+    const A = nit.defineClass ("A")
+        .field ("words...", "string*")
+    ;
+
+    let a = new A ({ words: [3, "9", null, ""] });
+
+    expect (a.words).toEqual (["3", "9", ""]);
+
+    a.words.push (null);
+    a.words.push (undefined);
+    a.words.push ("");
+    expect (a.words).toEqual (["3", "9", "", ""]);
+
+    a.words = null;
+    expect (a.words).toEqual ([]);
+});
