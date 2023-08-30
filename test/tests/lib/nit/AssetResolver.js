@@ -37,3 +37,16 @@ test.method ("nit.AssetResolver", "resolve")
         .expectingPropertyToBe ("object.roots.0", /^\/.*\/resources$/)
         .commit ()
 ;
+
+
+test.object ("nit.AssetResolver")
+    .should ("resolve the . directory")
+        .given (".")
+        .expectingPropertyToBe ("result.roots.0", nit.HOME)
+        .commit ()
+
+    .should ("try to resolve the .. directory")
+        .given ("..")
+        .expectingPropertyToBe ("result.roots.0", nit.path.join (nit.HOME, ".."))
+        .commit ()
+;
