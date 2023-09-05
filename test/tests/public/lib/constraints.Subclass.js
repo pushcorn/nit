@@ -33,11 +33,17 @@ test ("constraints.Subclass", () =>
     expect (new Paper4 (Circle.name).shape).toBe ("Circle");
     expect (() => new Paper4 (Shape.name)).toThrow (/not a subclass of Shape/i);
 
-    let Paper5 = nit.defineClass ("Paper4")
+    let Paper5 = nit.defineClass ("Paper5")
         .field ("<shape>", "string")
             .constraint ("subclass", "Shape", true)
     ;
 
     expect (new Paper5 (Circle.name).shape).toBe ("Circle");
     expect (new Paper5 (Shape.name).shape).toBe ("Shape");
+
+    let Paper6 = nit.defineClass ("Paper6")
+        .field ("<shape>", "integer")
+    ;
+
+    expect (() => Paper6.constraint ("subclass", "Shape")).toThrow (/cannot be applied.*integer/);
 });

@@ -22,3 +22,11 @@ test ("nit.parseDate ()", () =>
     d = nit.parseDate ("2023-01-01T00:00:00+0830");
     expect (d.toISOString ()).toBe ("2022-12-31T15:30:00.000Z");
 });
+
+
+test ("nit.parseDate () with timezone", () =>
+{
+    let d = nit.parseDate ("2000-01-01 00:00:00", "Asia/Taipei");
+
+    expect (d.toISOString ()).toBe ("1999-12-31T16:00:00.000Z");
+});

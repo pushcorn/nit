@@ -335,6 +335,21 @@ test ("nit.Object.staticLifecycleMethod ()", () =>
 
     expect (() => B.run ()).toThrow (/not implemented/);
 
+    const B2 = nit.defineClass ("BS2")
+        .staticLifecycleMethod ("run",
+            true,
+            function ()
+            {
+                B2.implCalled = true;
+                B2[B2.kRun] ();
+
+                return true;
+            }
+        )
+    ;
+
+    expect (() => B2.run ()).toThrow (/not implemented/);
+
     const C = nit.defineClass ("CS")
         .staticLifecycleMethod ("run", null, function ()
         {
@@ -650,6 +665,11 @@ test ("nit.Object.lifecycleMethod ()", () =>
             Service[Service.kStop].call (this);
 
         }, true)
+        .lifecycleMethod ("stop2", true, function ()
+        {
+            Service[Service.kStop2].call (this);
+
+        })
         .lifecycleMethod ("run", null, function ()
         {
             Service.runCbInvoked = true;
@@ -671,6 +691,7 @@ test ("nit.Object.lifecycleMethod ()", () =>
     expect (Service.runCbInvoked).toBe (true);
     expect (service.noop ()).toBe (service);
     expect (() => service.stop ()).toThrow (/lifecycle.*stop.* was not implemented/);
+    expect (() => service.stop2 ()).toThrow (/lifecycle.*stop2.* was not implemented/);
 
 
     let MyService = nit.defineClass ("MyService", "Service")

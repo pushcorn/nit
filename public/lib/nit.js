@@ -113,7 +113,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         CONFIG: {},
         ERROR_CODE_PATTERN: /^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$/,
         EXPANDABLE_ARG_PATTERN: /\.\.(([a-z][a-z0-9_$]+)(\|[a-z][a-z0-9_$]+)*)(!?)$/i,
-        PPP: "$__" // private property prefix
+        PPP: "$__", // private property prefix
+        DATE_TIME_FORMAT_OPTIONS:
+        {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            timeZoneName: "short"
+        }
     });
 
 
@@ -1014,6 +1024,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    nit.undefIf = function (v, test)
+    {
+        return (nit.is.func (test) ? test (v) : nit.is.equal (v, test)) ? undefined : v;
+    };
+
+
+
     var DOT_ESC_RE = /\\\./g;
     var DOT_TOKEN = "<" + nit.uuid () + ">";
     var DOT_TOKEN_RE = new RegExp (DOT_TOKEN, "g");
@@ -1099,14 +1116,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     // returns the local date time string
-    nit.timestamp = function (date, dateOnly)
+    nit.timestamp = function (date, timezone, keepOffset)
     {
-        if (nit.is.bool (date))
-        {
-            dateOnly = date;
-            date = undefined;
-        }
-        else
         if (nit.is.str (date))
         {
             date = nit.parseDate (date);
@@ -1119,9 +1130,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         date = date || new Date ();
 
-        var ts = date.toLocaleString ("sv");
+        var timestamp = Intl.DateTimeFormat ("sv", nit.assign.defined ({}, { timeZone: timezone }, nit.DATE_TIME_FORMAT_OPTIONS))
+            .format (date)
+            .replace ("\u2212", "-")
+            .split (/\sGMT/)
+        ;
 
-        return dateOnly ? ts.split (" ")[0] : ts;
+        return keepOffset ? timestamp.join ("") : timestamp[0];
     };
 
 
@@ -1345,8 +1360,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     // parses ISO8601 date string
     // for time only, at least the hh:mm must be provided
     // for date only, at least the YYYY-MM must be provided
-    nit.parseDate = function (str)
+    nit.parseDate = function (str, timezone)
     {
+        if (timezone)
+        {
+            var utc = nit.parseDate (str + "Z");
+            var timestamp = Intl.DateTimeFormat ("sv", nit.assign.defined ({}, { timeZone: timezone }, nit.DATE_TIME_FORMAT_OPTIONS)).format (utc);
+            var offset = timestamp.replace ("\u2212", "-").split (/\sGMT/).pop ();
+
+            return nit.parseDate (str + offset);
+        }
+
         if (str instanceof Date)
         {
             return str;
@@ -1390,28 +1414,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     //                 0                                1              2        3    4     5               6     7     8     9      10        11     12
     // sample result: ["2015-03-04T09:45:22.333+04:00", "2015-03-04T", "2015", "03", "04", "09:45:22.333", "09", "45", "22", "333", "+04:00", "+04", "00"]
     nit.parseDate.PATTERN  = /^((\d{4})(?:-(\d{1,2}))(?:-(\d{1,2}))?[ T]?|)((\d{1,2})(?::(\d{1,2}))(?::(\d{1,2}))?(?:\.(\d+))?)?(Z|([+-]\d{1,2})(?::?(\d{2}))?)?$/;
-
-
-    nit.parseDateAtTimezone = function (str, timezone)
-    {
-        var utc = nit.parseDate (str + "Z");
-        var timestamp = Intl.DateTimeFormat ("sv", nit.assign ({ timeZone: timezone }, nit.parseDateAtTimezone.OPTIONS)).format (utc);
-        var offset = timestamp.replace ("\u2212", "-").split (/\sGMT/).pop ();
-
-        return nit.parseDate (str + offset);
-    };
-
-
-    nit.parseDateAtTimezone.OPTIONS =
-    {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        timeZoneName: "short"
-    };
 
 
     nit.k = function (cls) // generate a namespaced key for a function
@@ -1989,6 +1991,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return str.map (function (s, i) { return (i == 0 || s.length ? indent : "") + s; }).join ("\n");
         }
     };
+
 
     nit.toJson = function (o, indent)
     {
@@ -4869,6 +4872,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         ,
         staticLifecycleMethod: function (name, impl, hook) // hook could be a function or the boolean value 'true'
         {
+            if (nit.is.bool (impl))
+            {
+                var tmp = impl;
+
+                impl = hook;
+                hook = tmp;
+            }
+
             var cls = this;
             var key = cls.name + "." + name;
             var hookMethod = "on" + nit.ucFirst (name);
@@ -4906,6 +4917,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         ,
         lifecycleMethod: function (name, impl, hook) // hook could be a function or the boolean value 'true'
         {
+            if (nit.is.bool (impl))
+            {
+                var tmp = impl;
+
+                impl = hook;
+                hook = tmp;
+            }
+
             var cls = this;
             var key = cls.name + "." + name;
             var hookMethod = "on" + nit.ucFirst (name);
@@ -4914,7 +4933,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             {
                 hook = function ()
                 {
-                    this.throw ("error.lifecycle_hook_not_implemented", { method: name, class: cls.name });
+                    this.throw ("error.lifecycle_hook_not_implemented", { method: name, class: this.constructor.name });
                 };
             }
 
@@ -6162,9 +6181,19 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         });
 
 
+    nit.defineConstraint ("Max")
+        .throws ("error.greater_than_max", "The maximum value of '%{property.name}' is '%{constraint.max}'.")
+        .property ("<max>", "integer")
+        .onValidate (function (ctx)
+        {
+            return ctx.value * 1 <= ctx.constraint.max;
+        });
+
+
     nit.defineConstraint ("Subclass")
-        .throws ("error.not_a_subclass", "The value of '%{property.name}' is not a subclass of %{constraint.superclass}.")
+        .throws ("error.not_a_subclass", "The value of '%{property.name}' (%{valueType}) is not a subclass of %{constraint.superclass}.")
         .m ("error.invalid_superclass", "The superclass '%{superclass}' is invalid.")
+        .meta ("applicableTypes", ["string", "function"])
         .property ("<superclass>", "string")
         .property ("[inclusive]", "boolean") // including the superclass
         .onValidate (function (ctx)
@@ -6178,6 +6207,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             var value = ctx.value;
             var subclass = nit.is.str (value) ? nit.lookupClass (value) : value;
+
+            ctx.valueType = nit.is.str (value) ? value : value.name;
 
             return nit.is.subclassOf (subclass, superclass, ctx.constraint.inclusive);
         });
@@ -6240,7 +6271,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             nit.dpv (field.get, nit.Object.kProperty, field);
             nit.dpv (field.set, nit.Object.kProperty, field);
         })
-        .m ("error.inapplicable_constraint", "The constraint '%{constraint}' cannot be applied to the field '%{field}'.")
+        .m ("error.inapplicable_constraint", "The constraint '%{constraint}' cannot be applied to the %{type} field '%{field}'.")
         .property ("<spec>")
         .property ("[type]", "string", "string")
         .property ("[description]")
@@ -6282,7 +6313,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             if (!cons.applicableTo (self.type))
             {
-                self.throw ("error.inapplicable_constraint", { constraint: name, field: self.name });
+                self.throw ("error.inapplicable_constraint", { constraint: name, field: self.name, type: self.type });
             }
 
             self.constraints.push (cons);
