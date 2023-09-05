@@ -6193,7 +6193,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.defineConstraint ("Subclass")
         .throws ("error.not_a_subclass", "The value of '%{property.name}' (%{valueType}) is not a subclass of %{constraint.superclass}.")
         .m ("error.invalid_superclass", "The superclass '%{superclass}' is invalid.")
-        .meta ("applicableTypes", ["string", "function"])
+        .meta ("applicableTypes", ["string", "function", "any"]) // The condition should be set if the field type is any.
         .property ("<superclass>", "string")
         .property ("[inclusive]", "boolean") // including the superclass
         .onValidate (function (ctx)
