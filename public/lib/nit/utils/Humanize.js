@@ -32,7 +32,6 @@ module.exports = function (nit, Self)
 
             var DURATIONS = Self.DURATIONS;
             var results = {};
-            var cnt;
 
             ms = opts.ms;
             roundTo = opts.roundTo;

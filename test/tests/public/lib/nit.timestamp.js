@@ -12,5 +12,5 @@ test ("nit.timestamp ()", () =>
     }
 
     expect (nit.timestamp (+new Date (2023, 2, 1))).toBe ("2023-03-01 00:00:00");
-    expect (nit.timestamp ("2023-03-01", "America/Indianapolis", true)).toMatch (/.*-5$/);
+    expect (nit.timestamp ("2023-03-01", "America/Indianapolis", true)).toMatch (/.*-05:00$/);
 });

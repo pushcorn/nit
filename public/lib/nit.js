@@ -122,7 +122,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             hour: "2-digit",
             minute: "2-digit",
             second: "2-digit",
-            timeZoneName: "short"
+            timeZoneName: "longOffset"
         }
     });
 
@@ -1115,6 +1115,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    nit.timezone = function ()
+    {
+        return Intl.DateTimeFormat ().resolvedOptions ().timeZone;
+    };
+
+
     // returns the local date time string
     nit.timestamp = function (date, timezone, keepOffset)
     {
@@ -1357,45 +1363,53 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.parseRegExp.PATTERN  = /^\/(.*?)\/([gimuy]*)$/;
 
 
-    // parses ISO8601 date string
-    // for time only, at least the hh:mm must be provided
-    // for date only, at least the YYYY-MM must be provided
-    nit.parseDate = function (str, timezone)
+    // Parse the string into local time.
+    // If the timezone is provided, then it treats the input as the local time at that timezone.
+    var nit_parseDate = nit.parseDate = function (str, timezone)
     {
-        if (timezone)
-        {
-            var utc = nit.parseDate (str + "Z");
-            var timestamp = Intl.DateTimeFormat ("sv", nit.assign.defined ({}, { timeZone: timezone }, nit.DATE_TIME_FORMAT_OPTIONS)).format (utc);
-            var offset = timestamp.replace ("\u2212", "-").split (/\sGMT/).pop ();
-
-            return nit.parseDate (str + offset);
-        }
-
         if (str instanceof Date)
         {
             return str;
         }
 
-        var d;
-
-        if (str && (d = nit.parseDate.PATTERN.exec (str)))
+        if (timezone)
         {
-            var now = new Date ();
+            var o = nit_parseDate.match (str);
+            var date = new Date (Date.UTC (o.year, o.month, o.day, o.hour - 14));
+            var fields = nit.keys (nit_parseDate.ADJUSTMENTS);
+            var timestamp;
 
-            d   =
+            timestamp = nit.timestamp (date, timezone);
+            var m = nit_parseDate.match (timestamp);
+            date.setTime (date - m.minute * 60 * 1000 - m.second * 1000 - m.msec);
+            timestamp = nit.timestamp (date, timezone);
+
+            while (timestamp != str && fields.length)
             {
-                year:     d[2] !== undefined ? ~~d[2] : now.getFullYear (),
-                month:    d[3] !== undefined ? (~~d[3] - 1) : now.getMonth (),
-                day:      d[4] !== undefined ? ~~d[4] : now.getDate (),
-                hour:     (d[6] !== undefined ? ~~d[6] : 0),
-                minute:   (d[7] !== undefined ? ~~d[7] : 0),
-                second:   d[8] !== undefined ? ~~d[8] : 0,
-                msec:     d[9] !== undefined ? ~~d[9] : 0,
-                offHour:  d[10] == "Z" ? 0 : ~~d[11],
-                offMin:   ~~d[12] * (d[11] && d[11][0] == "-" ? -1 : 1),
-                offset:   d[10] !== undefined
-            };
+                timestamp = nit.timestamp (date, timezone);
 
+                var field = fields[0];
+                var n = nit_parseDate.match (timestamp);
+                var ov = o[field];
+                var nv = n[field];
+
+                if (nv < ov)
+                {
+                    date.setTime (date * 1 + nit_parseDate.ADJUSTMENTS[field]);
+                }
+                else
+                {
+                    fields.shift ();
+                }
+            }
+
+            return date;
+        }
+
+        var d = nit_parseDate.match (str);
+
+        if (d)
+        {
             var diff;
             var tzOffset = new Date (d.year, d.month, d.day).getTimezoneOffset ();
 
@@ -1409,6 +1423,45 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             return new Date (d.year, d.month, d.day, d.hour, d.minute, d.second, d.msec);
         }
+    };
+
+
+    // parse ISO8601 date string into an object
+    // for time only, at least the hh:mm must be provided
+    // for date only, at least the YYYY-MM must be provided
+    nit.parseDate.match = function (str)
+    {
+        var d = nit.trim (str).match (nit.parseDate.PATTERN);
+
+        if (d)
+        {
+            var now = new Date ();
+
+            return {
+                year:     d[2] !== undefined ? ~~d[2] : now.getFullYear (),
+                month:    d[3] !== undefined ? (~~d[3] - 1) : now.getMonth (),
+                day:      d[4] !== undefined ? ~~d[4] : now.getDate (),
+                hour:     (d[6] !== undefined ? ~~d[6] : 0),
+                minute:   (d[7] !== undefined ? ~~d[7] : 0),
+                second:   d[8] !== undefined ? ~~d[8] : 0,
+                msec:     d[9] !== undefined ? ~~d[9] : 0,
+                offHour:  d[10] == "Z" ? 0 : ~~d[11],
+                offMin:   ~~d[12] * (d[11] && d[11][0] == "-" ? -1 : 1),
+                offset:   d[10] !== undefined
+            };
+        }
+    };
+
+
+    nit.parseDate.ADJUSTMENTS =
+    {
+        year: 60 * 60 * 1000,
+        month: 60 * 60 * 1000,
+        day: 60 * 60 * 1000,
+        hour: 60 * 60 * 1000,
+        minute: 60 * 1000,
+        second: 1000,
+        msec: 1
     };
 
     //                 0                                1              2        3    4     5               6     7     8     9      10        11     12
