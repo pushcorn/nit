@@ -41,8 +41,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     var NIT = "nit";
     var EUC = encodeURIComponent;
     var READY = false;
-    var IGNORED_PROPS = OBJECT.keys (OBJECT.getOwnPropertyDescriptors (OBJECT_PROTO));
-    var IGNORED_FUNC_PROPS = OBJECT.keys (OBJECT.getOwnPropertyDescriptors (Function.prototype)).concat ("prototype");
     var PROPERTY_WRITER;
 
 
@@ -114,6 +112,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         ERROR_CODE_PATTERN: /^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$/,
         EXPANDABLE_ARG_PATTERN: /\.\.(([a-z][a-z0-9_$]+)(\|[a-z][a-z0-9_$]+)*)(!?)$/i,
         PPP: "$__", // private property prefix
+        IGNORED_PROPS: OBJECT.keys (OBJECT.getOwnPropertyDescriptors (OBJECT_PROTO)).concat ("global"),
+        IGNORED_FUNC_PROPS: OBJECT.keys (OBJECT.getOwnPropertyDescriptors (Function.prototype)).concat ("prototype"),
+        IGNORED_ARRAY_PROPS: OBJECT.keys (OBJECT.getOwnPropertyDescriptors (ARR_PROTO)),
         DATE_TIME_FORMAT_OPTIONS:
         {
             year: "numeric",
@@ -122,6 +123,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             hour: "2-digit",
             minute: "2-digit",
             second: "2-digit",
+            fractionalSecondDigits: undefined,
             timeZoneName: "longOffset"
         }
     });
@@ -466,7 +468,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         while ((o = chain.shift ()))
         {
             var ds = OBJECT.getOwnPropertyDescriptors (o);
-            var ignored = typeof o == "function" ? IGNORED_FUNC_PROPS : IGNORED_PROPS;
+            var ignored = typeof o == "function" ? nit.IGNORED_FUNC_PROPS : nit.IGNORED_PROPS;
 
             for (var n in ds)
             {
@@ -538,23 +540,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.keys = function (obj, all)
     {
-        var keys = [];
-        var pds = nit.propertyDescriptors (obj, all);
-
-        for (var k in pds)
-        {
-            if (!nit.keys.IGNORED_PROPERTIES.test (k))
-            {
-                keys.push (k);
-            }
-        }
-
-        return keys;
+        return Object.keys (nit.propertyDescriptors (obj, all));
     };
-
-
-    nit.keys.IGNORED_PROPERTIES = /^(global|constructor|toString)$/i;
-    nit.keys.DEFAULT_ARRAY_PROPERTIES = nit.keys ([], true);
 
 
     nit.values = function (obj, all)
@@ -1122,8 +1109,18 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     // returns the local date time string
-    nit.timestamp = function (date, timezone, keepOffset)
+    nit.timestamp = function (date, timezone, keepOffset, formatOptions) // eslint-disable-line no-unused-vars
     {
+        var opts = nit.typedArgsToObj (arguments,
+        {
+            date: ["integer", "string", "Date"],
+            timezone: "string",
+            keepOffset: "boolean",
+            formatOptions: "object"
+        });
+
+        date = opts.date || new Date ();
+
         if (nit.is.str (date))
         {
             date = nit.parseDate (date);
@@ -1134,15 +1131,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             date = new Date (date);
         }
 
-        date = date || new Date ();
-
-        var timestamp = Intl.DateTimeFormat ("sv", nit.assign.defined ({}, { timeZone: timezone }, nit.DATE_TIME_FORMAT_OPTIONS))
+        var timestamp = Intl.DateTimeFormat ("sv", nit.assign.defined ({}, { timeZone: opts.timezone }, nit.DATE_TIME_FORMAT_OPTIONS, opts.formatOptions))
             .format (date)
             .replace ("\u2212", "-")
+            .replace (",", ".")
             .split (/\sGMT/)
         ;
 
-        return keepOffset ? timestamp.join ("") : timestamp[0];
+        return opts.keepOffset ? timestamp.join ("") : timestamp[0];
     };
 
 
@@ -1375,18 +1371,25 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         if (timezone)
         {
             var o = nit_parseDate.match (str);
+
+            if (!o)
+            {
+                return;
+            }
+
             var date = new Date (Date.UTC (o.year, o.month, o.day, o.hour - 14));
             var fields = nit.keys (nit_parseDate.ADJUSTMENTS);
-            var timestamp;
+            var fo = { fractionalSecondDigits: 3 };
+            var timestamp, m;
 
-            timestamp = nit.timestamp (date, timezone);
-            var m = nit_parseDate.match (timestamp);
-            date.setTime (date - m.minute * 60 * 1000 - m.second * 1000 - m.msec);
-            timestamp = nit.timestamp (date, timezone);
+            timestamp = nit.timestamp (date, timezone, fo);
+            m = nit_parseDate.match (timestamp);
+            date.setTime (date - m.minute * 60 * 1000 - m.second * 1000 - m.millisecond);
+            timestamp = nit.timestamp (date, timezone, fo);
 
             while (timestamp != str && fields.length)
             {
-                timestamp = nit.timestamp (date, timezone);
+                timestamp = nit.timestamp (date, timezone, fo);
 
                 var field = fields[0];
                 var n = nit_parseDate.match (timestamp);
@@ -1408,21 +1411,23 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         var d = nit_parseDate.match (str);
 
-        if (d)
+        if (!d)
         {
-            var diff;
-            var tzOffset = new Date (d.year, d.month, d.day).getTimezoneOffset ();
-
-            if (d.offset)
-            {
-                diff = tzOffset + d.offHour * 60 + d.offMin;
-
-                d.hour    -= ~~(diff / 60);
-                d.minute  -= diff % 60;
-            }
-
-            return new Date (d.year, d.month, d.day, d.hour, d.minute, d.second, d.msec);
+            return;
         }
+
+        var diff;
+        var tzOffset = new Date (d.year, d.month, d.day).getTimezoneOffset ();
+
+        if (d.offset)
+        {
+            diff = tzOffset + d.offHour * 60 + d.offMin;
+
+            d.hour    -= ~~(diff / 60);
+            d.minute  -= diff % 60;
+        }
+
+        return new Date (d.year, d.month, d.day, d.hour, d.minute, d.second, d.millisecond);
     };
 
 
@@ -1438,16 +1443,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var now = new Date ();
 
             return {
-                year:     d[2] !== undefined ? ~~d[2] : now.getFullYear (),
-                month:    d[3] !== undefined ? (~~d[3] - 1) : now.getMonth (),
-                day:      d[4] !== undefined ? ~~d[4] : now.getDate (),
-                hour:     (d[6] !== undefined ? ~~d[6] : 0),
-                minute:   (d[7] !== undefined ? ~~d[7] : 0),
-                second:   d[8] !== undefined ? ~~d[8] : 0,
-                msec:     d[9] !== undefined ? ~~d[9] : 0,
-                offHour:  d[10] == "Z" ? 0 : ~~d[11],
-                offMin:   ~~d[12] * (d[11] && d[11][0] == "-" ? -1 : 1),
-                offset:   d[10] !== undefined
+                year: d[2] !== undefined ? ~~d[2] : now.getFullYear (),
+                month: d[3] !== undefined ? (~~d[3] - 1) : now.getMonth (),
+                day: d[4] !== undefined ? ~~d[4] : now.getDate (),
+                hour: (d[6] !== undefined ? ~~d[6] : 0),
+                minute: (d[7] !== undefined ? ~~d[7] : 0),
+                second: d[8] !== undefined ? ~~d[8] : 0,
+                millisecond: d[9] !== undefined ? ~~d[9] : 0,
+                offHour: d[10] == "Z" ? 0 : ~~d[11],
+                offMin: ~~d[12] * (d[11] && d[11][0] == "-" ? -1 : 1),
+                offset: d[10] !== undefined
             };
         }
     };
@@ -1461,7 +1466,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         hour: 60 * 60 * 1000,
         minute: 60 * 1000,
         second: 1000,
-        msec: 1
+        millisecond: 1
     };
 
     //                 0                                1              2        3    4     5               6     7     8     9      10        11     12
@@ -1968,12 +1973,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     {
         return nit.clone (obj, function (obj, k, node)
         {
-            return !(node.array && k in nit.clone.deep.IGNORED_ARRAY_PROPERTIES);
+            return !(node.array && ~nit.IGNORED_ARRAY_PROPS.indexOf (k));
 
         }, true);
     };
-
-    nit.clone.deep.IGNORED_ARRAY_PROPERTIES = nit.flip (nit.keys.DEFAULT_ARRAY_PROPERTIES);
 
 
     nit.clone.shallow = function (obj, all)
@@ -5508,11 +5511,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             return v === undefined ? "<undefined>" : nit.serialize (v, indent);
         })
-        .staticLifecycleMethod ("preBuildConstructorParams", function (obj, params)
+        .staticLifecycleMethod ("preBuildConstructorParams", function (obj, params, args)
         {
             var cls = this;
 
-            return cls.invokeClassChainMethod ([obj, cls.kPreBuildConstructorParams], [params]);
+            return cls.invokeClassChainMethod ([obj, cls.kPreBuildConstructorParams], [params, args]);
         })
         .staticLifecycleMethod ("preConstruct", function (obj, args)
         {
@@ -5735,7 +5738,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return nit.Queue ()
                 .push (function ()
                 {
-                    return cls.preBuildConstructorParams (obj, params);
+                    return cls.preBuildConstructorParams (obj, params, args);
                 })
                 .push (function ()
                 {

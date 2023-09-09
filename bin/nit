@@ -18,8 +18,10 @@ if [ -t 1 ]; then
     do
         /usr/bin/env node "${NODE_ARGS[@]}"
 
-        if [ "$?" != "$NIT_RESTART_CODE" ]; then
-            break
+        exit_code=$?
+
+        if [ "$exit_code" != "$NIT_RESTART_CODE" ]; then
+            exit $exit_code
         fi
     done
 else

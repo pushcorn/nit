@@ -14,4 +14,17 @@ test ("nit.keys () returns the keys of an object", () =>
     expect (nit.keys ({ a: 1, root: 4, global: 5 })).toEqual (["a", "root"]);
     expect (nit.keys (c)).toEqual (["a", "b", "f", "g"]);
     expect (nit.keys (c, true)).toEqual (["a", "b", "f", "g", "hidden"]);
+
+    nit.defineClass ("A")
+        .field ("a", "string")
+    ;
+
+    const B = nit.defineClass ("B", "A")
+        .field ("b", "string")
+    ;
+
+    let b = new B ({ a: "aa", b: "bb" });
+
+    expect (nit.keys (b)).toEqual (["a", "b"]);
+    expect (nit.keys (b, true)).toEqual (["t", "throw", "toPojo", "a", "b", "$__a", "$__b"]);
 });

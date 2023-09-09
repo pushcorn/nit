@@ -9,6 +9,8 @@ test ("commands.Test", async () =>
     Jest.method ("run", function (dir)
     {
         testDir = dir;
+
+        return { results: { success: true } };
     });
 
     await Test ().run ();
@@ -32,6 +34,8 @@ test ("commands.Test - setupFilesAfterEnv", async () =>
     {
         testDir = dir;
         jestConfig = this.config;
+
+        return { results: { success: false } };
     });
 
     await Test ().run ({ dir: projectDir });

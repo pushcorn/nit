@@ -4,6 +4,7 @@ test ("nit.parseDate ()", () =>
 
     expect (nit.parseDate (new Date (2000, 1, 1))).toBeInstanceOf (Date);
     expect (nit.parseDate ("ABC")).toBe (undefined);
+    expect (nit.parseDate ("ABC", "America/Indianapolis")).toBe (undefined);
     expect (nit.parseDate ("2023-04-01")).toBeInstanceOf (Date);
 
     d = nit.parseDate ("12:13:14.123");
