@@ -29,16 +29,30 @@ test ("nit.parseDate () with timezone", () =>
 {
     function testParseDateAtTimezone (str, tz, utcTimestamp, localTimestamp)
     {
+        let m = nit.parseDate.match (str);
+
         expect (nit.parseDate (str, tz).toISOString ()).toBe (utcTimestamp);
-        expect (nit.timestamp (new Date (utcTimestamp), tz)).toBe (localTimestamp);
+        expect (nit.timestamp (new Date (utcTimestamp), tz, m.hasMillisecond ? { fractionalSecondDigits: 3 } : null)).toBe (localTimestamp);
     }
 
     testParseDateAtTimezone ("2023-03-12 01:00:00", "America/Indianapolis", "2023-03-12T06:00:00.000Z", "2023-03-12 01:00:00");
     testParseDateAtTimezone ("2023-03-12 02:00:00", "America/Indianapolis", "2023-03-12T07:00:00.000Z", "2023-03-12 03:00:00");
     testParseDateAtTimezone ("2023-03-12 03:00:00", "America/Indianapolis", "2023-03-12T07:00:00.000Z", "2023-03-12 03:00:00");
+    testParseDateAtTimezone ("2023-03-12 04:00:00", "America/Indianapolis", "2023-03-12T08:00:00.000Z", "2023-03-12 04:00:00");
+    testParseDateAtTimezone ("2023-03-13 04:00:00", "America/Indianapolis", "2023-03-13T08:00:00.000Z", "2023-03-13 04:00:00");
+    testParseDateAtTimezone ("2023-03-14 04:00:00", "America/Indianapolis", "2023-03-14T08:00:00.000Z", "2023-03-14 04:00:00");
     testParseDateAtTimezone ("2023-11-05 01:00:00", "America/Indianapolis", "2023-11-05T05:00:00.000Z", "2023-11-05 01:00:00");
     testParseDateAtTimezone ("2023-11-05 02:00:00", "America/Indianapolis", "2023-11-05T07:00:00.000Z", "2023-11-05 02:00:00");
     testParseDateAtTimezone ("2023-11-05 03:00:00", "America/Indianapolis", "2023-11-05T08:00:00.000Z", "2023-11-05 03:00:00");
+    testParseDateAtTimezone ("2023-11-05 04:00:00", "America/Indianapolis", "2023-11-05T09:00:00.000Z", "2023-11-05 04:00:00");
+
+    testParseDateAtTimezone ("2023-03-12 01:00:00", "America/St_Johns", "2023-03-12T04:30:00.000Z", "2023-03-12 01:00:00");
+    testParseDateAtTimezone ("2023-03-12 02:00:00", "America/St_Johns", "2023-03-12T05:30:00.000Z", "2023-03-12 03:00:00");
+    testParseDateAtTimezone ("2023-03-12 02:50:00", "America/St_Johns", "2023-03-12T06:20:00.000Z", "2023-03-12 03:50:00");
+    testParseDateAtTimezone ("2023-03-12 03:00:00", "America/St_Johns", "2023-03-12T05:30:00.000Z", "2023-03-12 03:00:00");
+    testParseDateAtTimezone ("2023-11-05 01:00:00", "America/St_Johns", "2023-11-05T03:30:00.000Z", "2023-11-05 01:00:00");
+    testParseDateAtTimezone ("2023-11-05 02:00:00", "America/St_Johns", "2023-11-05T05:30:00.000Z", "2023-11-05 02:00:00");
+    testParseDateAtTimezone ("2023-11-05 03:00:00", "America/St_Johns", "2023-11-05T06:30:00.000Z", "2023-11-05 03:00:00");
 
     testParseDateAtTimezone ("2023-01-01 00:00:00", "Asia/Taipei", "2022-12-31T16:00:00.000Z", "2023-01-01 00:00:00");
     testParseDateAtTimezone ("2023-01-01 01:00:00", "Asia/Taipei", "2022-12-31T17:00:00.000Z", "2023-01-01 01:00:00");
@@ -56,10 +70,11 @@ test ("nit.parseDate () with timezone", () =>
     testParseDateAtTimezone ("2023-04-28 00:00:00", "Egypt", "2023-04-27T22:00:00.000Z", "2023-04-28 01:00:00");
     testParseDateAtTimezone ("2023-04-28 01:00:00", "Egypt", "2023-04-27T22:00:00.000Z", "2023-04-28 01:00:00");
     testParseDateAtTimezone ("2023-04-28 02:00:00", "Egypt", "2023-04-27T23:00:00.000Z", "2023-04-28 02:00:00");
+    testParseDateAtTimezone ("2023-04-28 03:00:00", "Egypt", "2023-04-28T00:00:00.000Z", "2023-04-28 03:00:00");
 
+    testParseDateAtTimezone ("2023-10-26 22:00:00", "Egypt", "2023-10-26T19:00:00.000Z", "2023-10-26 22:00:00");
     testParseDateAtTimezone ("2023-10-26 23:00:00", "Egypt", "2023-10-26T20:00:00.000Z", "2023-10-26 23:00:00");
     testParseDateAtTimezone ("2023-10-27 00:00:00", "Egypt", "2023-10-26T22:00:00.000Z", "2023-10-27 00:00:00");
     testParseDateAtTimezone ("2023-10-27 01:00:00", "Egypt", "2023-10-26T23:00:00.000Z", "2023-10-27 01:00:00");
-
-
+    testParseDateAtTimezone ("2023-10-27 02:00:00.001", "Egypt", "2023-10-27T00:00:00.001Z", "2023-10-27 02:00:00.001");
 });

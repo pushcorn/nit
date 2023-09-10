@@ -110,6 +110,13 @@ test ("nit.test.Strategy.ValueValidator", () =>
 
     validator.expected = function () { return 9; };
     validator.validate ({ result: 9 });
+
+    const A = nit.defineClass ("A")
+        .field ("<val>", "string")
+    ;
+
+    validator.expected = new A (99);
+    validator.validate ({ result: new A (99) });
 });
 
 

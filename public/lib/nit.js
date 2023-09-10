@@ -75,7 +75,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.dpv = function (o, p, v, configurable, enumerable)
     {
-        if (typeof v == "function" && !v.name && p.indexOf (nit.PPP) != 0)
+        if (typeof v == "function"
+            && !v.name
+            && typeof p == "string"
+            && p.indexOf (nit.PPP) != 0)
         {
             nit.dpv (v, "name", p, true, false);
         }
@@ -1368,66 +1371,80 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return str;
         }
 
-        if (timezone)
-        {
-            var o = nit_parseDate.match (str);
+        var match = nit_parseDate.match;
+        var m = match (str);
 
-            if (!o)
-            {
-                return;
-            }
-
-            var date = new Date (Date.UTC (o.year, o.month, o.day, o.hour - 14));
-            var fields = nit.keys (nit_parseDate.ADJUSTMENTS);
-            var fo = { fractionalSecondDigits: 3 };
-            var timestamp, m;
-
-            timestamp = nit.timestamp (date, timezone, fo);
-            m = nit_parseDate.match (timestamp);
-            date.setTime (date - m.minute * 60 * 1000 - m.second * 1000 - m.millisecond);
-            timestamp = nit.timestamp (date, timezone, fo);
-
-            while (timestamp != str && fields.length)
-            {
-                timestamp = nit.timestamp (date, timezone, fo);
-
-                var field = fields[0];
-                var n = nit_parseDate.match (timestamp);
-                var ov = o[field];
-                var nv = n[field];
-
-                if (nv < ov)
-                {
-                    date.setTime (date * 1 + nit_parseDate.ADJUSTMENTS[field]);
-                }
-                else
-                {
-                    fields.shift ();
-                }
-            }
-
-            return date;
-        }
-
-        var d = nit_parseDate.match (str);
-
-        if (!d)
+        if (!m)
         {
             return;
         }
 
-        var diff;
-        var tzOffset = new Date (d.year, d.month, d.day).getTimezoneOffset ();
-
-        if (d.offset)
+        if (timezone)
         {
-            diff = tzOffset + d.offHour * 60 + d.offMin;
+            var opts = m.hasMillisecond ? { fractionalSecondDigits: 3 } : undefined;
+            var utc = new Date (Date.UTC (m.year, m.month, m.day, m.hour, m.minute, m.second, m.millisecond));
+            var utcTs = nit.timestamp (utc, timezone, true, opts);
+            var utcParts = match (utcTs);
+            var target = new Date (utc - utcParts.offset);
+            var targetTs = nit.timestamp (target, timezone, true, opts);
+            var targetParts = match (targetTs);
 
-            d.hour    -= ~~(diff / 60);
-            d.minute  -= diff % 60;
+            var prevHour = new Date (target - 3600000);
+            var prevHourTs = nit.timestamp (prevHour, timezone, true, opts);
+            var prevHourParts = match (prevHourTs);
+
+            var nextHour = new Date (target * 1 + 3600000);
+            var nextHourTs = nit.timestamp (nextHour, timezone, true, opts);
+            var nextHourParts = match (nextHourTs);
+
+            if (prevHourParts.offset == nextHourParts.offset)
+            {
+                if (prevHourParts.timestamp == m.timestamp)
+                {
+                    return prevHour;
+                }
+
+                if (nextHourParts.offset < utcParts.offset)
+                {
+                    return nextHour;
+                }
+            }
+            else
+            if (prevHourParts.offset < nextHourParts.offset)
+            {
+                if (targetParts.timestamp < m.timestamp)
+                {
+                    return nextHour;
+                }
+            }
+            else
+            {
+                if (nextHourParts.timestamp == m.timestamp && nextHourParts.offset == targetParts.offset)
+                {
+                    return nextHour;
+                }
+                else
+                if (prevHourParts.timestamp == m.timestamp)
+                {
+                    return prevHour;
+                }
+            }
+
+            return target;
         }
 
-        return new Date (d.year, d.month, d.day, d.hour, d.minute, d.second, d.millisecond);
+        var diff;
+        var tzOffset = new Date (m.year, m.month, m.day).getTimezoneOffset ();
+
+        if (m.hasOffset)
+        {
+            diff = tzOffset + m.offHour * 60 + m.offMin;
+
+            m.hour -= ~~(diff / 60);
+            m.minute -= diff % 60;
+        }
+
+        return new Date (m.year, m.month, m.day, m.hour, m.minute, m.second, m.millisecond);
     };
 
 
@@ -1441,8 +1458,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         if (d)
         {
             var now = new Date ();
-
-            return {
+            var m =
+            {
                 year: d[2] !== undefined ? ~~d[2] : now.getFullYear (),
                 month: d[3] !== undefined ? (~~d[3] - 1) : now.getMonth (),
                 day: d[4] !== undefined ? ~~d[4] : now.getDate (),
@@ -1450,10 +1467,19 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 minute: (d[7] !== undefined ? ~~d[7] : 0),
                 second: d[8] !== undefined ? ~~d[8] : 0,
                 millisecond: d[9] !== undefined ? ~~d[9] : 0,
+                hasMillisecond: d[9] !== undefined,
+                hasOffset: d[10] !== undefined,
                 offHour: d[10] == "Z" ? 0 : ~~d[11],
-                offMin: ~~d[12] * (d[11] && d[11][0] == "-" ? -1 : 1),
-                offset: d[10] !== undefined
+                offMin: ~~d[12] * (d[11] && d[11][0] == "-" ? -1 : 1)
             };
+
+            m.offset = (m.offHour * 60 + m.offMin) * 60 * 1000;
+            m.timestamp = m.year + "-" + nit.lpad (m.month + 1, 2, 0) + "-" + nit.lpad (m.day, 2, 0)
+                + " " + nit.lpad (m.hour, 2, 0) + ":" + nit.lpad (m.minute, 2, 0) + ":" + nit.lpad (m.second, 2, 0)
+                + (m.hasMillisecond ? "." + nit.lpad (m.millisecond, 3, 0) : "")
+            ;
+
+            return m;
         }
     };
 
@@ -4926,6 +4952,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return nit.dpv (this, name, method, true, false);
         }
         ,
+        staticSymbolMethod: function (name, method)
+        {
+            if ((name = nit.get (global.Symbol, name)))
+            {
+                this.staticMethod (name, method);
+            }
+
+            return this;
+        }
+        ,
         staticLifecycleMethod: function (name, impl, hook) // hook could be a function or the boolean value 'true'
         {
             if (nit.is.bool (impl))
@@ -5090,6 +5126,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         method: function (name, method)
         {
             nit.dpv (this.prototype, name, method, true, false);
+
+            return this;
+        }
+        ,
+        symbolMethod: function (name, method)
+        {
+            if ((name = nit.get (global.Symbol, name)))
+            {
+                this.method (name, method);
+            }
 
             return this;
         }

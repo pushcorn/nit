@@ -774,6 +774,50 @@ test ("nit.Object.toPojo ()", () =>
 });
 
 
+test ("nit.Object.staticSymbolMethod ()", () =>
+{
+    let method = (function () { return function () {}; }) ();
+
+    const A = nit.defineClass ("A")
+        .staticSymbolMethod ("hasInstance", function ()
+        {
+            A.hasInstanceCalled = true;
+
+            return false;
+        })
+        .staticSymbolMethod ("invalid", method)
+    ;
+
+    let a = new A;
+
+    expect (a instanceof A).toBe (false);
+    expect (A.hasInstanceCalled).toBe (true);
+    expect (method.name).toBe ("");
+});
+
+
+test ("nit.Object.symbolMethod ()", () =>
+{
+    let method = (function () { return function () {}; }) ();
+
+    const A = nit.defineClass ("A")
+        .symbolMethod ("toPrimitive", function ()
+        {
+            A.toPrimitiveCalled = true;
+
+            return 1234;
+        })
+        .symbolMethod ("invalid", method)
+    ;
+
+    let a = new A;
+
+    expect (a * 10).toBe (12340);
+    expect (A.toPrimitiveCalled).toBe (true);
+    expect (method.name).toBe ("");
+});
+
+
 test ("nit.Object.mixin ()", () =>
 {
     const Mix = nit.Object.defineSubclass ("mixins.Mix")

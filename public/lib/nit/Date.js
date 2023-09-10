@@ -4,7 +4,7 @@ module.exports = function (nit, Self)
         .constant ("DATE_TIME_FORMAT_OPTIONS", { fractionalSecondDigits: 3 })
         .constant ("DAY_NAMES", "Sun|Mon|Tue|Wed|Thu|Fri|Sat".split ("|"))
         .field ("[date]", "any", "The date to be parsed.", function () { return new Date; })
-            .constraint ("type", "integer", "string", "Date")
+            .constraint ("type", "integer", "string", "Date", "nit.Date")
             .constraint ("custom",
             {
                 code: "error.invalid_date",
@@ -20,12 +20,20 @@ module.exports = function (nit, Self)
 
         .onConstruct (function (date, timezone)
         {
-            if (nit.is.int (date))
+            if (date instanceof nit.Date)
             {
-                date = new Date (date);
+                this.date = date.date;
+                this.timezone = date.timezone;
             }
+            else
+            {
+                if (nit.is.int (date))
+                {
+                    date = new Date (date);
+                }
 
-            this.date = nit.parseDate (date, timezone);
+                this.date = nit.parseDate (date, timezone);
+            }
         })
         .method ("toTimestamp", function (keepOffset)
         {
@@ -44,11 +52,16 @@ module.exports = function (nit, Self)
             var self = this;
             var c = self.getComponents ();
 
-            c[component] = value;
+            if (c[component] !== value)
+            {
+                c[component] = value;
 
-            var d = new Date (Date.UTC (c.year, c.month, c.day, c.hour, c.minute, c.second, c.millisecond));
+                var d = new Date (Date.UTC (c.year, c.month, c.day, c.hour, c.minute, c.second, c.millisecond));
 
-            return (self.date = nit.parseDate (d.toISOString (), self.timezone)) * 1;
+                self.date = nit.parseDate (d.toISOString (), self.timezone);
+            }
+
+            return self.date * 1;
         })
         .method ("getDate", function ()
         {
@@ -226,7 +239,7 @@ module.exports = function (nit, Self)
             var offset = Intl.DateTimeFormat ("en-US", { day: "2-digit", timeZone: tz, timeZoneName: "longOffset" }).format (date);
 
             return nit.parseDate (ts).toTimeString ().slice (0, 9)
-                + offset.slice (4).replace (/:/, "")
+                + offset.slice (4).replace (":", "")
                 + " (" + name.slice (4) + ")";
         })
         .method ("toUTCString", function ()
@@ -261,8 +274,12 @@ module.exports = function (nit, Self)
             ;
 
             return dateTime
-                + " " + offset.slice (4).replace (/:/, "")
+                + " " + offset.slice (4).replace (":", "")
                 + " (" + name.slice (4) + ")";
+        })
+        .symbolMethod ("toPrimitive", function (hint)
+        {
+            return hint == "number" ? this.valueOf () : this.toString ();
         })
     ;
 };
