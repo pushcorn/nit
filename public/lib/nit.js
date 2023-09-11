@@ -1134,7 +1134,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             date = new Date (date);
         }
 
-        var timestamp = Intl.DateTimeFormat ("sv", nit.assign.defined ({}, { timeZone: opts.timezone }, nit.DATE_TIME_FORMAT_OPTIONS, opts.formatOptions))
+        var timestamp = Intl.DateTimeFormat ("sv", OBJECT.assign ({ timeZone: opts.timezone }, nit.DATE_TIME_FORMAT_OPTIONS, opts.formatOptions))
             .format (date)
             .replace ("\u2212", "-")
             .replace (",", ".")
@@ -6167,7 +6167,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return nit.Queue ()
                 .push (function ()
                 {
-                    return !constraint.conditionFn || constraint.conditionFn (nit.assign ({ nit: nit, this: ctx }, ctx.owner));
+                    return !constraint.conditionFn || constraint.conditionFn (nit.assign ({ nit: nit, this: ctx }, ctx.toPojo (true)));
                 })
                 .push (function (q)
                 {
@@ -6265,12 +6265,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 return nit.is.obj (c) ? c.value : c;
             });
         })
+        .memo ("choiceMap", function ()
+        {
+            return this.choiceValues.reduce (function (a, c) { return (a[c] = true) && a; }, {});
+        })
         .onValidate (function (ctx)
         {
-            return ctx.constraint.choiceValues.some (function (v)
-            {
-                return v === ctx.value;
-            });
+            return ctx.constraint.choiceMap[ctx.value];
         });
 
 
