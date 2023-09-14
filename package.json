@@ -2,7 +2,7 @@
     "name": "@pushcorn/nit",
     "version": "1.7.0",
     "main": "lib/nit.js",
-    "description": "A toolbox for building CLI and web apps in a modular way.",
+    "description": "Node Isomorphoic Toolkit - A JavaScript toolkit for building server, web, and CLI applications in isomorphoic way.",
     "bin": "./bin/nit",
     "license": "ISC",
     "files": [
@@ -15,7 +15,7 @@
     ],
     "devDependencies": {
         "eslint": "8.49.0",
-        "jest": "29.6.4",
-        "jest-environment-jsdom": "29.6.4"
+        "jest": "29.7.0",
+        "jest-environment-jsdom": "29.7.0"
     }
 }

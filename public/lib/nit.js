@@ -4204,7 +4204,23 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     {
                         var vs = Property.filterValues (prop, owner, ARRAY (arguments));
 
+                        Property.link (prop, owner, vs);
+
                         return vs.length || isAny ? arrayMethod.apply (this, vs) : this.length;
+                    });
+                });
+
+                ["pop", "shift"].forEach (function (method)
+                {
+                    var arrayMethod = ARR_PROTO[method];
+
+                    nit.dpv (arr, method, function ()
+                    {
+                        var v = arrayMethod.call (this);
+
+                        Property.unlink (prop, owner, v);
+
+                        return v;
                     });
                 });
             };
@@ -4282,7 +4298,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     nit.throw.call (owner, { code: Property.invalidValueCode (prop), source: prop, owner: owner }, { value: v, property: prop });
                 }
 
-
                 v = Property.filterValues (prop, owner, isArr ? v : nit.array (v));
 
                 if (prop.array && !isArr && prop.nullable && !v.length)
@@ -4323,14 +4338,48 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 }
                 else
                 {
+                    Property.unlink (prop, owner, owner[privProp]);
+
                     owner[privProp] = v;
                 }
+
+                Property.link (prop, owner, v);
 
                 if (prop.shouldValidate (owner)
                     && !nit.is.promise (v)
                     && (!nit.is.empty (v) || prop.required))
                 {
                     return prop.validate (owner, v);
+                }
+            };
+
+
+            Property.link = function (prop, owner, value)
+            {
+                if (prop.backref)
+                {
+                    nit.array (value).forEach (function (v)
+                    {
+                        if (nit.is.obj (v))
+                        {
+                            v[prop.backref] = owner;
+                        }
+                    });
+                }
+            };
+
+
+            Property.unlink = function (prop, owner, value)
+            {
+                if (prop.backref)
+                {
+                    nit.array (value).forEach (function (v)
+                    {
+                        if (nit.is.obj (v))
+                        {
+                            v[prop.backref] = undefined;
+                        }
+                    });
                 }
             };
 
@@ -4434,6 +4483,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     setter: cfg.setter,
                     getter: cfg.getter,
                     caster: cfg.caster,
+                    backref: cfg.backref,
                     primitive: parser instanceof nit.Object.PrimitiveTypeParser,
                     parser: parser,
                     privProp: nit.PPP + name,
@@ -4494,6 +4544,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 set: undefined,
                 getter: undefined,
                 setter: undefined,
+                backref: undefined,
                 caster: undefined,
                 parser: undefined,
                 privProp: "",
@@ -6391,6 +6442,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .property ("set", "function")
         .property ("getter", "function")
         .property ("setter", "function")
+        .property ("backref", "string")
         .property ("caster", "function")
         .property ("cast", "function")
         .property ("target", "any") // the prototype to which the field was bound

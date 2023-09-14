@@ -226,3 +226,73 @@ test ("nit.Object.Property - emptyAllowed", () =>
     a.words = null;
     expect (a.words).toEqual ([]);
 });
+
+
+test ("nit.Object.Property - backref", () =>
+{
+    const A = nit.defineClass ("A")
+        .field ("[b]", "B", { backref: "a" })
+    ;
+
+    const B = nit.defineClass ("B")
+        .field ("[a]", "A")
+    ;
+
+    let b = new B;
+    let a = new A (b);
+
+    expect (a.b.a).toBe (a);
+    a.b = null;
+    expect (b.a).toBeUndefined ();
+
+
+    // array
+    const AA = nit.defineClass ("AA")
+        .field ("[bb...]", "BB", { backref: "aa" })
+    ;
+
+    const BB = nit.defineClass ("BB")
+        .field ("[aa]", "AA")
+    ;
+
+    let bb = new BB;
+    let aa = new AA (bb);
+
+    expect (aa.bb[0].aa).toBe (aa);
+
+    aa.bb.pop ();
+    expect (bb.aa).toBeUndefined ();
+
+    aa.bb.push (bb);
+    expect (bb.aa).toBe (aa);
+
+    aa.bb.shift ();
+    expect (bb.aa).toBeUndefined ();
+
+    aa.bb.push (bb);
+    expect (bb.aa).toBe (aa);
+
+    aa.bb = [];
+    expect (bb.aa).toBeUndefined ();
+
+    // non-object type
+    const F = nit.defineClass ("F")
+        .field ("[g]", "integer", { backref: "f" })
+    ;
+
+    let f = new F (3);
+    expect (f.g.f).toBeUndefined ();
+
+    const FF = nit.defineClass ("FF")
+        .field ("[gg...]", "function", { backref: "ff" })
+    ;
+
+    let g1 = function () {};
+    let g2 = function () {};
+    let ff = new FF (g1, g2);
+    expect (ff.gg[0].ff).toBeUndefined ();
+
+    ff.gg.pop ();
+    expect (g1.ff).toBeUndefined ();
+    expect (g2.ff).toBeUndefined ();
+});
