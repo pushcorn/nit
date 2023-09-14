@@ -4124,9 +4124,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return this;
         }
         ,
-        findTypeParser: function (type)
+        findTypeParser: function (type, nullable)
         {
-            return nit.find (this.TYPE_PARSERS, function (p) { return p.supports (type); });
+            return nit.find (this.TYPE_PARSERS, function (p) { return p.supports (type, nullable); });
         }
         ,
         Property: nit.do (nit.registerClass (nit.createFunction ("nit.Object.Property", true)), function (Property)
@@ -4467,7 +4467,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     name = name.slice (0, -3);
                 }
 
-                var parser = nit.Object.findTypeParser (type);
+                var parser = nit.Object.findTypeParser (type, nullable);
                 var get = cfg.get || Property.get;
                 var set = cfg.set || Property.set;
                 var prop = new Property (spec, type, undefined, configurable, enumerable,
@@ -5289,9 +5289,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             nit.assign (ClassTypeParser.prototype,
             {
-                supports: function (type)
+                supports: function (type, nullable)
                 {
-                    return !!(type && (this.lookupClass (type) || type.match (nit.CLASS_NAME_PATTERN)));
+                    // If nullable is true, then it will not try to load the class to prevent
+                    // cascade loading issues.
+
+                    return !!(type && (!nullable && this.lookupClass (type) || type.match (nit.CLASS_NAME_PATTERN)));
                 }
                 ,
                 lookupClass: function (type)

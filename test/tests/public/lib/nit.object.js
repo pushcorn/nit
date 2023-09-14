@@ -520,6 +520,11 @@ test ("nit.Object.ClassTypeParser ()", () =>
     expect ((new nit.Object.ClassTypeParser).defval).toBeUndefined ();
     expect ((new nit.Object.ClassTypeParser).cast ()).toBeUndefined ();
     expect ((new nit.Object.ClassTypeParser).cast ("@nit.Class", "nit.Class")).toBeInstanceOf (nit.Class);
+
+    expect ((new nit.Object.ClassTypeParser).supports ("commands.Version", true)).toBe (true);
+    expect (nit.NS.commands.Version).toBeUndefined ();
+    expect ((new nit.Object.ClassTypeParser).supports ("commands.Version")).toBe (true);
+    expect (nit.NS.commands.Version).toBeInstanceOf (Function);
 });
 
 
