@@ -1,0 +1,10 @@
+test.method ("plugins.HashCode", "onUsePlugin", true)
+    .should ("add the hashCode getter to the host class")
+    .given (nit.defineClass ("Person")
+        .field ("<name>", "string")
+        .field ("<age>", "integer")
+    )
+    .after (s => s.person = new s.args[0] ("John Doe", 55))
+    .expectingPropertyToBe ("person.hashCode", 1622029782)
+    .commit ()
+;
