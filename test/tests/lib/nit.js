@@ -628,6 +628,8 @@ test ("nit.runCommand", async () =>
     ;
 
 
+    nit.require ("nit.Command");
+
     let Console = nit.require ("commands.Console");
     let mock = test.mock (nit, "lookupCommand", function ()
     {

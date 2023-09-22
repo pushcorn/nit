@@ -262,6 +262,13 @@ test ("nit.test.Strategy.Mock", () =>
     mock = new nit.test.Strategy.Mock ("aaa", "addOne");
     mock.apply ({ a });
     expect (mock.applied).toBe (false);
+
+    a = new A;
+    mock = new nit.test.Strategy.Mock (a, "addOne", 9, { iterations: 2 });
+    mock.apply ({ a });
+    expect (a.addOne (2)).toBe (9);
+    expect (a.addOne (2)).toBe (9);
+    expect (a.addOne (2)).toBe (3);
 });
 
 

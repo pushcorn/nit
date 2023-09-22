@@ -41,11 +41,10 @@ test.nit = function ()
 
     nit.require ("nit.test.Mock");
 
-    nit
-        .lookupComponents ("strategies", Strategy)
-        .forEach (cls =>
+    nit.listComponents ("test.strategies")
+        .forEach (d =>
         {
-            test[nit.camelCase (cls.name.split (".").pop ())] = cls;
+            nit.memoize.dpg (test, nit.camelCase (d.className.split (".").pop ()), true, true, () => d.class);
         })
     ;
 
@@ -223,9 +222,9 @@ test.setupCliMode = async function ()
 };
 
 
-test.mock = function (object, method, mockFn, count)
+test.mock = function (object, method, mockFn, iterations)
 {
-    count = count || 1;
+    iterations = iterations || 1;
 
     if (!(mockFn instanceof Function))
     {
@@ -237,19 +236,29 @@ test.mock = function (object, method, mockFn, count)
         };
     }
 
+    let descriptor = Object.getOwnPropertyDescriptor (object, method);
     let mock =
     {
         invocations: [],
         originalMethod: object[method],
+        iteration: 0,
         restore: function ()
         {
-            object[method] = mock.originalMethod;
+            if (descriptor)
+            {
+                Object.defineProperty (object, method, descriptor);
+            }
+            else
+            {
+                delete object[method];
+            }
         }
     }
 
-    object[method] = function ()
+    function mockImpl ()
     {
-        --count;
+        --iterations;
+        ++mock.iteration;
 
         let result, error, args = Array.prototype.slice.call (arguments);
 
@@ -265,7 +274,7 @@ test.mock = function (object, method, mockFn, count)
         {
             mock.invocations.push ({ result, error, args });
 
-            if (!count)
+            if (!iterations)
             {
                 mock.restore ();
             }
@@ -275,7 +284,9 @@ test.mock = function (object, method, mockFn, count)
                 throw error;
             }
         }
-    };
+    }
+
+    Object.defineProperty (object, method, { value: mockImpl, configurable: true, enumerable: true });
 
     return mock;
 };

@@ -477,6 +477,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             {
                 if ((all || ds[n].enumerable) && !~ignored.indexOf (n))
                 {
+                    delete descriptors[n];
                     descriptors[n] = ds[n];
                 }
             }
@@ -678,8 +679,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         name = cfg.name;
         initializer = cfg.initializer;
-        configurable = nit.is.undef (cfg.configurable) ? true : cfg.configurable;
-        enumerable = nit.is.undef (cfg.enumerable) ? true : cfg.enumerable;
+        configurable = nit.coalesce (cfg.configurable, true);
+        enumerable = nit.coalesce (cfg.enumerable, true);
         validator = cfg.validator;
 
         var privProp = nit.PPP + name;
@@ -1020,7 +1021,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
-
     var DOT_ESC_RE = /\\\./g;
     var DOT_TOKEN = "<" + nit.uuid () + ">";
     var DOT_TOKEN_RE = new RegExp (DOT_TOKEN, "g");
@@ -1134,9 +1134,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             date = new Date (date);
         }
 
-        var timestamp = Intl.DateTimeFormat ("sv", OBJECT.assign ({ timeZone: opts.timezone }, nit.DATE_TIME_FORMAT_OPTIONS, opts.formatOptions))
+        var timestamp = Intl.DateTimeFormat ("sv", OBJECT.assign ({ timeZone: nit.undefIf (opts.timezone, "") }, nit.DATE_TIME_FORMAT_OPTIONS, opts.formatOptions))
             .format (date)
             .replace ("\u2212", "-")
+            .replace (/(-\d{2}) /, "$1T")
             .replace (",", ".")
             .split (/\sGMT/)
         ;
@@ -4172,20 +4173,23 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 return values
                     .map (function (v) // eslint-disable-line array-callback-return
                     {
-                        if (isAny
-                            || (!prop.array && !prop.required)
-                            || (prop.emptyAllowed && !nit.is.undef  (v))
-                            || !nit.is.empty (v))
+                        if (!prop.nullable || !nit.is.empty (v))
                         {
-                            v = prop.cast (owner, v);
-                        }
+                            if (isAny
+                                || (!prop.array && !prop.required)
+                                || (prop.emptyAllowed && !nit.is.undef  (v))
+                                || !nit.is.empty (v))
+                            {
+                                v = prop.cast (owner, v);
+                            }
 
-                        if (isAny
-                            || (!prop.array && !prop.required)
-                            || (prop.emptyAllowed && !nit.is.undef  (v))
-                            || !nit.is.empty (v))
-                        {
-                            return v;
+                            if (isAny
+                                || (!prop.array && !prop.required)
+                                || (prop.emptyAllowed && !nit.is.undef  (v))
+                                || !nit.is.empty (v))
+                            {
+                                return v;
+                            }
                         }
                     })
                     .filter (function (v) { return isAny || !nit.is.undef (v); })
@@ -4206,7 +4210,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                         Property.link (prop, owner, vs);
 
-                        return vs.length || isAny ? arrayMethod.apply (this, vs) : this.length;
+                        return vs.length || isAny ? arrayMethod.apply (arr, vs) : arr.length;
                     });
                 });
 
@@ -4216,11 +4220,28 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                     nit.dpv (arr, method, function ()
                     {
-                        var v = arrayMethod.call (this);
+                        var v = arrayMethod.call (arr);
 
                         Property.unlink (prop, owner, v);
 
                         return v;
+                    });
+                });
+
+                ["splice"].forEach (function (method)
+                {
+                    var arrayMethod = ARR_PROTO[method];
+
+                    nit.dpv (arr, method, function ()
+                    {
+                        var args = ARRAY (arguments);
+                        var added = Property.filterValues (prop, owner, args.slice (2));
+                        var removed = arrayMethod.apply (arr, args);
+
+                        Property.unlink (prop, owner, removed);
+                        Property.link (prop, owner, added);
+
+                        return removed;
                     });
                 });
             };
@@ -4356,31 +4377,35 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             Property.link = function (prop, owner, value)
             {
-                if (prop.backref)
+                nit.array (value).forEach (function (v)
                 {
-                    nit.array (value).forEach (function (v)
+                    if (prop.onLink)
                     {
-                        if (nit.is.obj (v))
-                        {
-                            v[prop.backref] = owner;
-                        }
-                    });
-                }
+                        prop.onLink.call (owner, v, prop);
+                    }
+
+                    if (prop.backref && nit.is.obj (v))
+                    {
+                        v[prop.backref] = owner;
+                    }
+                });
             };
 
 
             Property.unlink = function (prop, owner, value)
             {
-                if (prop.backref)
+                nit.array (value).forEach (function (v)
                 {
-                    nit.array (value).forEach (function (v)
+                    if (prop.onUnlink)
                     {
-                        if (nit.is.obj (v))
-                        {
-                            v[prop.backref] = undefined;
-                        }
-                    });
-                }
+                        prop.onUnlink.call (owner, v, prop);
+                    }
+
+                    if (prop.backref && nit.is.obj (v))
+                    {
+                        v[prop.backref] = undefined;
+                    }
+                });
             };
 
 
@@ -4444,9 +4469,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 var positional = false;
                 var array = !!cfg.array;
                 var writer = cfg.writer;
-                var nullable = !!(type.slice (-1) == "?" && (type = type.slice (0, -1)));
-                var emptyAllowed = !!(type.slice (-1) == "*" && (type = type.slice (0, -1)));
+                var typeMod = type.slice (-1);
+                var nullable;
+                var emptyAllowed;
                 var name;
+
+                if (~"?*".indexOf (typeMod))
+                {
+                    type = type.slice (0, -1);
+                    emptyAllowed = typeMod == "*";
+                    nullable = typeMod == "?";
+                }
 
                 delete cfg.writer;
 
@@ -4484,6 +4517,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     getter: cfg.getter,
                     caster: cfg.caster,
                     backref: cfg.backref,
+                    onLink: cfg.onLink,
+                    onUnlink: cfg.onUnlink,
                     primitive: parser instanceof nit.Object.PrimitiveTypeParser,
                     parser: parser,
                     privProp: nit.PPP + name,
@@ -4545,6 +4580,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 getter: undefined,
                 setter: undefined,
                 backref: undefined,
+                onLink: undefined,
+                onUnlink: undefined,
                 caster: undefined,
                 parser: undefined,
                 privProp: "",
@@ -4777,8 +4814,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var key = parts.pop ();
             var prefix = parts.join (".");
 
-            cfg.configurable = nit.is.undef (cfg.configurable) ? true : cfg.configurable;
-            cfg.enumerable = nit.is.undef (cfg.enumerable) ? false : cfg.enumerable;
+            cfg.configurable = nit.coalesce (cfg.configurable, true);
+            cfg.enumerable = nit.coalesce (cfg.enumerable, false);
 
             var prop = nit.Object.Property.new (cls, cfg);
 
@@ -4832,8 +4869,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 return val;
             };
 
-            configurable = nit.is.undef (cfg.configurable) ? true : cfg.configurable;
-            enumerable = nit.is.undef (cfg.enumerable) ? true : cfg.enumerable;
+            configurable = nit.coalesce (cfg.configurable, true);
+            enumerable = nit.coalesce (cfg.enumerable, true);
 
             nit.dpg (target, name, getter, configurable, enumerable);
 
@@ -4867,6 +4904,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var cls = this;
             var prevParg;
             var arrayParg;
+
+            if (cls[cls.kValidatePropertyDeclarationsDisabled])
+            {
+                return cls;
+            }
 
             cls.invalidatePropertyCache ();
 
@@ -4912,8 +4954,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var Property = nit.Object.Property;
             var cfg = Property.constructObject ({}, arguments);
 
-            cfg.configurable = nit.is.undef (cfg.configurable) ? true : cfg.configurable;
-            cfg.enumerable = nit.is.undef (cfg.enumerable) ? true : cfg.enumerable;
+            cfg.configurable = nit.coalesce (cfg.configurable, true);
+            cfg.enumerable = nit.coalesce (cfg.enumerable, true);
             cfg.get = function (prop, owner)
             {
                 var privProp = prop.privProp;
@@ -4985,8 +5027,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var cls = this;
             var cfg = nit.Object.Property.constructObject ({}, arguments);
 
-            cfg.configurable = nit.is.undef (cfg.configurable) ? true : cfg.configurable;
-            cfg.enumerable = nit.is.undef (cfg.enumerable) ? false : cfg.enumerable;
+            cfg.configurable = nit.coalesce (cfg.configurable, true);
+            cfg.enumerable = nit.coalesce (cfg.enumerable, false);
 
             return cls.defineProperty (cls, cfg);
         }
@@ -5159,8 +5201,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var cls = this;
             var cfg = nit.Object.Property.constructObject ({}, arguments);
 
-            cfg.configurable = nit.is.undef (cfg.configurable) ? true : cfg.configurable;
-            cfg.enumerable = nit.is.undef (cfg.enumerable) ? true : cfg.enumerable;
+            cfg.configurable = nit.coalesce (cfg.configurable, true);
+            cfg.enumerable = nit.coalesce (cfg.enumerable, true);
 
             return cls.defineProperty (cls.prototype, cfg)
                 .validatePropertyDeclarations ()
@@ -5215,7 +5257,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     pargs: "array"
                 });
 
-                local = nit.is.undef (cfg.local) ? declCfg.local : cfg.local;
+                local = nit.coalesce (cfg.local, declCfg.local);
                 superclass = cfg.superclass || self;
 
                 if (cfg.superclass
@@ -5247,7 +5289,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     nit.Object
-        .k ("property", "meta", "defvals")
+        .k ("property", "meta", "defvals", "validatePropertyDeclarationsDisabled")
         .m ("error.name_required", "The %{property.kind} name is required.")
         .m ("error.value_required", "The %{property.kind} '%{property.name}' is required. (Class: %{class})")
         .m ("error.class_name_required", "The class name cannot be empty.")
@@ -5411,6 +5453,18 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .staticGetter ("superclass", true, false, function ()
         {
             return nit.getSuperclass (this);
+        })
+        .staticMethod ("beginDefineProperties", function ()
+        {
+            return nit.dpv (this, this.kValidatePropertyDeclarationsDisabled, true, true, false);
+        })
+        .staticMethod ("endDefineProperties", function ()
+        {
+            var cls = this;
+
+            delete cls[cls.kValidatePropertyDeclarationsDisabled];
+
+            return cls.validatePropertyDeclarations ();
         })
         .staticMethod ("defineNamespace", function (ns)
         {
@@ -6440,12 +6494,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .property ("enumerable", "boolean", true)
         .property ("configurable", "boolean", true)
         .property ("nullable", "boolean")
+        .property ("emptyAllowed", "boolean")
         .property ("kind", "string", "field")
         .property ("get", "function")
         .property ("set", "function")
         .property ("getter", "function")
         .property ("setter", "function")
         .property ("backref", "string")
+        .property ("onLink", "function")
+        .property ("onUnlink", "function")
         .property ("caster", "function")
         .property ("cast", "function")
         .property ("target", "any") // the prototype to which the field was bound
@@ -6453,7 +6510,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .property ("parser", "nit.Object.ITypeParser")
         .property ("writer", "nit.Object.Property.Writer")
         .property ("privProp", "string", "", true, false)
-        .property ("emptyAllowed", "boolean")
         .property ("constraints...", "nit.Constraint")
 
         .getter ("class", function ()

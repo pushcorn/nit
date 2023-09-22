@@ -175,6 +175,13 @@ module.exports = function (nit, Self)
             "WET",
             "Zulu"
         ]).sort ())
+        .defineInnerClass ("Timezone", function (Timezone)
+        {
+            Timezone
+                .field ("<name>", "string", "The timezone name.")
+                    .constraint ("choice", { choices: Self.TIMEZONES })
+            ;
+        })
         .field ("[date]", "any", "The date to be parsed.", function () { return new Date; })
             .constraint ("type", "integer", "string", "Date", "nit.Date")
             .constraint ("custom",
@@ -187,10 +194,15 @@ module.exports = function (nit, Self)
                     return nit.parseDate (ctx.value);
                 }
             })
-        .field ("[timezone]", "string", "The timezone in which the date is observed.", nit.timezone ())
-            .constraint ("choice", { choices: Self.TIMEZONES })
+        .field ("[timezone]", Self.Timezone.name, "The timezone in which the date is observed.", new Self.Timezone (nit.timezone ()))
 
-        .onConstruct (function (date, timezone)
+        .getter ("timezoneName", function ()
+        {
+            var tz = this.timezone;
+
+            return tz && tz.name;
+        })
+        .onConstruct (function (date)
         {
             if (date instanceof nit.Date)
             {
@@ -204,12 +216,12 @@ module.exports = function (nit, Self)
                     date = new Date (date);
                 }
 
-                this.date = nit.parseDate (date, timezone);
+                this.date = nit.parseDate (date, this.timezoneName);
             }
         })
         .method ("toTimestamp", function (keepOffset)
         {
-            return nit.timestamp (this.date, this.timezone, nit.is.bool (keepOffset) ? keepOffset : true, Self.DATE_TIME_FORMAT_OPTIONS);
+            return nit.timestamp (this.date, this.timezoneName, nit.is.bool (keepOffset) ? keepOffset : true, Self.DATE_TIME_FORMAT_OPTIONS);
         })
         .method ("getComponents", function ()
         {
@@ -230,7 +242,7 @@ module.exports = function (nit, Self)
 
                 var d = new Date (Date.UTC (c.year, c.month, c.day, c.hour, c.minute, c.second, c.millisecond));
 
-                self.date = nit.parseDate (d.toISOString (), self.timezone);
+                self.date = nit.parseDate (d.toISOString (), self.timezoneName);
             }
 
             return self.date * 1;
@@ -241,7 +253,7 @@ module.exports = function (nit, Self)
         })
         .method ("getDay", function ()
         {
-            var day = Intl.DateTimeFormat ("en-US", { timeZone: this.timezone, weekday: "short" }).format (this.date);
+            var day = Intl.DateTimeFormat ("en-US", { timeZone: this.timezoneName, weekday: "short" }).format (this.date);
 
             return Self.DAY_NAMES.indexOf (day);
         })
@@ -405,7 +417,7 @@ module.exports = function (nit, Self)
         {
             var self = this;
             var date = self.date;
-            var tz = self.timezone;
+            var tz = self.timezoneName;
             var ts = self.toTimestamp (false);
             var name = Intl.DateTimeFormat ("en-US", { day: "2-digit", timeZone: tz, timeZoneName: "long" }).format (date);
             var offset = Intl.DateTimeFormat ("en-US", { day: "2-digit", timeZone: tz, timeZoneName: "longOffset" }).format (date);
@@ -425,7 +437,7 @@ module.exports = function (nit, Self)
         .method ("toString", function ()
         {
             var self = this;
-            var tz = self.timezone;
+            var tz = self.timezoneName;
             var date = self.date;
             var name = Intl.DateTimeFormat ("en-US", { day: "2-digit", timeZone: tz, timeZoneName: "long" }).format (date);
             var offset = Intl.DateTimeFormat ("en-US", { day: "2-digit", timeZone: tz, timeZoneName: "longOffset" }).format (date);

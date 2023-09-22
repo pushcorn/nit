@@ -228,6 +228,64 @@ test ("nit.Object.Property - emptyAllowed", () =>
 });
 
 
+test ("nit.Object.Property - onLink/onUnlink", () =>
+{
+    const A = nit.defineClass ("A")
+        .field ("b", "B",
+        {
+            onLink: function (b)
+            {
+                b.linked = true;
+            }
+            ,
+            onUnlink: function (b)
+            {
+                delete b.linked;
+            }
+        })
+    ;
+
+    const C = nit.defineClass ("C")
+        .field ("bs...", "B",
+        {
+            onLink: function (b)
+            {
+                b.linked = true;
+            }
+            ,
+            onUnlink: function (b)
+            {
+                delete b.linked;
+            }
+        })
+    ;
+
+    const B = nit.defineClass ("B");
+
+    let b = new B;
+    let a = new A;
+    let c = new C;
+
+    a.b = b;
+    expect (b.linked).toBe (true);
+
+    a.b = null;
+    expect (b.linked).toBeUndefined ();
+
+    c.bs.push (b);
+    expect (b.linked).toBe (true);
+
+    c.bs.pop ();
+    expect (b.linked).toBeUndefined ();
+
+    c.bs.push (b);
+    expect (b.linked).toBe (true);
+
+    nit.arrayRemove (c.bs, b);
+    expect (b.linked).toBeUndefined ();
+});
+
+
 test ("nit.Object.Property - backref", () =>
 {
     const A = nit.defineClass ("A")

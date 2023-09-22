@@ -32,7 +32,7 @@ test ("nit.parseDate () with timezone", () =>
         let m = nit.parseDate.match (str);
 
         expect (nit.parseDate (str, tz).toISOString ()).toBe (utcTimestamp);
-        expect (nit.timestamp (new Date (utcTimestamp), tz, m.hasMillisecond ? { fractionalSecondDigits: 3 } : null)).toBe (localTimestamp);
+        expect (nit.timestamp (new Date (utcTimestamp), tz, m.hasMillisecond ? { fractionalSecondDigits: 3 } : null).replace ("T", " ")).toBe (localTimestamp);
     }
 
     testParseDateAtTimezone ("2023-03-12 01:00:00", "America/Indianapolis", "2023-03-12T06:00:00.000Z", "2023-03-12 01:00:00");

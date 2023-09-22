@@ -100,6 +100,7 @@ test ("nit.Object", () =>
       '$__func': undefined
     }));
 
+
     nit.Object.defineProperty (obj, "age", "integer", 10);
     expect (Object.getOwnPropertyDescriptor (obj, "age").get[nit.Object.kProperty]).toMatchObject ({ array: false, name: "age", defval: 10 });
 
@@ -516,6 +517,8 @@ test ("nit.Object.ITypeParser ()", () =>
 
 test ("nit.Object.ClassTypeParser ()", () =>
 {
+    nit.require ("nit.Command");
+
     expect ((new nit.Object.ClassTypeParser).supports ()).toBe (false);
     expect ((new nit.Object.ClassTypeParser).defval).toBeUndefined ();
     expect ((new nit.Object.ClassTypeParser).cast ()).toBeUndefined ();

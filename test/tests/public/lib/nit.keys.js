@@ -12,8 +12,8 @@ test ("nit.keys () returns the keys of an object", () =>
 
     expect (nit.keys (a)).toEqual (["a", "b"]);
     expect (nit.keys ({ a: 1, root: 4, global: 5 })).toEqual (["a", "root"]);
-    expect (nit.keys (c)).toEqual (["a", "b", "f", "g"]);
-    expect (nit.keys (c, true)).toEqual (["a", "b", "f", "g", "hidden"]);
+    expect (nit.keys (c)).toEqual (["b", "f", "g", "a"]);
+    expect (nit.keys (c, true)).toEqual (["b", "f", "g", "a", "hidden"]);
 
     nit.defineClass ("A")
         .field ("a", "string")
