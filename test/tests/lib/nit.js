@@ -356,6 +356,18 @@ test ("nit.lookupClass ()", () =>
 });
 
 
+test ("nit.listPackageDirs ()", () =>
+{
+    let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");
+
+    expect (nit.listPackageDirs (testProjectPath).map (d => d.path)).toEqual (
+    [
+        nit.path.join (testProjectPath, "packages/package-a"),
+        nit.path.join (testProjectPath, "packages/package-b")
+    ]);
+});
+
+
 test ("nit.initPackages ()", () =>
 {
     let testProjectPath = no_path.join (test.HOME, "test/resources/project-a");

@@ -6390,7 +6390,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.defineConstraint ("Choice")
         .throws ("error.invalid_choice", "The %{property.kind} '%{property.name}' is assigned to an invalid value '%{value}'. (Allowed: %{constraint.choiceValues.join (', ')})")
-        .property ("<choices...>", "any") // A choice can either be a value or an object a 'value' field.
+        .property ("[choices...]", "any") // A choice can either be a value or an object a 'value' field.
         .getter ("choiceValues", function ()
         {
             return this.choices.map (function (c)

@@ -23,3 +23,55 @@ test ("commands.Lint", async () =>
 
     expect (await Lint ().run ("--cwd", ".")).toMatch (/Missing semicolon/);
 });
+
+
+test ("commands.Lint - all or packages", async () =>
+{
+    let projectDir = test.pathForProject ("project-a");
+
+    process.chdir (projectDir);
+
+    const nit = await test.setupCliMode ("lint", projectDir, true);
+    const Lint = nit.lookupCommand ("lint");
+    const EsLint = nit.require ("nit.lint.EsLint");
+
+    let testDirs;
+    let result;
+    let results;
+
+    EsLint.method ("lint", function ()
+    {
+        testDirs.push (this.options.cwd);
+
+        return result;
+    });
+
+
+    result = "";
+    testDirs = [];
+        await Lint ().run ({ cwd: projectDir, all: true });
+        expect (testDirs).toEqual (
+        [
+            projectDir,
+            nit.path.join (projectDir, "packages/package-a"),
+            nit.path.join (projectDir, "packages/package-b")
+        ]);
+
+    testDirs = [];
+    result = "err";
+        results = await Lint ().run ({ cwd: projectDir, all: true, packages: "package-b" });
+        expect (testDirs).toEqual (
+        [
+            projectDir,
+            nit.path.join (projectDir, "packages/package-b")
+        ]);
+        expect (results).toEqual (expect.stringContaining (Lint.Colorizer.bold (" packages/package-b ")));
+
+    testDirs = [];
+        await Lint ().run ({ cwd: projectDir, packages: "package-b" });
+        expect (testDirs).toEqual ([nit.path.join (projectDir, "packages/package-b")]);
+
+    testDirs = [];
+        await Lint ().run ({ cwd: projectDir });
+        expect (testDirs).toEqual ([projectDir]);
+});
