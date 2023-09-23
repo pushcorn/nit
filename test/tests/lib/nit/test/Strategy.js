@@ -305,6 +305,14 @@ test ("nit.test.Strategy.Spy", () =>
     spy = new nit.test.Strategy.Spy ("aaa", "addOne");
     spy.apply ({ a });
     expect (spy.applied).toBe (false);
+
+    a = new A;
+    spy = new nit.test.Strategy.Spy (a, "addOne", { iterations: 2 });
+    spy.apply ({ a });
+    expect (a.addOne (2)).toBe (3);
+    expect (a.addOne (3)).toBe (4);
+    expect (spy.applied).toBe (false);
+    expect (a.addOne (4)).toBe (5);
 });
 
 

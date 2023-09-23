@@ -14,7 +14,7 @@ test ("nit.Field", () =>
     expect (() => new nit.Field ("<>")).toThrow (/field name is required/);
 
     let Max = nit.defineConstraint ("constraints.MaxInt")
-        .appliesTo ("integer")
+        .meta ("applicableTypes", "integer")
         .throws ("error.greater_than_max", "The value is greater than %{constraint.max}.")
         .property ("max", "integer", 10)
         .onValidate (function (ctx)
@@ -24,7 +24,7 @@ test ("nit.Field", () =>
     ;
 
     let Min = nit.defineConstraint ("test.constraints.MinInt")
-        .appliesTo ("integer")
+        .meta ("applicableTypes", "integer")
         .throws ("error.less_than_min", "The value is less than %{constraint.min}.")
         .property ("min", "integer", 10)
         .onValidate (function (ctx)

@@ -129,13 +129,22 @@ test ("nit.Object.Property: push/unshift invalid values", () =>
 test ("nit.Object.Property.set () - should check if the value is the array proto before casting it to an array", () =>
 {
     const A = nit.defineClass ("A")
-        .field ("<obj>", "any")
-            .constraint ("type", "string", "object", "function")
+        .field ("<obj>", "string|object|function")
     ;
 
     let a = new A (Array.prototype);
 
     expect (a.obj).toBe (Array.prototype);
+});
+
+
+test ("nit.Object.Property.set () - should throw if the value is not one of the allowed types", () =>
+{
+    const A = nit.defineClass ("A")
+        .field ("<obj>", "string|object")
+    ;
+
+    expect (() => new A (nit.noop)).toThrow (/should be one of/);
 });
 
 

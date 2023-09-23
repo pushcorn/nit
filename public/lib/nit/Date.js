@@ -182,8 +182,7 @@ module.exports = function (nit, Self)
                     .constraint ("choice", { choices: Self.TIMEZONES })
             ;
         })
-        .field ("[date]", "any", "The date to be parsed.", function () { return new Date; })
-            .constraint ("type", "integer", "string", "Date", "nit.Date")
+        .field ("[date]", "integer|string|Date|nit.Date", "The date to be parsed.", function () { return new Date; })
             .constraint ("custom",
             {
                 code: "error.invalid_date",

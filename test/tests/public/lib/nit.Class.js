@@ -12,7 +12,7 @@ test ("nit.Class", () =>
     nit.defineConstraint ("constraints.MinInt")
         .throws ("less_than_min", "The minimum value of '%{property.name}' is '%{constraint.min}'.")
         .property ("<min>", "integer")
-        .appliesTo ("integer")
+        .meta ("applicableTypes", "integer")
         .onValidate (function (ctx)
         {
             return ctx.value >= ctx.constraint.min;

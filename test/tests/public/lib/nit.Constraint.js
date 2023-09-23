@@ -1,12 +1,11 @@
 test ("nit.Constraint", () =>
 {
     let Max = nit.defineConstraint ("MaxInt")
-        .appliesTo ("integer")
+        .meta ("applicableTypes", "integer")
         .throws ("error.greater_than_max", "The value is greater than %{constraint.max}.")
         .property ("max", "integer", 10)
     ;
 
-    expect (() => Max.appliesTo ("magic")).toThrow (/constraint value type.*invalid/);
     expect (Max.name).toBe ("constraints.MaxInt");
     expect (Max.code).toBe ("error.greater_than_max");
     expect (Max.message).toBe ("The value is greater than %{constraint.max}.");

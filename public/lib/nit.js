@@ -1541,7 +1541,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 {
                     var arg = args.shift ();
 
-                    if (arg instanceof Array)
+                    if (nit.is.arrayish (arg))
                     {
                         args.unshift.apply (args, arg);
                     }
@@ -4127,7 +4127,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         ,
         findTypeParser: function (type, nullable)
         {
-            return nit.find (this.TYPE_PARSERS, function (p) { return p.supports (type, nullable); });
+            var parser;
+
+            return this.TYPE_PARSERS.some (function (p) { return p.supports (type, nullable) && (parser = p); }) && parser;
         }
         ,
         Property: nit.do (nit.registerClass (nit.createFunction ("nit.Object.Property", true)), function (Property)
@@ -4162,7 +4164,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             Property.invalidValueCode = function (prop)
             {
-                return "error." + (prop.primitive ? "invalid_value_type" : "invalid_instance_type");
+                return "error." + (prop.mixedType ? "invalid_mixed_type" : (prop.primitive ? "invalid_value_type" : "invalid_instance_type"));
             };
 
 
@@ -4519,7 +4521,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     backref: cfg.backref,
                     onLink: cfg.onLink,
                     onUnlink: cfg.onUnlink,
-                    primitive: parser instanceof nit.Object.PrimitiveTypeParser,
+                    primitive: !(parser instanceof nit.Object.ClassTypeParser),
+                    mixedType: parser instanceof nit.Object.MixedTypeParser,
                     parser: parser,
                     privProp: nit.PPP + name,
                     constraints: nit.array (cfg.constraints),
@@ -4574,6 +4577,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 nullable: false,
                 emptyAllowed: false,
                 primitive: false,
+                mixedType: false,
                 kind: "property",
                 get: undefined,
                 set: undefined,
@@ -5297,6 +5301,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .m ("error.invalid_type", "The %{property.kind} '%{property.name}' was assigned to an invalid type '%{property.type}'.")
         .m ("error.invalid_value_type", "The value of '%{property.name}' should be %{property.type|nit.indefiniteArticle} %{property.type}. (Given: %{value|nit.Object.serialize})")
         .m ("error.invalid_instance_type", "The value of '%{property.name}' should be an instance of %{property.type}. (Given: %{value|nit.Object.serialize})")
+        .m ("error.invalid_mixed_type", "The value of '%{property.name}' should be one of the following type: %{property.type.split ('\\|').join (', ')}. (Given: %{value.constructor.name})")
         .m ("error.multiple_positional_variadic_args", "Only one positional variadic argument can be defined. Either '%{firstArg}' or '%{secondArg}' must be removed.")
         .m ("error.required_arg_after_optional", "The optional positional argument '%{optionalArg}' cannot be followed by a required argument '%{requiredArg}'.")
         .m ("error.not_implemented", "Method not implemented!")
@@ -5400,6 +5405,47 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 }
             });
         })
+        .defineInnerClass ("MixedTypeParser", "nit.Object.ITypeParser", function (MixedTypeParser)
+        {
+            nit.assign (MixedTypeParser.prototype,
+            {
+                supports: function (type, nullable)
+                {
+                    var self = this;
+
+                    return ~type.indexOf ("|") && type.split ("|").every (function (t)
+                    {
+                        return nit.Object.TYPE_PARSERS.some (function (p)
+                        {
+                            return p != self && p.supports (t, nullable);
+                        });
+                    });
+                }
+                ,
+                cast: function (v, type)
+                {
+                    var self = this;
+                    var types = type.split ("|");
+
+                    for (var i = 0; i < types.length; ++i)
+                    {
+                        var t = types[i];
+                        var casted;
+
+                        try
+                        {
+                            if (nit.Object.TYPE_PARSERS.some (function (p) { return p != self && p.supports (t) && (casted = p.cast (v, t)) !== undefined; }))
+                            {
+                                return casted;
+                            }
+                        }
+                        catch (e)
+                        {
+                        }
+                    }
+                }
+            });
+        })
         .do (function (Object)
         {
             Object
@@ -5413,6 +5459,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 .registerTypeParser (new Object.PrimitiveTypeParser ("date", undefined, function (v) { var d = new Date (v); return isNaN (d) ? undefined : d; }))
                 .registerTypeParser (new Object.PrimitiveTypeParser ("any", undefined, function (v) { return v; }))
                 .registerTypeParser (new Object.ClassTypeParser (), 200)
+                .registerTypeParser (new Object.MixedTypeParser (), 300)
             ;
         })
         .constant ("PRIMARY_PROPERTY_TYPE", "nit.Object.Property")
@@ -5637,12 +5684,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             }
 
             return cls;
-        })
-        .staticMethod ("assignStatic", function (values)
-        {
-            var cls = this;
-
-            return cls.assign (cls, values, nit.Object.Property);
         })
         .staticMethod ("defaults", function (k, v) // or (vals)
         {
@@ -6201,25 +6242,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 }
             }
         })
-        .staticMethod ("appliesTo", function (types) // eslint-disable-line no-unused-vars
-        {
-            var cls = this;
-
-            cls.applicableTypes = ARRAY (arguments).map (function (type)
-            {
-                if (!nit.is[type])
-                {
-                    cls.throw ("error.invalid_target_value_type", { type: type });
-                }
-
-                return type;
-            });
-
-            return cls;
-        })
         .staticMethod ("throws", function (code, message)
         {
-            return this.assignStatic ({ code: code, message: message }).m (code, message);
+            return this.meta ({ code: code, message: message }).m (code, message);
         })
         .property ("name")
         .property ("code")
@@ -6425,44 +6450,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         });
 
 
-    nit.defineConstraint ("Type")
-        .throws ("error.invalid_type", "The value of '%{property.name}' should be one of the following type: %{constraint.types.join (', ')}. (Given: %{valueType})")
-        .property ("<types...>", "string", "The allowed types.")
-        .onValidate (function (ctx)
-        {
-            ctx.valueType = ctx.value.constructor.name;
-
-            return ctx.constraint
-                .types
-                .some (function (type)
-                {
-                    var parser, casted;
-
-                    if ((parser = nit.Object.findTypeParser (type)))
-                    {
-                        try
-                        {
-                            if ((casted = parser.cast (ctx.value, type)) != undefined)
-                            {
-                                if (casted !== ctx.value)
-                                {
-                                    ctx.owner[ctx.property.name] = casted;
-                                }
-
-                                return true;
-                            }
-                        }
-                        catch (e)
-                        {
-                        }
-                    }
-
-                    return false;
-                })
-            ;
-        });
-
-
     nit.Object
         .defineSubclass ("nit.Field", function (spec, type, description, defval) // eslint-disable-line no-unused-vars
         {
@@ -6507,6 +6494,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .property ("cast", "function")
         .property ("target", "any") // the prototype to which the field was bound
         .property ("primitive", "boolean") // should not be set manually
+        .property ("mixedType", "boolean") // should not be set manually
         .property ("parser", "nit.Object.ITypeParser")
         .property ("writer", "nit.Object.Property.Writer")
         .property ("privProp", "string", "", true, false)
@@ -6525,7 +6513,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var cls = nit.Constraint.lookup (name);
             var cons = nit.new (cls, ARRAY (arguments).slice (1));
 
-            if (!cons.applicableTo (self.type))
+            if (!self.mixedType && !cons.applicableTo (self.type))
             {
                 self.throw ("error.inapplicable_constraint", { constraint: name, field: self.name, type: self.type });
             }

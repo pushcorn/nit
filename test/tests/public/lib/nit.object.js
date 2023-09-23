@@ -1000,25 +1000,6 @@ test ("nit.Object.assign ()", () =>
 });
 
 
-test ("nit.Object.assignStatic ()", () =>
-{
-    const AssignStatic = nit.defineClass ("AssignStatic")
-        .staticProperty ("a", "string")
-    ;
-
-    let values = {
-        a: "ab@c.d.com",
-        b: "john"
-    };
-
-    AssignStatic.assignStatic (values);
-
-    expect (AssignStatic.a).toEqual ("ab@c.d.com");
-    expect (AssignStatic.b).toBeUndefined ();
-});
-
-
-
 test ("nit.Object.getter ()", () =>
 {
     nit.Object
