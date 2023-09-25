@@ -733,6 +733,8 @@ test ("nit.lookupCommand ()", async () =>
 {
     const nit = await test.reloadNit ("project-c");
 
+    nit.require ("nit.Command");
+
     expect (() => nit.lookupCommand ("error-cmd")).toThrow (/error loading command/);
     expect (() => nit.lookupCommand ("invalid-type-command")).toThrow (/component.*InvalidPlugin.*not found/i);
 });

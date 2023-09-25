@@ -12,3 +12,17 @@ test.method ("nit.utils.Colorizer", "red", true)
         .returns ("\x1b[31mred\x1b[39m")
         .commit ()
 ;
+
+
+test.method ("nit.utils.Colorizer.Auto", "red", true)
+    .should ("colorize the string if the stdout is a TTY")
+        .given ("str")
+        .returns ("\x1b[31mstr\x1b[39m")
+        .commit ()
+
+    .should ("not colorize the string if the stdout is NOT a TTY")
+        .before (() => process.stdout.isTTY = false)
+        .given ("str")
+        .returns ("str")
+        .commit ()
+;

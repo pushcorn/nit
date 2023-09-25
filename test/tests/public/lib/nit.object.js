@@ -654,9 +654,37 @@ test ("nit.Object.staticMemo ()", () =>
 });
 
 
-test ("nit.listSubclassesOf ()", () =>
+test ("nit.Object.staticMemoMethod ()", () =>
 {
-    expect (nit.listSubclassesOf (nit.Constraint).length).toBeGreaterThanOrEqual (4);
+    let called = 0;
+
+    const A = nit.defineClass ("A")
+        .staticMemoMethod ("staticDoOnce", function ()
+        {
+            return ++called;
+        })
+    ;
+
+    expect (A.staticDoOnce ()).toBe (1);
+    expect (A.staticDoOnce ()).toBe (1);
+});
+
+
+test ("nit.Object.memoMethod ()", () =>
+{
+    let called = 0;
+
+    const A = nit.defineClass ("A")
+        .memoMethod ("doOnce", function ()
+        {
+            return ++called;
+        })
+    ;
+
+    let a = new A;
+
+    expect (a.doOnce ()).toBe (1);
+    expect (a.doOnce ()).toBe (1);
 });
 
 

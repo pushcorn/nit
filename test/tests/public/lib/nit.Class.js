@@ -148,7 +148,11 @@ test ("nit.Class.getPlugins", () =>
     expect (B.getPlugins ("conditions", true)[0].val).toBe ("p3");
     expect (B.getPlugins ("conditions", true)[1].val).toBe ("m3");
     expect (B.getPlugins ("conditions", () => "p3").length).toBe (1);
+
+    expect (B.lookupPlugin ("conditions", RequestMethod).val).toBe ("m3");
+    expect (B.lookupPlugin ("conditions", "test.RequestPath").val).toBe ("p3");
 });
+
 
 
 test ("nit.Class.getChecks ()", () =>

@@ -67,7 +67,7 @@ test ("nit.Command.Type", async () =>
     nit.require ("nit.Compgen");
 
     let opt = TypeTester.Input.getOptionByFlag ("cmd");
-    let completer = new TypeTester.Type.Completer;
+    let completer = new TypeTester.Type.completers.Default;
     let ctx = new nit.Compgen.Context;
 
     ctx.currentOption = opt;
@@ -82,7 +82,7 @@ test ("nit.Command.Type", async () =>
     );
 
     const HelloWorld = nit.lookupCommand ("hello-world");
-    completer = new HelloWorld.Type.Completer;
+    completer = new HelloWorld.Type.completers.Default;
     ctx = new nit.Compgen.Context;
     ctx.currentOption = HelloWorld.Input.getOptionByFlag ("message");
 

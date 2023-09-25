@@ -637,7 +637,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         var called = false;
         var result;
 
-        function get ()
+        function memo ()
         {
             if (!called)
             {
@@ -656,13 +656,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return result;
         }
 
-        get.reset = function ()
+        nit.dpv (memo, "reset", function ()
         {
             called = false;
             result = undefined;
-        };
+        });
 
-        return get;
+        return memo;
     };
 
 
@@ -977,7 +977,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             name = cls.name;
         }
 
-        return nit.CLASSES[name] = cls;
+        nit.dpv (nit.CLASSES, name, cls, true, true);
+
+        return cls;
+    };
+
+
+    nit.registerClass.lazy = function (name, loader)
+    {
+        nit.memoize.dpg (nit.CLASSES, name, true, true, loader);
     };
 
 
@@ -990,17 +998,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return cls;
         }
     };
-
-
-    nit.listSubclassesOf = function (superclass)
-    {
-        return nit.each (nit.CLASSES, function (cls)
-        {
-            return nit.is.subclassOf (cls, superclass) ? cls : nit.each.SKIP;
-        });
-    };
-
-
 
 
     nit.coalesce = function ()
@@ -1149,8 +1146,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.log = function ()
     {
         nit.log.logger.apply (nit.log.logger, arguments);
-
-        return nit;
     };
 
 
@@ -5049,6 +5044,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return nit.dpv (this, name, method, true, false);
         }
         ,
+        staticMemoMethod: function (name, method)
+        {
+            var cls = this;
+            var memoProp = name + "Result";
+
+            cls.staticMemo (memoProp, method, true, false);
+
+            return cls.staticMethod (name, function () { return this[memoProp]; });
+        }
+        ,
         staticSymbolMethod: function (name, method)
         {
             if ((name = nit.get (global.Symbol, name)))
@@ -5225,6 +5230,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             nit.dpv (this.prototype, name, method, true, false);
 
             return this;
+        }
+        ,
+        memoMethod: function (name, method)
+        {
+            var cls = this;
+            var memoProp = name + "Result";
+
+            cls.memo (memoProp, method, true, false);
+
+            return cls.method (name, function () { return this[memoProp]; });
         }
         ,
         symbolMethod: function (name, method)
@@ -6727,6 +6742,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             return plugins;
         })
+        .staticMethod ("lookupPlugin", function (category, superclass)
+        {
+            superclass = nit.is.func (superclass) ? superclass : nit.lookupClass (superclass);
+
+            return nit.find (this.getClassChainProperty (category, true), function (p)
+            {
+                return p instanceof superclass;
+            });
+        })
         .staticMethod ("applyPlugins", function (category, method)
         {
             var args = nit.array (arguments).slice (2);
@@ -6933,7 +6957,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.listComponents = function (category, returnNames)
     {
-        var components = nit.each (nit.CLASSES, function (cls, className)
+        var components = nit.each (OBJECT.keys (nit.CLASSES), function (className)
         {
             var cd = nit.getComponentDescriptor (className);
 
