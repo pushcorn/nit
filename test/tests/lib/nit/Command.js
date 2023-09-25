@@ -137,18 +137,25 @@ test ("nit.Command.Input", () =>
 
 test ("nit.Command.Input.parseArgv ()", () =>
 {
+    nit.defineClass ("Location")
+        .field ("<latitude>", "number")
+        .field ("<longitude>", "number")
+    ;
+
     const Test = nit.defineClass ("Test", "nit.Command")
         .defineInput (function (Input)
         {
             Input
                 .option ("<paramA>")
                 .option ("paramB")
+                .option ("location", "Location")
             ;
         })
     ;
 
     expect (Test.Input.parseArgv ("a", { paramB: "b" })).toEqual ({ paramA: "a", paramB: "b" });
     expect (Test.Input.parseArgv ({ paramA: "a", paramB: "b" })).toEqual ({ paramA: "a", paramB: "b" });
+    expect (Test.Input.parseArgv ({ paramA: "a", location: "{ latitude: 3.3, longitude: 4.4 }" })).toEqual ({ paramA: "a", location: { latitude: 3.3, longitude: 4.4 }});
 });
 
 

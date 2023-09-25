@@ -808,8 +808,6 @@ test ("nit.Compgen completers", async () =>
     const Compgen = nit.lookupClass ("nit.Compgen");
     const Completer = Compgen.Completer;
 
-    console.error (Compgen.completers);
-
     expect (nit.CLASSES["nit.File.completers.File"].superclass).toBe (Completer);
     expect (nit.CLASSES["constraints.Choice.completers.Choice"].superclass).toBe (Completer);
     expect (logContent).toEqual (["NONE"]);
