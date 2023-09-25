@@ -1,4 +1,4 @@
-test.method ("nit.compgen.completers.Choice", "getChoiceConstraint", true)
+test.method ("constraints.Choice.completers.Choice", "getChoiceConstraint", true)
     .should ("recursively find the choice constraint")
         .up (s => s.MyClass = nit.defineClass ("MyClass")
             .field ("<timezone>", "nit.Date.Timezone")
@@ -18,7 +18,7 @@ test.method ("nit.compgen.completers.Choice", "getChoiceConstraint", true)
 ;
 
 
-test.method ("nit.compgen.completers.Choice", "completeForConstraint")
+test.method ("constraints.Choice.completers.Choice", "completeForConstraint", true)
     .should ("return the completions for the constraint")
         .up (s => s.Compgen = nit.require ("nit.Compgen"))
         .up (s => s.MyCommand = nit.defineClass ("MyCommand", "nit.Command")

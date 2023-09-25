@@ -1,3 +1,42 @@
+test ("nit.File - file primitive type", () =>
+{
+    nit.require ("nit.File");
+
+    let parser = nit.Object.findTypeParser ("file");
+
+    expect (parser).toBeInstanceOf (nit.Object.PrimitiveTypeParser);
+    expect (parser.cast ("filename")).toBe ("filename");
+});
+
+
+test ("nit.File.completers.File.completeForType ()", () =>
+{
+    nit.require ("nit.Compgen");
+
+    let comp = nit.File.completers.File;
+
+    const A = nit.defineCommand ("TestCommand")
+        .defineInput (Input =>
+        {
+            Input
+                .option ("file1", "file")
+                .option ("file2", "nit.File")
+                .option ("file3", "string")
+            ;
+        })
+    ;
+
+    let ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.file1 });
+    expect (comp.completeForType (ctx)).toEqual ([nit.Compgen.ACTIONS.FILE]);
+
+    ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.file2 });
+    expect (comp.completeForType (ctx)).toEqual ([nit.Compgen.ACTIONS.FILE]);
+
+    ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.file3 });
+    expect (comp.completeForType (ctx)).toBeUndefined ();
+});
+
+
 test ("nit.File", async () =>
 {
     let file = nit.new ("nit.File", nit.path.join (nit.HOME, "package.json"));

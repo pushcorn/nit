@@ -167,12 +167,7 @@ test.setupCompletionMode = async function ()
         ENV["COMP_WORD_" + i] = word;
     }
 
-    nit
-        .require ("nit.Compgen")
-        .require ("nit.compgen.completers.File")
-        .require ("nit.compgen.completers.Dir")
-        .require ("nit.compgen.completers.Choice")
-    ;
+    nit.require ("nit.Compgen");
 
     nit.dpgs (nit,
     {

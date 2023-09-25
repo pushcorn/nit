@@ -1,3 +1,42 @@
+test ("nit.Command - command primitive type", () =>
+{
+    nit.require ("nit.Command");
+
+    let parser = nit.Object.findTypeParser ("command");
+
+    expect (parser).toBeInstanceOf (nit.Object.PrimitiveTypeParser);
+    expect (parser.cast ("test-command")).toBe ("test-command");
+});
+
+
+test ("nit.Command.completers.Command.completeForType ()", () =>
+{
+    nit.require ("nit.Compgen");
+
+    let comp = nit.Command.completers.Command;
+
+    const A = nit.defineCommand ("TestCommand")
+        .defineInput (Input =>
+        {
+            Input
+                .option ("cmd1", "command")
+                .option ("cmd2", "nit.Command")
+                .option ("cmd3", "string")
+            ;
+        })
+    ;
+
+    let ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.cmd1 });
+    expect (comp.completeForType (ctx)).toEqual (expect.arrayContaining (["test", "lint"]));
+
+    ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.cmd2 });
+    expect (comp.completeForType (ctx)).toEqual (expect.arrayContaining (["test", "lint"]));
+
+    ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.cmd3 });
+    expect (comp.completeForType (ctx)).toBeUndefined ();
+});
+
+
 test ("nit.Command.describe ()", () =>
 {
     const Test = nit.defineClass ("Test", "nit.Command")
@@ -51,45 +90,6 @@ Options:
      --color      The message color.`
 );
 
-});
-
-
-test ("nit.Command.Type", async () =>
-{
-    const nit = await test.setupCliMode ("", "project-a", true);
-    const TypeTester = nit.defineCommand ("TypeTester")
-        .defineInput (Input =>
-        {
-            Input.option ("cmd", "nit.Command.Type", "The command.");
-        })
-    ;
-
-    nit.require ("nit.Compgen");
-
-    let opt = TypeTester.Input.getOptionByFlag ("cmd");
-    let completer = new TypeTester.Type.completers.Default;
-    let ctx = new nit.Compgen.Context;
-
-    ctx.currentOption = opt;
-
-    expect (completer.completeForType (ctx)).toEqual (
-        expect.arrayContaining (
-        [
-            nit.Compgen.ACTIONS.VALUE,
-            "hello-world",
-            "invalid-cmd"
-        ])
-    );
-
-    const HelloWorld = nit.lookupCommand ("hello-world");
-    completer = new HelloWorld.Type.completers.Default;
-    ctx = new nit.Compgen.Context;
-    ctx.currentOption = HelloWorld.Input.getOptionByFlag ("message");
-
-    expect (completer.completeForType (ctx)).toBeUndefined ();
-
-    let type = new nit.Command.Type ("hello-world");
-    expect (await type.lookup ()).toBe (HelloWorld);
 });
 
 

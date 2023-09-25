@@ -1,3 +1,42 @@
+test ("nit.Dir - dir primitive type", () =>
+{
+    nit.require ("nit.Dir");
+
+    let parser = nit.Object.findTypeParser ("dir");
+
+    expect (parser).toBeInstanceOf (nit.Object.PrimitiveTypeParser);
+    expect (parser.cast ("dirname")).toBe ("dirname");
+});
+
+
+test ("nit.Dir.completers.Dir.completeForType ()", () =>
+{
+    nit.require ("nit.Compgen");
+
+    let comp = nit.Dir.completers.Dir;
+
+    const A = nit.defineCommand ("TestCommand")
+        .defineInput (Input =>
+        {
+            Input
+                .option ("dir1", "dir")
+                .option ("dir2", "nit.Dir")
+                .option ("dir3", "string")
+            ;
+        })
+    ;
+
+    let ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.dir1 });
+    expect (comp.completeForType (ctx)).toEqual ([nit.Compgen.ACTIONS.DIR]);
+
+    ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.dir2 });
+    expect (comp.completeForType (ctx)).toEqual ([nit.Compgen.ACTIONS.DIR]);
+
+    ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.dir3 });
+    expect (comp.completeForType (ctx)).toBeUndefined ();
+});
+
+
 test ("nit.Dir", async () =>
 {
     let prefix = nit.uuid ();
