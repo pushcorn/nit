@@ -1,252 +1,57 @@
-test.object ("plugins.Logger", true, "timestampEnabled")
-    .should ("return true if the log message should be prepended with the current timestamp")
-        .before (s => s.class.timestamp = true)
+test.object ("plugins.Logger", true, "colorEnabled")
+    .should ("be true if the stdout is a TTY")
+        .given ()
         .returns (true)
         .commit ()
 
-    .given ({ timestamp: true })
-        .before (s => s.class.timestamp = null)
-        .returns (true)
-        .commit ()
-
-    .given ()
+    .should ("be false if the TERM env var is 'dumb'")
+        .before (s => s.TERM = nit.ENV.TERM)
+        .before (() => nit.ENV.TERM = "dumb")
+        .after (s => nit.ENV.TERM = s.TERM)
         .returns (false)
         .commit ()
 
-    .given ({ timestamp: false })
-        .before (s => s.class.timestamp = true)
+    .should ("be false if colorize if false")
+        .given ({ colorize: false })
         .returns (false)
         .commit ()
 ;
 
 
-test.object ("plugins.Logger", true, "prefix")
-    .should ("return the current timestamp")
-        .before (s => s.class.timestamp = true)
-        .returns (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} $/)
+test.method ("plugins.Logger", "onUsePlugin", true)
+    .preCommit (s => s.description += " -> hostClass.logLevelColor ()")
+    .snapshot ()
+    .should ("return the color of a supported level")
+        .given (nit.defineClass ("test.Host"), nit.new ("plugins.Logger"))
+        .expectingMethodToReturnValue ("args.0.logLevelColor", "error", "red")
         .commit ()
 
-    .reset ()
-        .before (s => s.class.timestamp = null)
-        .returns ("")
-        .commit ()
-;
-
-
-test.object ("plugins.Logger", true, "stack")
-    .should ("return the stack trace if enabled")
-        .given ({ stackTrace: true })
-        .returns (/\n\s+at\s.*/)
-        .commit ()
-
-    .should ("return empty string if not enabled")
-        .returns ("")
+    .should ("return a class-specific color for an unsupported level")
+        .given (nit.defineClass ("test.Host2"), nit.new ("plugins.Logger"))
+        .expectingMethodToReturnValue ("args.0.logLevelColor", "debug", "green")
         .commit ()
 ;
 
 
-test.method ("plugins.Logger", "registerTransform")
-    .should ("register a template transform")
-        .given ("addOne", v => v + 1)
-        .returnsInstanceOf ("plugins.Logger")
-        .expectingMethodToReturnValue ("result.transforms.addOne", 2, 3)
-        .commit ()
-;
-
-
-test.method ("plugins.Logger", "formatMessage")
-    .should ("format the log message")
-        .before (s =>
-        {
-            s.Host = nit.defineClass ("Host")
-                .m ("info.hello", "Hello there!")
-            ;
-
-            s.args = [new s.Host, "info.hello"];
-        })
-        .returns ("Hello there!")
+test.method ("plugins.Logger", "onUsePlugin", true)
+    .preCommit (s => s.description += " -> hostClass.prototype.info ()")
+    .snapshot ()
+    .should ("make the host to log with color code")
+        .before (s => s.logMock = test.mock (nit, "log"))
+        .before (() => nit.log.LEVELS = ["info", "debug"])
+        .given (nit.defineClass ("test.Host"), nit.new ("plugins.Logger"))
+        .after (s => s.host = nit.new ("test.Host"))
+        .expectingMethodToReturnValueOfType ("host.info", "the info message", "test.Host")
+        .expectingPropertyToBe ("logMock.invocations.0.args.0", "\x1B[32m[INFO] \x1B[39mthe info message")
         .commit ()
 
-    .should ("return the stack trace if given an error")
-        .before (s =>
-        {
-            s.args = [new s.Host, new Error ("ERR")];
-        })
-        .returns (/^Error: ERR/)
-        .commit ()
-
-    .should ("return the stringified string if given an object ")
-        .before (s =>
-        {
-            s.args = [new s.Host, { a: 1 }];
-        })
-        .returns (`{"a":1}`)
-        .commit ()
-;
-
-
-test.object ("plugins.Logger.Mixin", false, "logger")
-    .should ("return the logger of the host class")
-    .before (s =>
-    {
-        s.Logger = s.class.outerClass;
-        s.Host = nit.defineClass ("Host")
-            .m ("info.hello", "Hello there!")
-        ;
-
-        s.Logger.onUsePlugin (s.Host, new s.Logger);
-        s.object = s.Host;
-    })
-    .returnsInstanceOf ("plugins.Logger")
-    .commit ()
-;
-
-
-test.method ("plugins.Logger.Mixin", "log")
-    .should ("log the message to the console")
-    .before (s =>
-    {
-        s.Logger = s.class.outerClass;
-        s.Host = nit.defineClass ("Host")
-            .m ("info.hello", "Hello there!")
-        ;
-
-        s.Logger.onUsePlugin (s.Host, new s.Logger);
-        s.object = new s.Host;
-    })
-    .given ("info.hello")
-    .mock (nit, "log")
-    .returnsInstanceOf ("Host")
-    .expectingPropertyToBe ("mocks.0.invocations.0.args.0", "Hello there!")
-    .commit ()
-;
-
-
-test.method ("plugins.Logger.Mixin", "info")
-    .should ("log the without color code if process.stdout.isTTY is false")
-        .before (s =>
-        {
-            process.stdout.isTTY = false;
-            s.Logger = s.class.outerClass;
-            s.Host = nit.defineClass ("Host")
-                .m ("info.hello", "Hello there!")
-                .m ("info.multiline", nit.trim.text`
-                    Line 1
-                    Line 2
-                `)
-            ;
-
-            s.Logger.onUsePlugin (s.Host, new s.Logger);
-            s.object = new s.Host;
-        })
-        .after (() => process.stdout.isTTY = true)
-        .given ("info.hello")
-        .mock (nit, "log")
-        .returnsInstanceOf ("Host")
-        .expectingPropertyToBe ("mocks.0.invocations.0.args.0", "[INFO] Hello there!")
-        .commit ()
-
-    .should ("log the without color code if colorize is false")
-        .before (s =>
-        {
-            s.Logger = s.class.outerClass;
-            s.Host = nit.defineClass ("Host")
-                .m ("info.hello", "Hello there!")
-                .m ("info.multiline", nit.trim.text`
-                    Line 1
-                    Line 2
-                `)
-            ;
-
-            s.Logger.onUsePlugin (s.Host, new s.Logger ({ colorize: false }));
-            s.object = new s.Host;
-        })
-        .given ("info.hello")
-        .mock (nit, "log")
-        .returnsInstanceOf ("Host")
-        .expectingPropertyToBe ("mocks.0.invocations.0.args.0", "[INFO] Hello there!")
-        .commit ()
-
-    .should ("log the info message to the console")
-        .before (s =>
-        {
-            s.Logger = s.class.outerClass;
-            s.Host = nit.defineClass ("Host")
-                .m ("info.hello", "Hello there!")
-                .m ("info.multiline", nit.trim.text`
-                    Line 1
-                    Line 2
-                `)
-            ;
-
-            s.Logger.onUsePlugin (s.Host, new s.Logger);
-            s.object = new s.Host;
-        })
-        .given ("info.hello")
-        .mock (nit, "log")
-        .returnsInstanceOf ("Host")
-        .expectingPropertyToBe ("mocks.0.invocations.0.args.0", "\x1B[32m[INFO] \x1B[39mHello there!")
-        .commit ()
-
-    .should ("indent the log message if it contains multiple lines")
-        .before (s =>
-        {
-            s.object = new s.Host;
-        })
-        .given ("info.multiline")
-        .mock (nit, "log")
-        .returnsInstanceOf ("Host")
-        .expectingPropertyToBe ("mocks.0.invocations.0.args.0", "\x1B[32m[INFO] \x1B[39mLine 1\n    Line 2")
-        .commit ()
-
-    .should ("include the timestamp if enabled")
-        .before (s =>
-        {
-            s.Host = nit.defineClass ("Host")
-                .m ("info.hello", "Hello there!")
-            ;
-
-            s.Logger.onUsePlugin (s.Host, new s.Logger ({ timestamp: true }));
-            s.object = new s.Host;
-        })
-        .given ("info.hello")
-        .mock (nit, "log")
-        .returnsInstanceOf ("Host")
-        .expectingPropertyToBe ("mocks.0.invocations.0.args.0", /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \[INFO] Hello there!$/)
-        .commit ()
-;
-
-
-test.method ("plugins.Logger.Mixin", "debug")
-    .should ("log the debug message to the console")
-        .before (s =>
-        {
-            s.Logger = s.class.outerClass;
-            s.Host = nit.defineClass ("Host")
-                .m ("info.hello", "Hello there!")
-            ;
-
-            s.Logger.onUsePlugin (s.Host, new s.Logger);
-            s.object = new s.Host;
-
-            nit.debug ("Host");
-        })
-        .given ("info.hello")
-        .mock (nit, "log")
-        .returnsInstanceOf ("Host")
-        .expectingPropertyToBe ("mocks.0.invocations.0.args.0", "\x1B[33m[DEBUG] (Host) \x1B[39mHello there!")
-        .commit ()
-
-    .should ("NOT log the debug message to the console if the debug is not enabled for the class")
-        .before (s =>
-        {
-            nit.debug.PATTERNS = [];
-
-            s.object = new s.Host;
-        })
-        .given ("info.hello")
-        .mock (nit, "log")
-        .returnsInstanceOf ("Host")
-        .expectingPropertyToBe ("mocks.0.invocations.length", 0)
+    .should ("make the host to log without color code if process.stdout.isTTY is false")
+        .before (s => s.logMock = test.mock (nit, "log"))
+        .before (() => nit.log.LEVELS = ["info", "debug"])
+        .given (nit.defineClass ("test.Host2"), nit.new ("plugins.Logger"))
+        .after (s => s.host = nit.new ("test.Host2"))
+        .after (() => process.stdout.isTTY = false)
+        .expectingMethodToReturnValueOfType ("host.info", "the info message", "test.Host2")
+        .expectingPropertyToBe ("logMock.invocations.0.args.0", "[INFO] the info message")
         .commit ()
 ;

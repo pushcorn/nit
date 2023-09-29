@@ -993,7 +993,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     {
         var cls;
 
-        if (nit.is.func (cls = nit.CLASSES[name]) || nit.is.func (cls = global[name]))
+        if (nit.is.func (cls = name)
+            || nit.is.func (cls = nit.CLASSES[name])
+            || nit.is.func (cls = global[name]))
         {
             return cls;
         }
@@ -1174,6 +1176,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         return message;
     };
+
 
     nit.log.LEVELS.forEach (function (level)
     {
@@ -3660,7 +3663,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             func = func[1];
         }
 
-        if (nit.is.str (func))
+        if (!nit.is.undef (obj) && nit.is.str (func))
         {
             func = obj[func];
         }
@@ -4118,6 +4121,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             cls.TYPE_PARSERS.sort (function (a, b) { return a.order - b.order; });
 
             return this;
+        }
+        ,
+        registerStringTypeParser: function (name)
+        {
+            var cls = this;
+            var parserCls = this.PrimitiveTypeParser;
+            cls.registerTypeParser (new parserCls (name, "", function (v) { return nit.is.undef (v) ? "" : parserCls.valueToString (v); }));
+
+            return cls;
         }
         ,
         findTypeParser: function (type, nullable)
@@ -5464,7 +5476,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .do (function (Object)
         {
             Object
-                .registerTypeParser (new Object.PrimitiveTypeParser ("string", "", function (v) { return nit.is.undef (v) ? "" : Object.PrimitiveTypeParser.valueToString (v); }))
+                .registerStringTypeParser ("string")
                 .registerTypeParser (new Object.PrimitiveTypeParser ("boolean", false, function (v) {  v += ""; return v == "true" ? true : (v == "false" ? false : undefined); }))
                 .registerTypeParser (new Object.PrimitiveTypeParser ("number", 0, function (v) { return nit.is.num (v) ? +v : undefined; }))
                 .registerTypeParser (new Object.PrimitiveTypeParser ("integer", 0, function (v) { return nit.is.int (v) ? +v : undefined; }))
@@ -5611,7 +5623,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             type = type || self.PRIMARY_PROPERTY_TYPE;
 
-            var typeCls = nit.is.func (type) ? type : nit.lookupClass (type);
+            var typeCls = nit.lookupClass (type);
 
             if (!typeCls)
             {
@@ -6744,7 +6756,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         })
         .staticMethod ("lookupPlugin", function (category, superclass)
         {
-            superclass = nit.is.func (superclass) ? superclass : nit.lookupClass (superclass);
+            if (arguments.length == 1)
+            {
+                superclass = category;
+                category = undefined;
+            }
+
+            superclass = nit.lookupClass (superclass);
+            category = category || superclass.name.split (".").slice (-2, -1)[0];
 
             return nit.find (this.getClassChainProperty (category, true), function (p)
             {
@@ -6777,6 +6796,22 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .categorize ("plugins")
         .do (function (cls) { nit.Class.registerPlugin (cls); })
     ;
+
+
+    nit.defineConstraint ("Plugin")
+        .throws ("error.plugin_not_found", "The object '%{property.name}' does not have a registered plugin of '%{constraint.type}'.")
+        .property ("<type>", "string") // The plugin type
+        .property ("[category]", "string") // The plugin category
+        .onValidate (function (ctx)
+        {
+            var pluginCls = nit.lookupClass (ctx.constraint.type);
+            var category = ctx.constraint.category || pluginCls.name.split (".").slice (-2, -1)[0];
+            var cls = ctx.value instanceof nit.Class ? ctx.value.constructor : (nit.is.subclassOf (ctx.value, nit.Class, true) ? ctx.value : undefined);
+
+            return cls && cls.lookupPlugin (category, pluginCls);
+        })
+    ;
+
 
     var Mixin = nit.defineClass ("nit.Mixin")
         .categorize ("mixins")
@@ -6983,7 +7018,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.lookupComponents = function (category, superclass)
     {
-        superclass = nit.is.func (superclass) ? superclass : nit.lookupClass (superclass);
+        superclass = nit.lookupClass (superclass);
 
         return nit
             .listComponents (category)
@@ -6996,7 +7031,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.lookupComponent = function (name, category, superclass)
     {
         name = nit.is.func (name) ? name.name : name;
-        superclass = nit.is.func (superclass) ? superclass : nit.lookupClass (superclass);
+        superclass = nit.lookupClass (superclass);
         category = nit.trim (category);
 
         var nn = nit.ComponentDescriptor.normalizeName (name);

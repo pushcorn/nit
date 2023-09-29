@@ -20,8 +20,7 @@ test ("nit.Command.completers.Command.completeForType ()", () =>
         {
             Input
                 .option ("cmd1", "command")
-                .option ("cmd2", "nit.Command")
-                .option ("cmd3", "string")
+                .option ("cmd2", "string")
             ;
         })
     ;
@@ -30,9 +29,6 @@ test ("nit.Command.completers.Command.completeForType ()", () =>
     expect (comp.completeForType (ctx)).toEqual (expect.arrayContaining (["test", "lint"]));
 
     ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.cmd2 });
-    expect (comp.completeForType (ctx)).toEqual (expect.arrayContaining (["test", "lint"]));
-
-    ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.cmd3 });
     expect (comp.completeForType (ctx)).toBeUndefined ();
 });
 
@@ -116,22 +112,26 @@ test ("nit.Command.Input", () =>
                 .option ("paramA")
                 .option ("boolOpt", "boolean")
                 .option ("paramB")
+                .option ("paramE", "boolean|integer", "The mixed type.")
             ;
         })
     ;
 
-    expect (() => Test.Input.option ("paramB", { shortFlag: "p" })).toThrow (/The short flag.*has been used/i);
-    expect (Test.Input.option ("paramC")).toBe (Test.Input);
-    expect (Test.Input.option ("paramD", { shortFlag: "d" })).toBe (Test.Input);
+    const Input = Test.Input;
 
-    expect (Test.Input.getOptionByFlag ("param-a")).toBeInstanceOf (nit.Command.Option);
-    expect (Test.Input.getOptionByFlag ("param-f")).toBeUndefined ();
+    expect (() => Input.option ("paramB", { shortFlag: "p" })).toThrow (/The short flag.*has been used/i);
+    expect (Input.option ("paramC")).toBe (Input);
+    expect (Input.option ("paramD", { shortFlag: "d" })).toBe (Input);
 
-    expect (Test.Input.getOptionByShortFlag ("p").flag).toBe ("param-a");
-    expect (Test.Input.getOptionByShortFlag ("u")).toBeUndefined ();
+    expect (Input.getOptionByFlag ("param-a")).toBeInstanceOf (nit.Command.Option);
+    expect (Input.getOptionByFlag ("param-f")).toBeUndefined ();
 
-    expect (Test.Input.getBooleanOptionByFlag ("bool-opt")).toBeInstanceOf (nit.Command.Option);
-    expect (Test.Input.getBooleanOptionByFlag ("undef-bool-opt")).toBeUndefined ();
+    expect (Input.getOptionByShortFlag ("p").flag).toBe ("param-a");
+    expect (Input.getOptionByShortFlag ("u")).toBeUndefined ();
+
+    expect (Input.isBooleanOption (Input.fieldMap.boolOpt)).toBe (true);
+    expect (Input.isBooleanOption (Input.fieldMap.paramB)).toBe (false);
+    expect (Input.isBooleanOption (Input.fieldMap.paramE)).toBe (true);
 });
 
 

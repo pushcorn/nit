@@ -58,7 +58,7 @@ test ("nit.test.Strategy.Project", () =>
 
     let projectPathA = test.pathForProject ("project-a");
     let projectPathB = test.pathForProject ("project-b");
-    let proj = new Project ("project-a");
+    let proj = new Project ("project-a", true);
     let projB = new Project (projectPathB);
 
     expect (nit.isDir (proj.root.path)).toBe (true);
@@ -79,6 +79,9 @@ test ("nit.test.Strategy.Project", () =>
 
     expect (newProjectPaths.filter (p => !oldProjectPaths.includes (p)))
         .toEqual ([projectPathA]);
+
+    expect (newAssetPaths.some (p => p.includes ("/packages/http"))).toBe (false);
+    expect (afterAssetPaths.some (p => p.includes ("/packages/http"))).toBe (true);
 
     expect (newAssetPaths.filter (p => !oldAssetPaths.includes (p)))
         .toEqual (
@@ -407,6 +410,8 @@ test ("nit.test.Strategy.snapshot ()", () =>
         inits: [],
         deinits: [],
         spies: [],
+        preCommits: [],
+        postCommits: [],
         resultValidator: undefined,
         mocks: [],
         thisOnly: false,
@@ -434,6 +439,8 @@ test ("nit.test.Strategy.snapshot ()", () =>
         expectors: [],
         inits: [],
         deinits: [],
+        preCommits: [],
+        postCommits: [],
         spies: [],
         resultValidator: undefined,
         mocks: [],
@@ -491,26 +498,48 @@ test ("nit.test.Strategy.reset ()", () =>
         expectors: [],
         inits: [],
         deinits: [],
+        preCommits: [],
+        postCommits: [],
         spies: [],
         resultValidator: undefined,
         mocks: [],
         thisOnly: false,
         dir: ""
     });
+});
 
-    let check;
 
-    test.mock (process, "nextTick", function (cb)
-    {
-        check = cb;
-    }, 2);
+test ("nit.test.Strategy.reset ()", async () =>
+{
+    const nit = await test.reloadNit ();
+    let hook;
+
+    test.mock (global, "afterAll", _hook => hook = _hook, 2);
+
+    nit.require ("nit.test.Strategy");
+
+    const PropertyStrategy = nit.test.defineStrategy ("Property")
+        .field ("<object>", "object")
+        .field ("<property>", "string")
+        .field ("data", "object")
+        .onTest (function ()
+        {
+            return this.object[this.property];
+        })
+    ;
+
+    const A = nit.defineClass ("A")
+        .field ("<name>", "string")
+    ;
+
+    let strategy = new PropertyStrategy (new A ("AAA"), "name", { data: { d: 1 } });
 
     strategy.reset ("not committed");
-    expect (() => check ()).toThrow (/not committed/);
+    expect (() => hook ()).toThrow (/not committed/);
 
     strategy.should ("will commit");
-    strategy.testId = "";
-    expect (check ()).toBeUndefined ();
+    strategy.committed[strategy.testId] = true;
+    expect (hook ()).toBeUndefined ();
 });
 
 
@@ -544,8 +573,13 @@ test ("nit.test.Strategy.only ()", () =>
 });
 
 
-test ("nit.test.Strategy.should,can ()", () =>
+test ("nit.test.Strategy.should,can ()", async () =>
 {
+    const nit = await test.reloadNit ();
+
+    test.mock (global, "afterAll", null, 2);
+    nit.require ("nit.test.Strategy");
+
     const PropertyStrategy = nit.test.defineStrategy ("Property")
         .field ("<object>", "object")
         .field ("<property>", "string")
@@ -559,7 +593,6 @@ test ("nit.test.Strategy.should,can ()", () =>
         .field ("<name>", "string")
     ;
 
-    test.mock (process, "nextTick", nit.noop);
     let strategy = new PropertyStrategy (new A ("AAA"), "name")
         .should ("return the value of a property")
     ;
@@ -569,7 +602,6 @@ test ("nit.test.Strategy.should,can ()", () =>
     strategy.should ();
     expect (strategy.message).toBe ("should return the value of a property");
 
-    test.mock (process, "nextTick", nit.noop);
     strategy.can ("return the value of a property");
     expect (strategy.message).toBe ("can return the value of a property");
 
@@ -621,6 +653,9 @@ test ("nit.test.Strategy.mock ()", () =>
 
     strategy.throws (/test errr/);
     expect (strategy.resultValidator).toBeInstanceOf (PropertyStrategy.ErrorValidator);
+
+    strategy.testing = true;
+    expect (strategy.mock (a, "addTwo")).toBeInstanceOf (PropertyStrategy.Mock);
 });
 
 
@@ -649,6 +684,9 @@ test ("nit.test.Strategy.spy ()", () =>
     ;
 
     expect (strategy.spies.length).toBe (1);
+
+    strategy.testing = true;
+    expect (strategy.spy (a, "lower")).toBeInstanceOf (PropertyStrategy.Spy);
 });
 
 
@@ -813,6 +851,7 @@ test ("nit.test.Strategy.commit ()", async () =>
 
     const nit = await test.reloadNit ();
 
+    test.mock (global, "afterAll", null, 5);
     nit.require ("nit.test.Strategy");
 
     const PropertyStrategy = nit.test.defineStrategy ("Property")
@@ -843,8 +882,7 @@ test ("nit.test.Strategy.commit ()", async () =>
     let after = jest.fn ();
     let status = {};
 
-    test.mock (process, "nextTick", nit.noop, 5);
-    new PropertyStrategy (new A ("AAA"), "name", { description: "Test property." })
+    let propertyStrategy = new PropertyStrategy (new A ("AAA"), "name", { description: "Test property." })
         .should ("pass")
             .given (1, 2, 3)
             .mock (nit, "noop")
@@ -891,6 +929,8 @@ test ("nit.test.Strategy.commit ()", async () =>
             .chdir (test.pathForProject ("project-a"))
             .only ()
             .spy (A.prototype, "nameLength")
+            .preCommit (() => status.preCommitCalled = true)
+            .postCommit (() => status.postCommitCalled = true)
             .init (function ()
             {
                 status.initCalled = true;
@@ -962,13 +1002,15 @@ test ("nit.test.Strategy.commit ()", async () =>
     expect (status.dirChanged).toBe (true);
     expect (status.initCalled).toBe (true);
     expect (status.deinitCalled).toBe (true);
+    expect (status.preCommitCalled).toBe (true);
+    expect (status.postCommitCalled).toBe (true);
     expect (status.upCalled).toBe (true);
     expect (status.downCalled).toBe (true);
     expect (status.spyCalled).toBe (1);
     expect (PropertyStrategy.upCalled).toBe (5);
     expect (PropertyStrategy.downCalled).toBe (3);
-
-
+    expect (propertyStrategy.preCommits.length).toBe (0);
+    expect (propertyStrategy.postCommits.length).toBe (0);
 });
 
 

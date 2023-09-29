@@ -123,12 +123,14 @@ test ("nit.Class.getPlugins", () =>
     const Condition = nit.defineClass ("test.Condition");
     const RequestPath = Condition.defineSubclass ("test.RequestPath").field ("<val>");
     const RequestMethod = Condition.defineSubclass ("test.RequestMethod").field ("<val>");
+    const RequestContentType = Condition.defineSubclass ("test.conditions.RequestContentType").field ("<val>");
     const A = nit.defineClass ("A")
         .registerPlugin (Condition)
         .condition (new RequestPath ("p1"))
         .condition (new RequestMethod ("m1"))
         .condition (new RequestPath ("p2"))
         .condition (new RequestMethod ("m2"))
+        .condition (new RequestContentType ("ct1"))
     ;
 
     const B = nit.defineClass ("B", "A")
@@ -136,19 +138,20 @@ test ("nit.Class.getPlugins", () =>
         .condition (new RequestMethod ("m3"))
     ;
 
-    expect (A.conditions.length).toBe (4);
-    expect (A.getPlugins ("conditions").length).toBe (4);
-    expect (A.getPlugins ("conditions", true).length).toBe (2);
+    expect (A.conditions.length).toBe (5);
+    expect (A.getPlugins ("conditions").length).toBe (5);
+    expect (A.getPlugins ("conditions", true).length).toBe (3);
     expect (A.getPlugins ("conditions", true)[0].val).toBe ("p1");
     expect (A.getPlugins ("conditions", true)[1].val).toBe ("m1");
 
     expect (B.conditions.length).toBe (2);
-    expect (B.getPlugins ("conditions").length).toBe (6);
-    expect (B.getPlugins ("conditions", true).length).toBe (2);
+    expect (B.getPlugins ("conditions").length).toBe (7);
+    expect (B.getPlugins ("conditions", true).length).toBe (3);
     expect (B.getPlugins ("conditions", true)[0].val).toBe ("p3");
     expect (B.getPlugins ("conditions", true)[1].val).toBe ("m3");
     expect (B.getPlugins ("conditions", () => "p3").length).toBe (1);
 
+    expect (A.lookupPlugin (RequestContentType).val).toBe ("ct1");
     expect (B.lookupPlugin ("conditions", RequestMethod).val).toBe ("m3");
     expect (B.lookupPlugin ("conditions", "test.RequestPath").val).toBe ("p3");
 });

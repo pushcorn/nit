@@ -17,6 +17,7 @@ test ("nit.test.Jest", async () =>
 
     expect (res[0]).toEqual (
     {
+        bail: true,
         config: '{"rootDir":"."}',
         testPathPattern: [],
         watch: false,
