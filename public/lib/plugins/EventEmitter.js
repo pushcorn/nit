@@ -2,6 +2,21 @@ module.exports = function (nit)
 {
     return nit.definePlugin ("EventEmitter")
         .field ("<events...>", "string", "The event names.")
+        .field ("prePost", "boolean", "Add pre- and post- events.")
+        .onConstruct (function ()
+        {
+            if (this.prePost)
+            {
+                var events = this.events;
+
+                events.forEach (function (e)
+                {
+                    var pce = nit.pascalCase (e);
+
+                    events.push ("pre" + pce, "post" + pce);
+                });
+            }
+        })
         .staticMethod ("onUsePlugin", function (hostClass, plugin)
         {
             hostClass
@@ -20,13 +35,7 @@ module.exports = function (nit)
                         {
                             plugin.events.forEach (function (event)
                             {
-                                var evt = nit.pascalCase (event);
-
-                                Listener
-                                    .lifecycleMethod ("pre" + evt)
-                                    .lifecycleMethod (event)
-                                    .lifecycleMethod ("post" + evt)
-                                ;
+                                Listener.lifecycleMethod (event);
                             });
                         })
                     ;
@@ -76,12 +85,7 @@ module.exports = function (nit)
                     var self = this;
                     var cls = self.constructor;
                     var args = nit.array (arguments).slice (1);
-                    var evt = nit.pascalCase (event.split (".").pop ());
                     var queue = nit.Queue ()
-                        .push (function ()
-                        {
-                            return cls.applyPlugins.apply (cls, ["listeners", "pre" + evt].concat (args));
-                        })
                         .push (function ()
                         {
                             return cls.applyPlugins.apply (cls, ["listeners", event].concat (args));
@@ -98,16 +102,7 @@ module.exports = function (nit)
                         ;
                     });
 
-                    return queue
-                        .push (function ()
-                        {
-                            return cls.applyPlugins.apply (cls, ["listeners", "post" + evt].concat (args));
-                        })
-                        .run (function ()
-                        {
-                            return self;
-                        })
-                    ;
+                    return queue.run (function () { return self; });
                 })
                 .method ("on", function (event, listener)
                 {
