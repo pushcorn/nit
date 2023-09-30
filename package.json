@@ -1,6 +1,6 @@
 {
     "name": "@pushcorn/nit",
-    "version": "2.1.1",
+    "version": "2.2.0",
     "main": "lib/nit.js",
     "description": "Node Isomorphoic Toolkit - A JavaScript toolkit for building server, web, and CLI applications in isomorphoic way.",
     "bin": "./bin/nit",
