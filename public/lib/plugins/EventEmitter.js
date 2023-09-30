@@ -5,9 +5,35 @@ module.exports = function (nit)
         .staticMethod ("onUsePlugin", function (hostClass, plugin)
         {
             hostClass
-                .defineInnerClass ("EventEmitterListeners", function (EventEmitterListeners)
+                .do (function ()
                 {
-                    EventEmitterListeners
+                    plugin.events.forEach (function (event)
+                    {
+                        hostClass.k (event);
+                    });
+                })
+                .defineInnerPlugin ("Listener", function (Listener)
+                {
+                    Listener
+                        .categorize ((hostClass.name + "Listeners").toLowerCase ())
+                        .do (function ()
+                        {
+                            plugin.events.forEach (function (event)
+                            {
+                                var evt = nit.pascalCase (event);
+
+                                Listener
+                                    .lifecycleMethod ("pre" + evt)
+                                    .lifecycleMethod (event)
+                                    .lifecycleMethod ("post" + evt)
+                                ;
+                            });
+                        })
+                    ;
+                })
+                .defineInnerClass ("Listeners", function (Listeners)
+                {
+                    Listeners
                         .m ("error.unsupported_event", "The event '%{event}' is not supported.")
                         .staticMethod ("normalizeEvent", function (event)
                         {
@@ -15,7 +41,7 @@ module.exports = function (nit)
                         })
                         .staticMethod ("validateEvent", function (event)
                         {
-                            var k = EventEmitterListeners.normalizeEvent (event);
+                            var k = Listeners.normalizeEvent (event);
 
                             if (!this.fieldMap[k])
                             {
@@ -28,16 +54,14 @@ module.exports = function (nit)
                         {
                             plugin.events.forEach (function (event)
                             {
-                                hostClass.k (event);
+                                var k = Listeners.normalizeEvent (event);
 
-                                var k = EventEmitterListeners.normalizeEvent (event);
-
-                                EventEmitterListeners.field (k + "...", "function");
+                                Listeners.field (k + "...", "function");
                             });
                         })
                         .method ("get", function (event)
                         {
-                            event = EventEmitterListeners.validateEvent (event);
+                            event = Listeners.validateEvent (event);
 
                             return this[event];
                         })
@@ -45,23 +69,45 @@ module.exports = function (nit)
                 })
                 .memo ("listeners", function ()
                 {
-                    return new hostClass.EventEmitterListeners ();
+                    return new hostClass.Listeners ();
                 })
                 .method ("emit", function (event)
                 {
                     var self = this;
+                    var cls = self.constructor;
                     var args = nit.array (arguments).slice (1);
-                    var q = nit.Queue ();
+                    var evt = nit.pascalCase (event.split (".").pop ());
+                    var queue = nit.Queue ()
+                        .push (function ()
+                        {
+                            return cls.applyPlugins.apply (cls, ["listeners", "pre" + evt].concat (args));
+                        })
+                        .push (function ()
+                        {
+                            return cls.applyPlugins.apply (cls, ["listeners", event].concat (args));
+                        })
+                    ;
 
                     self.listeners.get (event).forEach (function (l)
                     {
-                        q.push (function ()
-                        {
-                            return l.apply (self, args);
-                        });
+                        queue
+                            .push (function ()
+                            {
+                                return l.apply (self, args);
+                            })
+                        ;
                     });
 
-                    return q.run (function () { return self; });
+                    return queue
+                        .push (function ()
+                        {
+                            return cls.applyPlugins.apply (cls, ["listeners", "post" + evt].concat (args));
+                        })
+                        .run (function ()
+                        {
+                            return self;
+                        })
+                    ;
                 })
                 .method ("on", function (event, listener)
                 {
