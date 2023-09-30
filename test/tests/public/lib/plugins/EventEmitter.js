@@ -1,69 +1,59 @@
-test.method ("plugins.EventEmitter", "onUsePlugin", true)
-    .should ("add the on method to the host class")
-        .up (s => s.Server = nit.defineClass ("Server"))
-        .up (s => s.args = [s.Server, new s.class ("start", "stop")])
-        .after (s =>
+test.plugin ("plugins.EventEmitter", "on")
+    .should ("register an event listener")
+        .up (s => s.pluginArgs = ["start", "stop"])
+        .up (s => s.args = ["start", v => s.startArg = v])
+        .after (({ self: s, host }) =>
         {
-            let server = s.server = new s.Server;
+            host.on ("stop", v => s.stopArg = v);
 
-            server.on ("start", v => s.startArg = v);
-            server.on ("stop", v => s.stopArg = v);
-
-            server.emit ("start", 5);
-            server.emit ("stop", 7);
+            host.emit ("start", 5);
+            host.emit ("stop", 7);
         })
         .expectingPropertyToBe ("startArg", 5)
         .expectingPropertyToBe ("stopArg", 7)
-        .expectingMethodToThrow ("server.on", "dispatch", /not supported/)
+        .expectingMethodToThrow ("host.on", "dispatch", /not supported/)
         .commit ()
 ;
 
 
-test.method ("plugins.EventEmitter", "onUsePlugin", true)
-    .should ("add the off method to the host class")
-        .up (s => s.Server = nit.defineClass ("Server"))
-        .up (s => s.args = [s.Server, new s.class ("start", "stop")])
-        .after (s =>
+test.plugin ("plugins.EventEmitter", "off")
+    .should ("unregister an event listener")
+        .up (s => s.pluginArgs = ["stop"])
+        .up (s => s.onStop1 = function () { s.stop1 = true; })
+        .up (s => s.onStop2 = function () { s.stop2 = true; })
+        .up (s => s.pluginArgs = ["start", "stop"])
+        .up (s => s.args = ["stop", s.onStop1])
+        .before (({ host, onStop1, onStop2 }) =>
         {
-            let server = s.server = new s.Server;
-            let onStop1 = function () { s.stop1 = true; };
-            let onStop2 = function () { s.stop2 = true; };
-
-            server.on ("start", v => s.startArg = v);
-            server.on ("stop", onStop1);
-            server.on ("stop", onStop2);
-            server.off ("stop", onStop1);
-
-            server.emit ("start", 5);
-            server.emit ("stop", 7);
+            host.on ("stop", onStop1);
+            host.on ("stop", onStop2);
         })
-        .expectingPropertyToBe ("startArg", 5)
+        .after (s => s.host.emit ("stop", 7))
+        .expectingPropertyToBe ("stop1", undefined)
         .expectingPropertyToBe ("stop2", true)
-        .expectingMethodToThrow ("server.off", "dispatch", /not supported/)
-        .expectingPropertyToBe ("server.listeners.$stop.length", 1)
-        .expectingMethodToReturnValueOfType ("server.off", "stop", "Server")
-        .expectingPropertyToBe ("server.listeners.$stop.length", 0)
+        .expectingMethodToThrow ("host.off", "dispatch", /not supported/)
+        .expectingPropertyToBe ("host.listeners.test\\.PluginHost\\.stop.length", 1)
         .commit ()
 ;
 
 
-test.method ("plugins.EventEmitter", "onUsePlugin", true)
-    .should ("add the emit method to the host class")
-        .up (s => s.Server = nit.defineClass ("Server"))
-        .up (s => s.args = [s.Server, new s.class ("start", "stop")])
-        .after (async (s) =>
-        {
-            s.results = [];
+test.plugin ("plugins.EventEmitter", "emit")
+    .should ("invoke the event listeners")
+        .up (s => s.pluginArgs = ["stop"])
+        .up (s => s.onStop1 = async function (v) { await nit.sleep (10); s.stop1 = v; })
+        .given ("test.PluginHost.stop", 99)
+        .before (s => s.host.on ("stop", s.onStop1))
+        .expectingPropertyToBe ("stop1", 99)
+        .commit ()
+;
 
-            let server = s.server = new s.Server;
-            let onStop1 = async function () { await nit.sleep (10); s.results.push (1); };
-            let onStop2 = async function () { await nit.sleep (10); s.results.push (2); };
 
-            server.on ("stop", onStop1);
-            server.on ("stop", onStop2);
-
-            await server.emit ("stop");
-        })
-        .expectingPropertyToBe ("results", [1, 2])
+test.plugin ("plugins.EventEmitter", "once")
+    .should ("register a one-time listener")
+        .up (s => s.pluginArgs = "click")
+        .up (s => s.args = ["click", function () { s.clicked = ~~s.clicked + 1; }])
+        .after (s => s.host.emit ("click"))
+        .after (s => s.host.emit ("click"))
+        .expectingPropertyToBe ("clicked", 1)
         .commit ()
 ;

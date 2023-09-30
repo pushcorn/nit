@@ -9,25 +9,37 @@ module.exports = function (nit)
                 {
                     EventEmitterListeners
                         .m ("error.unsupported_event", "The event '%{event}' is not supported.")
+                        .staticMethod ("normalizeEvent", function (event)
+                        {
+                            return ~event.indexOf (".") ? event : nit.k.v (hostClass, event);
+                        })
                         .staticMethod ("validateEvent", function (event)
                         {
-                            if (!~plugin.events.indexOf (event))
+                            var k = EventEmitterListeners.normalizeEvent (event);
+
+                            if (!this.fieldMap[k])
                             {
                                 this.throw ("error.unsupported_event", { event: event });
                             }
+
+                            return k;
                         })
                         .do (function ()
                         {
                             plugin.events.forEach (function (event)
                             {
-                                EventEmitterListeners.property ("$" + event + "...", "function");
+                                hostClass.k (event);
+
+                                var k = EventEmitterListeners.normalizeEvent (event);
+
+                                EventEmitterListeners.field (k + "...", "function");
                             });
                         })
                         .method ("get", function (event)
                         {
-                            EventEmitterListeners.validateEvent (event);
+                            event = EventEmitterListeners.validateEvent (event);
 
-                            return this["$" + event];
+                            return this[event];
                         })
                     ;
                 })
@@ -56,6 +68,32 @@ module.exports = function (nit)
                     var self = this;
 
                     self.listeners.get (event).push (listener);
+
+                    return self;
+                })
+                .method ("once", function (event, listener)
+                {
+                    var self = this;
+
+                    function once ()
+                    {
+                        var args = arguments;
+                        var s = this;
+
+                        return nit.Queue ()
+                            .push (function ()
+                            {
+                                return listener.apply (s, args);
+                            })
+                            .push (function ()
+                            {
+                                self.off (event, once);
+                            })
+                            .run ()
+                        ;
+                    }
+
+                    self.listeners.get (event).push (once);
 
                     return self;
                 })

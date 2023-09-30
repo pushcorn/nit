@@ -67,6 +67,13 @@ test ("commands.Test - all or packages", async () =>
             results:
             {
                 success: true,
+                testResults:
+                [
+                {
+                    testFilePath: "path"
+                }
+                ]
+                ,
                 coverageMap:
                 {
                     data:

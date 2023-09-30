@@ -1506,13 +1506,18 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             .forEach (function (k)
             {
                 var key = "k" + nit.pascalCase (nit.sanitizeVarName (k));
-                var fqn = cls.name + "." + nit.camelCase (k);
 
-                nit.dpv (cls, key, fqn);
+                nit.dpv (cls, key, nit.k.v (cls, k));
             })
         ;
 
         return cls;
+    };
+
+
+    nit.k.v = function (cls, k)
+    {
+        return cls.name + "." + nit.camelCase (k);
     };
 
 
