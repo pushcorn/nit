@@ -297,6 +297,31 @@ test ("nit.Object", () =>
 });
 
 
+test ("nit.Object.TYPE_CASTERS.component", () =>
+{
+    let componentCaster = nit.Object.TYPE_CASTERS.component;
+
+    nit.defineClass ("test.Comp");
+
+    const MyComp = nit.defineClass ("test.comps.MyComp", "test.Comp")
+        .field ("val", "integer")
+    ;
+
+    const A = nit.defineClass ("A")
+        .field ("<comp>", "test.Comp")
+    ;
+
+    let comp;
+
+    expect (() => componentCaster ("aa", A.fieldMap.comp)).toThrow (/component.*not found/);
+    expect (() => componentCaster ("", A.fieldMap.comp)).toThrow (/component name.*not specified/);
+    expect (componentCaster (3, A.fieldMap.comp)).toBe (3);
+    expect (componentCaster ("test:my-comp", A.fieldMap.comp)).toBeInstanceOf (MyComp);
+    expect (comp = componentCaster ({ "@name": "test:my-comp", val: 9 }, A.fieldMap.comp)).toBeInstanceOf (MyComp);
+    expect (comp.val).toBe (9);
+});
+
+
 test ("nit.Object.staticLifecycleMethod ()", () =>
 {
     const A = nit.defineClass ("AS")
@@ -936,6 +961,8 @@ test ("nit.Object.getProperties ()", () =>
     expect (Circle.getProperties ()[0].name).toBe ("radius");
     expect (Circle.getProperties (null, nit.Object.Property)[0].name).toBe ("radius");
     expect (() => Circle.getProperties (null, "Opt")).toThrow (/property type.*invalid/);
+
+    expect (Circle.getProperty ("radius")).toBeInstanceOf (nit.Object.Property);
 });
 
 

@@ -14,6 +14,14 @@ test ("nit.Queue", async () =>
         {
             ctx.seq = 2;
         })
+        .post (function (ctx)
+        {
+            ctx.postCalled = true;
+        })
+        .lpost (function (ctx)
+        {
+            ctx.lpostCalledBeforePost = ctx.postCalled === undefined;
+        })
     ;
 
     queue.pop ();
@@ -37,6 +45,8 @@ test ("nit.Queue", async () =>
             expect (ctx.seq).toBe (1);
             expect (ctx.asyncCalled).toBe (true);
             expect (ctx.result).toBe ("done");
+            expect (ctx.postCalled).toBe (true);
+            expect (ctx.lpostCalledBeforePost).toBe (true);
         })
     ;
 
@@ -180,10 +190,19 @@ test ("nit.Queue.failure ()", async () =>
     let outputs = [];
     let result;
     let uncaughtError;
+    let q = nit.Queue ();
 
     try
     {
-        result = await nit.Queue ()
+        result = await q
+            .pre (function ()
+            {
+                ctx.preCalled = true;
+            })
+            .lpre (function ()
+            {
+                ctx.lpreCalledBeforePre = ctx.preCalled === undefined;
+            })
             .push (function ()
             {
                 outputs.push (1);
@@ -197,6 +216,14 @@ test ("nit.Queue.failure ()", async () =>
                 await nit.sleep (10);
                 outputs.push (3);
                 nit.throw ("failed");
+            })
+            .push (function ()
+            {
+                ctx.notCalled = true;
+            })
+            .post (function ()
+            {
+                ctx.postNotCalled = true;
             })
             .failure (async function ()
             {
@@ -213,6 +240,13 @@ test ("nit.Queue.failure ()", async () =>
 
     expect (outputs).toEqual ([1, 2, 3, "err handled"]);
     expect (result).toBeUndefined ();
+    expect (ctx.lpreCalledBeforePre).toBe (true);
+    expect (ctx.preCalled).toBe (true);
+    expect (ctx.notCalled).toBeUndefined ();
+    expect (ctx.postNotCalled).toBeUndefined ();
+    expect (q.tasks.length).toBe (0);
+    expect (q.preTasks.length).toBe (0);
+    expect (q.postTasks.length).toBe (0);
     expect (uncaughtError).toBeInstanceOf (Error);
     expect (uncaughtError.message).toBe ("failed again");
 });

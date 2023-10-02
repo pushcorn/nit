@@ -10,25 +10,56 @@ test ("nit () returns undefined.", () =>
 });
 
 
-test ("nit sets up CJS env in browser env.", () =>
+test ("nit.READY", () =>
+{
+    expect (nit.READY).toBe (true);
+});
+
+
+test ("nit sets up CJS env in browser env.", async () =>
 {
     jest.resetModules ();
 
     let event;
+    let listener;
 
     global.document =
     {
-        addEventListener: function (evt)
+        addEventListener: function (evt, l)
         {
             event = evt;
+            listener = l;
         }
     };
 
     delete global.nit;
-    require (test.PUBLIC_NIT_PATH);
+    const nit = require (test.PUBLIC_NIT_PATH);
 
+    nit
+        .preInit (async function ()
+        {
+            await nit.sleep (10);
+            nit.preInitCalled = true;
+        })
+        .init (function ()
+        {
+            nit.initCalled = true;
+        })
+        .postInit (function ()
+        {
+            nit.postInitCalled = true;
+        })
+    ;
+
+    expect (nit.READY).toBe (false);
     expect (global.module).toBeInstanceOf (Object);
     expect (event).toBe ("DOMContentLoaded");
+
+    await listener ();
+    expect (nit.READY).toBe (true);
+    expect (nit.initCalled).toBe (true);
+    expect (nit.preInitCalled).toBe (true);
+    expect (nit.postInitCalled).toBe (true);
 
     delete global.module;
     delete global.document;

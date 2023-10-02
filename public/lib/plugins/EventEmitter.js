@@ -3,6 +3,7 @@ module.exports = function (nit)
     return nit.definePlugin ("EventEmitter")
         .field ("<events...>", "string", "The event names.")
         .field ("prePost", "boolean", "Add pre- and post- events.")
+        .field ("listenerName", "string", "The listener's class name.", "Listener")
         .onConstruct (function ()
         {
             if (this.prePost)
@@ -27,10 +28,10 @@ module.exports = function (nit)
                         hostClass.k (event);
                     });
                 })
-                .defineInnerPlugin ("Listener", function (Listener)
+                .defineInnerPlugin (plugin.listenerName, function (Listener)
                 {
                     Listener
-                        .categorize ((hostClass.name + "Listeners").toLowerCase ())
+                        .categorize (hostClass.name.split (".").slice (0, -1).concat (nit.pluralize (plugin.listenerName)).join (".").toLowerCase ())
                         .do (function ()
                         {
                             plugin.events.forEach (function (event)

@@ -140,16 +140,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     }, true, false);
 
 
-    nit.dpgs (nit,
-    {
-        READY: function ()
-        {
-            return READY;
-        }
-
-    }, true);
-
-
     nit.dpg (nit, "stack", function ()
     {
         return new Error ().stack.split ("\n").slice (2).join ("\n");
@@ -997,8 +987,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             || nit.is.func (cls = nit.CLASSES[name])
             || nit.is.func (cls = global[name]))
         {
-            return cls;
+            return nit.configureClass (cls);
         }
+    };
+
+
+    nit.configureClass = function (cls)
+    {
+        return cls;
     };
 
 
@@ -3798,6 +3794,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             nit.dpvs (obj,
             {
                 tasks: [].concat (ARRAY (args)),
+                preTasks: [],
+                postTasks: [],
                 running: false
 
             }, true, false);
@@ -3819,31 +3817,65 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 })
             ;
 
+            Queue.push = function (target, tasks)
+            {
+                target.push.apply (target, nit.array (tasks, true));
+            };
+
+            Queue.lpush = function (target, tasks)
+            {
+                target.unshift.apply (target, nit.array (tasks, true));
+            };
+
             nit.dpvs (Queue.prototype,
             {
                 tasks: [],
+                preTasks: [],
+                postTasks: [],
                 running: false,
                 onSuccess: undefined,
                 onFailure: undefined,
                 onComplete: undefined,
                 push: function (tasks) // eslint-disable-line no-unused-vars
                 {
-                    var self = this;
-                    var st = self.tasks;
+                    Queue.push (this.tasks, arguments);
 
-                    st.push.apply (st, nit.array (arguments, true));
-
-                    return self;
+                    return this;
                 }
                 ,
                 lpush: function (tasks) // eslint-disable-line no-unused-vars
                 {
-                    var self = this;
-                    var st = self.tasks;
+                    Queue.lpush (this.tasks, arguments);
 
-                    st.unshift.apply (st, nit.array (arguments, true));
+                    return this;
+                }
+                ,
+                pre: function (tasks) // eslint-disable-line no-unused-vars
+                {
+                    Queue.push (this.preTasks, arguments);
 
-                    return self;
+                    return this;
+                }
+                ,
+                lpre: function (tasks) // eslint-disable-line no-unused-vars
+                {
+                    Queue.lpush (this.preTasks, arguments);
+
+                    return this;
+                }
+                ,
+                post: function (tasks) // eslint-disable-line no-unused-vars
+                {
+                    Queue.push (this.postTasks, arguments);
+
+                    return this;
+                }
+                ,
+                lpost: function (tasks) // eslint-disable-line no-unused-vars
+                {
+                    Queue.lpush (this.postTasks, arguments);
+
+                    return this;
                 }
                 ,
                 pop: function ()
@@ -3913,13 +3945,32 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     ctx.queue = self;
                     ctx.error = undefined;
 
-                    var currentTasks = self.tasks;
                     var finalizing = false;
                     var finalizingError;
+                    var taskGroups = [self.preTasks, self.tasks, self.postTasks];
+
+                    function getNextTask ()
+                    {
+                        for (var i = 0, g; i < taskGroups.length; ++i)
+                        {
+                            if ((g = taskGroups[i]).length)
+                            {
+                                return g.shift ();
+                            }
+                        }
+                    }
+
+
+                    function clearTasks ()
+                    {
+                        taskGroups.forEach (function (g) { g.splice (0); });
+                    }
 
 
                     function finalize (error)
                     {
+                        clearTasks ();
+
                         if (finalizing)
                         {
                             finalizingError = error;
@@ -3935,11 +3986,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                                     finalizingError = error;
                                 }
 
-                                currentTasks = [self.onFailure, self.onComplete];
+                                self.push (self.onFailure, self.onComplete);
                             }
                             else
                             {
-                                currentTasks = [self.onSuccess, self.onComplete];
+                                self.push (self.onSuccess, self.onComplete);
                             }
                         }
 
@@ -3951,13 +4002,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     {
                         if (result instanceof nit.Queue)
                         {
-                            currentTasks.unshift (result.toTask ());
+                            self.lpush (result.toTask ());
                             return run ();
                         }
                         else
                         if (result instanceof nit.Queue.Stop)
                         {
-                            currentTasks = [result.next];
+                            clearTasks ();
+                            self.push (result.next);
+
                             return run ();
                         }
                         else
@@ -3978,7 +4031,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                     function run ()
                     {
-                        var task = currentTasks.shift ();
+                        var task = getNextTask ();
 
                         if (task)
                         {
@@ -3999,7 +4052,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             }
                         }
                         else
-                        if (currentTasks.length)
+                        if (taskGroups.some (function (g) { return g.length; }))
                         {
                             return run ();
                         }
@@ -4105,6 +4158,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.Object = nit.dpvs (nit.registerClass (nit.createFunction ("nit.Object", "return nit.constructObject (nit_Object, this, arguments);")),
     {
         TYPE_PARSERS: [],
+        TYPE_CASTERS: {},
         ITypeParser: nit.do (nit.registerClass (nit.createFunction ("nit.Object.ITypeParser")), function (ITypeParser)
         {
             nit.assign (ITypeParser.prototype,
@@ -4142,6 +4196,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var parser;
 
             return this.TYPE_PARSERS.some (function (p) { return p.supports (type, nullable) && (parser = p); }) && parser;
+        }
+        ,
+        registerTypeCaster: function (name, caster)
+        {
+            var cls = nit.Object;
+
+            cls.TYPE_CASTERS[name] = caster;
+
+            return this;
         }
         ,
         Property: nit.do (nit.registerClass (nit.createFunction ("nit.Object.Property", true)), function (Property)
@@ -4483,10 +4546,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 var positional = false;
                 var array = !!cfg.array;
                 var writer = cfg.writer;
+                var caster = cfg.caster;
                 var typeMod = type.slice (-1);
                 var nullable;
                 var emptyAllowed;
                 var name;
+
+                caster = nit.is.str (caster) ? nit.Object.TYPE_CASTERS[caster] : caster;
 
                 if (~"?*".indexOf (typeMod))
                 {
@@ -4529,7 +4595,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     kind: cfg.kind || Property.prototype.kind,
                     setter: cfg.setter,
                     getter: cfg.getter,
-                    caster: cfg.caster,
+                    caster: caster,
                     backref: cfg.backref,
                     onLink: cfg.onLink,
                     onUnlink: cfg.onUnlink,
@@ -5344,6 +5410,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .m ("error.superclass_not_defined", "The superclass '%{superclass}' was not defined.")
         .m ("error.invalid_superclass_type", "The superclass '%{superclass}' is not a subclass of %{parent}.")
         .m ("error.class_not_defined", "The class '%{name}' was not defined.")
+        .m ("error.component_name_required", "The component name was not specified for the %{property.kind} '%{property.name}'. (Class: %{class})")
 
         .defineInnerClass ("PrimitiveTypeParser", "nit.Object.ITypeParser", ["type", "defval", "cast"], function (PrimitiveTypeParser)
         {
@@ -5493,6 +5560,27 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 .registerTypeParser (new Object.ClassTypeParser (), 200)
                 .registerTypeParser (new Object.MixedTypeParser (), 300)
             ;
+
+
+            Object.registerTypeCaster ("component", function (value, prop)
+            {
+                if (nit.is.pojo (value) || nit.is.str (value))
+                {
+                    var category = nit.pluralize (prop.type.split (".").pop ()).toLowerCase ();
+                    var name = nit.is.pojo (value) ? value["@name"] : value;
+
+                    if (!name)
+                    {
+                        Object.throw ("error.component_name_required", { property: prop, class: this.constructor.name });
+                    }
+
+                    var cls = nit.lookupComponent (name, category, prop.type);
+
+                    return new cls (nit.is.pojo (value) ? value : undefined);
+                }
+
+                return value;
+            });
         })
         .constant ("PRIMARY_PROPERTY_TYPE", "nit.Object.Property")
         .constant ("INNER_CLASS_TYPE", "nit.Object")
@@ -5621,6 +5709,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     }
                 }
             ];
+        })
+        .staticMethod ("getProperty", function (name, obj, type)
+        {
+            return nit.find (this.getProperties (obj, type), function (p) { return p.name == name; });
         })
         .staticMethod ("getProperties", function (obj, type)
         {
@@ -5865,11 +5957,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .staticMethod ("buildConstructorParams", function (obj, args) // could return a promise
         {
             var cls = this;
-            var pargNames = cls.pargNames;
             var validProps = cls.propertyMap;
             var pargProps = cls.pargs.slice ();
             var arrayParg = cls.pargs.find (function (p) { return p.array; });
-            var params = nit.argsToObj (nit.array (args).filter (nit.is.not.undef), pargNames);
+            var params = nit.argsToObj (nit.array (args).filter (nit.is.not.undef));
             var positionals = nit.each (params, function (p, n)
             {
                 return nit.is.int (n) ? p : nit.each.STOP;
@@ -5902,11 +5993,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 }
             }
 
-            while (pargProps.length && positionals.length)
+            if (pargProps.length && positionals.length)
             {
-                var pp = pargProps.pop ();
+                var pvs = positionals.splice (-pargProps.length);
 
-                params[pp.name] = positionals.pop ();
+                while (pvs.length)
+                {
+                    var pp = pargProps.shift ();
+
+                    params[pp.name] = pvs.shift ();
+                }
             }
 
             if (arrayParg && positionals.length)
@@ -6378,7 +6474,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     nit.defineConstraint ("Exclusive")
-        .throws ("error.exclusive_fields_specified", "Exactly one of following fields must be specified: %{constraint.fields.join (', ')}. (%{specified} specified)")
+        .throws ("error.exclusive_fields", "Exactly one of following fields must be specified: %{constraint.fields.join (', ')}. (%{specified} specified)")
         .property ("<fields...>")
         .property ("optional", "boolean")
         .onValidate (function (ctx)
@@ -6474,7 +6570,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             }
 
             var value = ctx.value;
-            var subclass = nit.is.str (value) ? nit.lookupClass (value) : value;
+            var subclass = nit.lookupClass (value);
 
             ctx.valueType = nit.is.str (value) ? value : value.name;
 
@@ -6522,7 +6618,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .property ("backref", "string")
         .property ("onLink", "function")
         .property ("onUnlink", "function")
-        .property ("caster", "function")
+        .property ("caster", "function|string")
         .property ("cast", "function")
         .property ("target", "any") // the prototype to which the field was bound
         .property ("primitive", "boolean") // should not be set manually
@@ -6681,7 +6777,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 unique: ["boolean", "function"]
             });
 
-            pluginCls = nit.is.str (pluginCls) ? nit.lookupClass (pluginCls) : pluginCls;
+            pluginCls = nit.lookupClass (pluginCls);
             method = cfg.method || pluginCls.simpleName.toLowerCase ();
             category = cfg.category || nit.pluralize (method);
 
@@ -6904,6 +7000,29 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     ;
 
 
+    nit.defineClass ("nit.ClassConfigurator")
+        .categorize ("classconfigurators")
+        .field ("<class>", "string", "The class name or pattern.")
+        .memo ("classPatterns", function ()
+        {
+            return this.class.split (/[\s,]/).map (nit.glob.parse);
+        })
+        .lifecycleMethod ("configure", true, function (cls)
+        {
+            var self = this;
+
+            if (self.classPatterns.some (function (p) { return nit.glob (cls.name, p); }))
+            {
+                var Self = self.constructor;
+
+                nit.invoke ([self, Self[Self.kConfigure]], cls);
+            }
+
+            return cls;
+        })
+    ;
+
+
     nit.defineClass ("nit.ComponentDescriptor")
         .m ("error.invalid_category", "The class '%{className}' does not belong to the category '%{category}'.")
         .field ("<className>", "string", "The component's class name.")
@@ -7060,40 +7179,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         return cls;
     };
-
-
-    nit.dpvs (nit,
-    {
-        ready: (function ()
-        {
-            var readyQueue = nit.Queue ();
-            var document = global.document;
-
-            if (document)
-            {
-                document.addEventListener ("DOMContentLoaded", function ()
-                {
-                    READY = true;
-
-                    nit.ready ();
-                });
-            }
-
-            return function ()
-            {
-                nit.array (arguments)
-                    .forEach (function (task)
-                    {
-                        readyQueue.push (function () { return nit.ns.invoke (task); });
-                    })
-                ;
-
-                return READY ? readyQueue.run (function () { return nit; }) : nit;
-            };
-        }) ()
-
-    }, true);
-
 
 
     nit.defineClass ("nit.Model")
@@ -7397,6 +7482,109 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             ;
         })
     ;
+
+
+    nit.defineClass ("nit.App")
+        .field ("[classConfigurators...]", "nit.ClassConfigurator", { caster: "component" })
+        .property ("configured", "object")
+        .method ("init", function ()
+        {
+            var self = this;
+
+            nit.configureClass = function (cls)
+            {
+                return self.configure (cls);
+            };
+        })
+        .method ("configure", function (cls)
+        {
+            var self = this;
+            var clsName = cls.name;
+
+            if (!self.configured[clsName])
+            {
+                self.configured[clsName] = true;
+
+                self.classConfigurators.forEach (function (cc)
+                {
+                    cc.configure (cls);
+                });
+            }
+
+            return cls;
+        })
+    ;
+
+
+    nit.dpgs (nit,
+    {
+        READY: function ()
+        {
+            return READY;
+        }
+        ,
+        app: nit.memoize (function ()
+        {
+            return new nit.App;
+        })
+    }, true);
+
+
+    // --------------------------------------------
+    var INIT_QUEUE = nit.Queue (function () { return nit.app.init (); });
+    var READY_QUEUE = nit.Queue ();
+
+
+    nit.dpvs (nit,
+    {
+        preInit: function (task)
+        {
+            INIT_QUEUE.pre (function () { return nit.ns.invoke (task); });
+
+            return nit;
+        }
+        ,
+        postInit: function (task)
+        {
+            INIT_QUEUE.post (function () { return nit.ns.invoke (task); });
+
+            return nit;
+        }
+        ,
+        init: function (task)
+        {
+            if (task)
+            {
+                INIT_QUEUE.push (function () { return nit.ns.invoke (task); });
+
+                return nit;
+            }
+            else
+            {
+                return INIT_QUEUE.run (function ()
+                {
+                    READY = true;
+
+                    return nit.ready ();
+                });
+            }
+        }
+        ,
+        ready: function ()
+        {
+            nit.array (arguments)
+                .forEach (function (task)
+                {
+                    READY_QUEUE.push (function () { return nit.ns.invoke (task); });
+                })
+            ;
+
+            return READY ? READY_QUEUE.run (function () { return nit; }) : nit;
+        }
+
+    }, true);
+
+    nit.invoke ([global.document, "addEventListener"], ["DOMContentLoaded", nit.init]);
 }
 ,
 /* eslint-disable */

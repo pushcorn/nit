@@ -363,3 +363,25 @@ test ("nit.Object.Property - backref", () =>
     expect (g1.ff).toBeUndefined ();
     expect (g2.ff).toBeUndefined ();
 });
+
+
+test ("nit.Object - pargs", () =>
+{
+    const Obj = nit.Object.defineSubclass ("Obj")
+        .property ("<vargs...>", "string")
+        .property ("<opt1>", "string")
+        .property ("[opt2]", "string")
+    ;
+
+    let obj = new Obj ("varg", "varg2");
+
+    expect (nit.clone (obj)).toEqual ({ vargs: ["varg"], opt1: "varg2", opt2: "" });
+
+    obj = new Obj ("varg", "varg2", "opt1");
+    expect (nit.clone (obj)).toEqual ({ vargs: ["varg"], opt1: "varg2", opt2: "opt1" });
+
+    obj = new Obj ("varg", "varg2", "opt1", "opt2");
+    expect (nit.clone (obj)).toEqual ({ vargs: ["varg", "varg2"], opt1: "opt1", opt2: "opt2" });
+
+    expect (Obj.pargNames).toEqual (["vargs", "opt1", "opt2"]);
+});
