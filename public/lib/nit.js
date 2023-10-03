@@ -328,6 +328,41 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    nit.trim.stack = function (error, lines, noMessage)
+    {
+        var st = error.stack;
+        var msgLen = st.indexOf (":") + error.message.length + 3;
+        var msg = st.slice (0, msgLen);
+        var filter = lines;
+
+        if (!nit.is.func (lines))
+        {
+            var c = Math.max (~~lines, 1);
+
+            filter = function (l, i) // eslint-disable-line no-unused-vars
+            {
+                return i >= c;
+            };
+        }
+
+        error.stack = (noMessage ? "" : msg) + st.slice (msgLen)
+            .split ("\n")
+            .reduce (function (a, v, k)
+            {
+                if (filter (v, k, a))
+                {
+                    a.push (v);
+                }
+
+                return a;
+            }, [])
+            .join ("\n")
+        ;
+
+        return error;
+    };
+
+
     nit.trim.PATTERN = /^\s+|\s+$/g;
 
 
@@ -3535,7 +3570,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
-    nit.throw = function (code) // ctx { code, message, ... }
+    nit.throw = function (code) // eslint-disable-line no-unused-vars
+    {
+        throw nit.error.apply (this, arguments);
+    };
+
+
+    nit.error = function (code) // ctx { code, message, ... }
     {
         var self = this;
         var args = ARRAY (arguments);
@@ -3551,9 +3592,22 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         var error = new Error (nit.format.apply (nit, args));
 
-        nit.dpv (error, "context", ctx);
+        if (ctx.stack)
+        {
+            error.stack = "Error: " + error.message + "\n" + ctx.stack;
+        }
+        else
+        {
+            nit.trim.stack (error, ctx.trim || (self instanceof nit.error ? 1 : 2));
+        }
 
-        throw nit.dpv (error, "code", code, false, true);
+        return nit.dpv (nit.dpv (error, "context", ctx), "code", code, false, true);
+    };
+
+
+    nit.error.for = function (obj)
+    {
+        return nit.error.apply (obj, ARRAY (arguments).slice (1));
     };
 
 
@@ -4744,7 +4798,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         ,
         throw: function (code) // eslint-disable-line no-unused-vars
         {
-            nit.throw.apply (this, arguments);
+            throw nit.error.apply (this, arguments);
         }
         ,
         extend: function (superclass, mixins) // eslint-disable-line no-unused-vars
@@ -6161,7 +6215,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         })
         .method ("throw", function (code) // eslint-disable-line no-unused-vars
         {
-            nit.throw.apply (this, arguments);
+            throw nit.error.apply (this, arguments);
         })
         .method ("toPojo", function (shallow)
         {
@@ -6957,6 +7011,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .property ("resolve", "function", { writer: PROPERTY_WRITER })
         .property ("reject", "function", { writer: PROPERTY_WRITER })
         .property ("promise", "Promise", { writer: PROPERTY_WRITER })
+        .property ("resolved", "boolean", { writer: PROPERTY_WRITER })
         .onConstruct (function (timeout)
         {
             var self = this;
@@ -6969,24 +7024,24 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             var timer = timeout && setTimeout (function ()
             {
-                try
-                {
-                    self.throw ("error.timeout");
-                }
-                catch (e)
-                {
-                    self.reject (e);
-                }
+                self.resolved = PROPERTY_WRITER.value (true);
+
+                rej (nit.error.for (self, "error.timeout"));
+
             }, timeout);
 
             self.resolve = PROPERTY_WRITER.value (function (result)
             {
+                self.resolved = PROPERTY_WRITER.value (true);
+
                 clearTimeout (timer);
                 res (result);
             });
 
             self.reject = PROPERTY_WRITER.value (function (error)
             {
+                self.resolved = PROPERTY_WRITER.value (true);
+
                 clearTimeout (timer);
                 rej (error);
             });

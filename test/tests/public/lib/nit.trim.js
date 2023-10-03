@@ -44,3 +44,23 @@ the only line
 VALUE=myvalue`);
 
 });
+
+
+test ("nit.trim.stack ()", () =>
+{
+    var e = new Error;
+
+    expect (nit.trim.stack (e).stack.indexOf (__filename)).toBe (-1);
+
+    e.stack = ["Error: ", "line 1", "line 2", "line 3", "line 4"].join ("\n");
+
+    expect (nit.trim.stack (e, function (l, i) { return i % 2 == 1; }).stack).toBe (`Error: 
+line 2
+line 4`);
+
+    expect (nit.trim.stack (e, function (l, i, a) { a.push ("new line " + i); return true; }, true).stack).toBe (`new line 0
+line 2
+new line 1
+line 4`);
+
+});

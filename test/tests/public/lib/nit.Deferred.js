@@ -8,6 +8,7 @@ test ("nit.Deferred", async () =>
     }, 50);
 
     expect (await d).toBe (100);
+    expect (d.resolved).toBe (true);
 
 
     //-------------------
@@ -30,6 +31,7 @@ test ("nit.Deferred", async () =>
     }
 
     expect (err).toBe ("ERR!");
+    expect (d.resolved).toBe (true);
 
 
     //-------------------
@@ -45,6 +47,7 @@ test ("nit.Deferred", async () =>
     }
 
     expect (err.code).toBe ("error.timeout");
+    expect (d.resolved).toBe (true);
 
     //-------------------
     d = nit.Deferred ();
@@ -55,4 +58,5 @@ test ("nit.Deferred", async () =>
     }, 50);
 
     expect (await d.promise).toBe ("OK");
+    expect (d.resolved).toBe (true);
 });
