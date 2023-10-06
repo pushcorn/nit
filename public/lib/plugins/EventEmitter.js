@@ -20,6 +20,8 @@ module.exports = function (nit)
         })
         .staticMethod ("onUsePlugin", function (hostClass, plugin)
         {
+            var category = nit.pluralize (plugin.listenerName.toLowerCase ());
+
             hostClass
                 .do (function ()
                 {
@@ -31,7 +33,7 @@ module.exports = function (nit)
                 .defineInnerPlugin (plugin.listenerName, function (Listener)
                 {
                     Listener
-                        .categorize (hostClass.name.split (".").slice (0, -1).concat (nit.pluralize (plugin.listenerName)).join (".").toLowerCase ())
+                        .categorize (hostClass.name.split (".").slice (0, -1).concat (category).join (".").toLowerCase ())
                         .do (function ()
                         {
                             plugin.events.forEach (function (event)
@@ -89,7 +91,7 @@ module.exports = function (nit)
                     var queue = nit.Queue ()
                         .push (function ()
                         {
-                            return cls.applyPlugins.apply (cls, ["listeners", event].concat (args));
+                            return cls.applyPlugins.apply (cls, [category, event].concat (args));
                         })
                     ;
 

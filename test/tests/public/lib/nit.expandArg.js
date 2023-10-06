@@ -76,4 +76,16 @@ test ("nit.expandArg ()", async () =>
     expect (nit.CONFIG.vals.ns).toEqual ({ value: "app config" });
 
     expect (() => nit.expandArg ("noname")).toThrow (/noname.*was not registered/);
+
+    let localExpanders =
+    {
+        addOne: function (v) { return v + 1; }
+    };
+
+    expect (() => nit.expandArg ("noname")).toThrow (/noname.*was not registered/);
+    expect (nit.expandArg ("addOne", 3, {}, localExpanders)).toBe (4);
+
+    nit.config ("vals.ns.value-");
+    expect (nit.CONFIG.vals.ns.value).toBeUndefined ();
+
 });

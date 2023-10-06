@@ -2540,12 +2540,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.debounce.DELAY = 1000;
 
 
-    nit.config = function (k, v)
+    nit.config = function (k, v, cfg, localExpanders)
     {
-        var cfg = nit.CONFIG;
+        cfg = cfg || nit.CONFIG;
 
-        if (arguments.length == 2 || (k && k.slice (-1) == "-"))
+        if (arguments.length > 1 || (k && k.slice (-1) == "-"))
         {
+            var fk = k;
             var match = k.match (nit.EXPANDABLE_ARG_PATTERN);
             var exp = match && match[1] || "";
 
@@ -2565,7 +2566,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     {
                         if (expanders.length)
                         {
-                            v = nit.expandArg (expanders.shift (), v, cfg);
+                            v = nit.expandArg (expanders.shift (), v, cfg, localExpanders);
 
                             if (v instanceof Promise)
                             {
@@ -2581,7 +2582,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         }
                         else
                         {
-                            nit.config (k, v);
+                            nit.config (k, v, cfg, localExpanders);
+
+                            delete cfg[fk];
                         }
                     };
 
@@ -2601,7 +2604,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     case "*": // iterate subkeys
                         for (kk in v)
                         {
-                            nit.config (k + "." + kk, v[kk]);
+                            nit.config (k + "." + kk, v[kk], cfg, localExpanders);
                         }
                         break;
 
@@ -3829,9 +3832,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     });
 
 
-    nit.expandArg = function (name, expArg, data)
+    nit.expandArg = function (name, expArg, data, localExpanders)
     {
-        var expander = nit.ARG_EXPANDERS[name];
+        var expander = nit.ARG_EXPANDERS[name] || (localExpanders && localExpanders[name]);
 
         if (!expander)
         {
