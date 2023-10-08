@@ -230,6 +230,10 @@ test ("nit.Queue.failure ()", async () =>
                 outputs.push ("err handled");
                 nit.throw ("failed again");
             })
+            .complete (function ()
+            {
+                ctx.completeCalled = true;
+            })
             .run (ctx)
         ;
     }
@@ -244,9 +248,9 @@ test ("nit.Queue.failure ()", async () =>
     expect (ctx.preCalled).toBe (true);
     expect (ctx.notCalled).toBeUndefined ();
     expect (ctx.postNotCalled).toBeUndefined ();
-    expect (q.tasks.length).toBe (0);
+    expect (q.tasks.length).toBe (1);
     expect (q.preTasks.length).toBe (0);
-    expect (q.postTasks.length).toBe (0);
+    expect (q.postTasks.length).toBe (1);
     expect (uncaughtError).toBeInstanceOf (Error);
     expect (uncaughtError.message).toBe ("failed again");
 });
@@ -507,3 +511,38 @@ test ("nit.Queue - return another Queue from task", async () =>
     expect (await q2.executed).toBe (true);
     expect (await q2.completed).toBe (true);
 });
+
+
+test ("nit.Queue.complete ()", () =>
+{
+    let ctx = {};
+    let err;
+
+    try
+    {
+        nit.Queue ()
+            .push (function ()
+            {
+                throw new Error ("e1");
+            })
+            .failure (function ()
+            {
+                throw new Error ("e2");
+            })
+            .complete (function ()
+            {
+                ctx.completeCalled = true;
+            })
+            .run (ctx)
+        ;
+    }
+    catch (e)
+    {
+        err = e;
+    }
+
+    expect (err.message).toBe ("e2");
+    expect (ctx.completeCalled).toBe (true);
+});
+
+

@@ -4005,29 +4005,25 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     var finalizing = false;
                     var finalizingError;
                     var taskGroups = [self.preTasks, self.tasks, self.postTasks];
+                    var currentTasks = taskGroups.shift ();
 
                     function getNextTask ()
                     {
-                        for (var i = 0, g; i < taskGroups.length; ++i)
+                        if (currentTasks.length)
                         {
-                            if ((g = taskGroups[i]).length)
-                            {
-                                return g.shift ();
-                            }
+                            return currentTasks.shift ();
+                        }
+                        else
+                        if (!finalizing && taskGroups.length)
+                        {
+                            currentTasks = taskGroups.shift ();
+
+                            return getNextTask ();
                         }
                     }
 
-
-                    function clearTasks ()
-                    {
-                        taskGroups.forEach (function (g) { g.splice (0); });
-                    }
-
-
                     function finalize (error)
                     {
-                        clearTasks ();
-
                         if (finalizing)
                         {
                             finalizingError = error;
@@ -4043,31 +4039,28 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                                     finalizingError = error;
                                 }
 
-                                self.push (self.onFailure, self.onComplete);
+                                currentTasks = [self.onFailure, self.onComplete];
                             }
                             else
                             {
-                                self.push (self.onSuccess, self.onComplete);
+                                currentTasks = [self.onSuccess, self.onComplete];
                             }
                         }
 
                         return run ();
                     }
 
-
                     function checkResult (result)
                     {
                         if (result instanceof nit.Queue)
                         {
-                            self.lpush (result.toTask ());
+                            currentTasks.unshift (result.toTask ());
                             return run ();
                         }
                         else
                         if (result instanceof nit.Queue.Stop)
                         {
-                            clearTasks ();
-                            self.push (result.next);
-
+                            currentTasks = [result.next];
                             return run ();
                         }
                         else
@@ -4109,7 +4102,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             }
                         }
                         else
-                        if (taskGroups.some (function (g) { return g.length; }))
+                        if (currentTasks.length)
                         {
                             return run ();
                         }

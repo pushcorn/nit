@@ -9,6 +9,23 @@ test ("nit.Command - command primitive type", () =>
 });
 
 
+test ("nit.Command - command primitive type", () =>
+{
+    const MyCommand = nit.defineCommand ("MyCommand");
+    const MyClass = nit.defineClass ("MyClass")
+        .field ("<fa>", "string")
+        .field ("fb", "integer")
+    ;
+
+    MyCommand.Input.import (MyClass.fields);
+
+    expect (MyCommand.Input.properties.length).toBe (2);
+    expect (MyCommand.Input.propertyMap.fa.type).toBe ("string");
+    expect (MyCommand.Input.propertyMap.fb.type).toBe ("integer");
+
+});
+
+
 test ("nit.Command.completers.Command.completeForType ()", () =>
 {
     nit.require ("nit.Compgen");
