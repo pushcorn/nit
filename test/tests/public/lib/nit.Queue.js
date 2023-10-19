@@ -546,3 +546,63 @@ test ("nit.Queue.complete ()", () =>
 });
 
 
+test ("nit.Queue.stopOn ()", () =>
+{
+    let signal = { count: 0 };
+
+    nit.Queue ()
+        .stopOn (signal)
+        .push (function ()
+        {
+            signal.count++;
+        })
+        .push (function ()
+        {
+            signal.count++;
+
+            return signal;
+        })
+        .push (function ()
+        {
+            signal.count++;
+        })
+        .complete (function ()
+        {
+            signal.completed = true;
+        })
+        .run ()
+    ;
+
+    expect (signal.count).toBe (2);
+    expect (signal.completed).toBe (true);
+
+    nit.Queue ()
+        .stopOn (function ()
+        {
+            return signal.count > 4;
+        })
+        .push (function ()
+        {
+            signal.count++;
+        })
+        .push (function ()
+        {
+            signal.count++;
+        })
+        .push (function ()
+        {
+            signal.count++;
+        })
+        .push (function ()
+        {
+            signal.count++;
+        })
+        .push (function ()
+        {
+            signal.count++;
+        })
+        .run ()
+    ;
+
+    expect (signal.count).toBe (5);
+});

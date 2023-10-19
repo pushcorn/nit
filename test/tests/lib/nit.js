@@ -751,6 +751,9 @@ test ("nit.lookupComponents ()", async () =>
 
     commands = nit.lookupComponents ("commands", "nit.Command");
     expect (commands.every (c => nit.is.subclassOf (c, nit.Command))).toBe (true);
+
+    commands = nit.lookupComponents (nit.Command);
+    expect (commands.every (c => nit.is.subclassOf (c, nit.Command))).toBe (true);
 });
 
 

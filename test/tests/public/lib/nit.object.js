@@ -314,7 +314,7 @@ test ("nit.Object.TYPE_CASTERS.component", () =>
     let comp;
 
     expect (() => componentCaster ("aa", A.fieldMap.comp)).toThrow (/component.*not found/);
-    expect (() => componentCaster ("", A.fieldMap.comp)).toThrow (/component name.*not specified/);
+    expect (componentCaster ("", A.fieldMap.comp)).toBe ("");
     expect (componentCaster (3, A.fieldMap.comp)).toBe (3);
     expect (componentCaster ("test:my-comp", A.fieldMap.comp)).toBeInstanceOf (MyComp);
     expect (comp = componentCaster ({ "@name": "test:my-comp", val: 9 }, A.fieldMap.comp)).toBeInstanceOf (MyComp);
@@ -1508,4 +1508,30 @@ test ("nit.Object.defineMeta () - array", () =>
     expect (A.vals).toEqual ([/c/, /f/]);
     expect (A.ints).toEqual ([]);
     expect (A.ones).toEqual ([1]);
+});
+
+
+test ("nit.Object.postNsInvoke ()", () =>
+{
+    let called = [];
+
+    const A = nit.defineClass ("A")
+        .onPostNsInvoke (function ()
+        {
+            called.push (A);
+        })
+    ;
+
+    const B = nit.defineClass ("B", "A")
+        .onPostNsInvoke (function ()
+        {
+            called.push (B);
+        })
+    ;
+
+    const C = nit.defineClass ("C", "B");
+
+    C.postNsInvoke ();
+
+    expect (called).toEqual ([A, B]);
 });

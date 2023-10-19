@@ -54,15 +54,24 @@ test ("nit.ns.invoke ()", () =>
 
     expect (a).toBe (nit);
 
-    nit.ns.invoke (function (app, ui)
+    let cls = nit.ns.invoke (function (app, ui)
     {
         a = app;
         h = ui;
+
+        return nit.defineClass ("MyTest")
+            .onPostNsInvoke (function ()
+            {
+                this.postNsInvokeCalled = true;
+            })
+        ;
     });
 
     expect (a.name).toBe ("app");
     expect (h.name).toBe ("ui");
+    expect (cls.postNsInvokeCalled).toBe (true);
 });
+
 
 test ("nit.ns.export()", () =>
 {

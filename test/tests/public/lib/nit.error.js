@@ -23,3 +23,16 @@ test ("nit.error ()", () =>
 
     expect (nit.error.for (new A, { code: "error.test" }, { reason: "busy" }).stack.split ("\n")[1]).toMatch (__filename);
 });
+
+
+test ("nit.error.updateMessage ()", () =>
+{
+    let oldMessage = "line1\nline2";
+    let newMessage = "line3\nline4";
+    let e = new Error (oldMessage);
+
+    nit.error.updateMessage (e, newMessage);
+
+    expect (e.message).toBe (newMessage);
+    expect (e.stack).toMatch (/^Error: line3\nline4\n.*at/);
+});

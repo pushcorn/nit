@@ -20,7 +20,7 @@ module.exports = function (nit)
         })
         .staticMethod ("onUsePlugin", function (hostClass, plugin)
         {
-            var category = nit.pluralize (plugin.listenerName.toLowerCase ());
+            var category = nit.categoryName (plugin.listenerName);
 
             hostClass
                 .do (function ()

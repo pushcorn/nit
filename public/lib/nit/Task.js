@@ -57,7 +57,7 @@ module.exports = function (nit, Self)
         {
             Subclass.defineContext ();
         })
-        .lifecycleMethod ("execute", function (ctx)
+        .method ("execute", function (ctx)
         {
             var self = this;
             var cls = self.constructor;
@@ -68,9 +68,12 @@ module.exports = function (nit, Self)
                 .push (self.preRun.bind (self, ctx))
                 .push (self.run.bind (self, ctx))
                 .push (self.postRun.bind (self, ctx))
-                .failure (function (c)
+                .success (function (c)
                 {
                     ctx.result = c.result;
+                })
+                .failure (function (c)
+                {
                     ctx.error = c.error;
 
                     return nit.Queue ()

@@ -183,7 +183,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
-    nit.expr = subscript;
+    nit.expr = function (expr)
+    {
+        return nit.dpv (subscript (expr), "expr", expr);
+    };
 
 
     nit.eval = function (expr, data)
@@ -3614,6 +3617,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    nit.error.updateMessage = function (error, message)
+    {
+        var st = error.stack;
+        var prefix = st.slice (0, st.indexOf (":") + 2);
+        var msgLen = st.indexOf (":") + error.message.length + 3;
+
+        error.message = message;
+        error.stack = prefix + message + "\n" + st.slice (msgLen);
+    };
+
+
     nit.ns = function (ns, obj)
     {
         if (arguments.length > 1)
@@ -3662,8 +3676,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         var minified = nit.name != NIT;
         var argNames = nit.funcArgNames (func);
         var args = argNames.map (function (n) { return nit.ns.reserved[n] || (n.match (/^[a-z]/) ? nit.ns.init (func.length == 1 && minified ? NIT : n) : undefined); });
+        var result = func.apply (global, args);
 
-        return func.apply (global, args);
+        nit.invoke ([result, "postNsInvoke"]);
+
+        return result;
     };
 
 
@@ -3853,6 +3870,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 tasks: [].concat (ARRAY (args)),
                 preTasks: [],
                 postTasks: [],
+                stopOns: [],
                 running: false
 
             }, true, false);
@@ -3874,6 +3892,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 })
             ;
 
+            Queue.STOP = new Queue.Stop;
+
             Queue.push = function (target, tasks)
             {
                 target.push.apply (target, nit.array (tasks, true));
@@ -3889,6 +3909,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 tasks: [],
                 preTasks: [],
                 postTasks: [],
+                stopOns: [],
                 running: false,
                 onSuccess: undefined,
                 onFailure: undefined,
@@ -3943,6 +3964,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 lpop: function ()
                 {
                     return this.tasks.shift ();
+                }
+                ,
+                stopOn: function (condition)
+                {
+                    var value = condition;
+
+                    condition = nit.is.func (value) ? value : function (result) { return result === value; };
+
+                    this.stopOns.push (condition);
+
+                    return this;
                 }
                 ,
                 success: function (onSuccess)
@@ -4003,6 +4035,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     ctx.error = undefined;
 
                     var finalizing = false;
+                    var stopped = false;
                     var finalizingError;
                     var taskGroups = [self.preTasks, self.tasks, self.postTasks];
                     var currentTasks = taskGroups.shift ();
@@ -4052,14 +4085,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                     function checkResult (result)
                     {
-                        if (result instanceof nit.Queue)
+                        if (result instanceof Queue)
                         {
                             currentTasks.unshift (result.toTask ());
                             return run ();
                         }
                         else
-                        if (result instanceof nit.Queue.Stop)
+                        if (result instanceof Queue.Stop)
                         {
+                            stopped = true;
                             currentTasks = [result.next];
                             return run ();
                         }
@@ -4074,6 +4108,20 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         else
                         {
                             ctx.result = result === undefined ? ctx.result : result;
+
+                            if (!stopped)
+                            {
+                                for (var i = 0, sc = self.stopOns; i < sc.length; ++i)
+                                {
+                                    if (sc[i] (ctx.result))
+                                    {
+                                        stopped = true;
+                                        currentTasks = [];
+                                        break;
+                                    }
+                                }
+                            }
+
                             return run ();
                         }
                     }
@@ -4085,7 +4133,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                         if (task)
                         {
-                            if (task instanceof nit.Queue)
+                            if (task instanceof Queue)
                             {
                                 task = task.toTask ();
                             }
@@ -4602,8 +4650,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 var emptyAllowed;
                 var name;
 
-                caster = nit.is.str (caster) ? nit.Object.TYPE_CASTERS[caster] : caster;
-
                 if (~"?*".indexOf (typeMod))
                 {
                     type = type.slice (0, -1);
@@ -4729,10 +4775,18 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 cast: function (owner, value, parser)
                 {
                     var prop = this;
+                    var caster = prop.caster;
 
-                    if (prop.caster)
+                    caster = nit.is.str (caster) ? nit.Object.TYPE_CASTERS[caster] : caster;
+
+                    if (!caster && prop.class)
                     {
-                        value = prop.caster.call (owner, value, prop, parser);
+                        caster = prop.class[nit.Object.kCaster];
+                    }
+
+                    if (caster)
+                    {
+                        value = caster.call (owner, value, prop, parser);
                     }
 
                     return Property.cast (prop, owner, value, parser);
@@ -5441,7 +5495,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     nit.Object
-        .k ("property", "meta", "defvals", "validatePropertyDeclarationsDisabled")
+        .k ("property", "meta", "defvals", "caster", "validatePropertyDeclarationsDisabled")
         .m ("error.name_required", "The %{property.kind} name is required.")
         .m ("error.value_required", "The %{property.kind} '%{property.name}' is required. (Class: %{class})")
         .m ("error.class_name_required", "The class name cannot be empty.")
@@ -5460,7 +5514,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .m ("error.superclass_not_defined", "The superclass '%{superclass}' was not defined.")
         .m ("error.invalid_superclass_type", "The superclass '%{superclass}' is not a subclass of %{parent}.")
         .m ("error.class_not_defined", "The class '%{name}' was not defined.")
-        .m ("error.component_name_required", "The component name was not specified for the %{property.kind} '%{property.name}'. (Class: %{class})")
 
         .defineInnerClass ("PrimitiveTypeParser", "nit.Object.ITypeParser", ["type", "defval", "cast"], function (PrimitiveTypeParser)
         {
@@ -5523,7 +5576,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         nit.Object.throw ("error.class_not_defined", { name: type });
                     }
 
-                    var isPojo = nit.is.pojo (v) || v instanceof nit.object;
+                    if (v instanceof nit.object)
+                    {
+                        v = nit.assign ({}, v);
+                    }
+
+                    var isPojo = nit.is.pojo (v);
 
                     if (v instanceof cls)
                     {
@@ -5614,19 +5672,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             Object.registerTypeCaster ("component", function (value, prop)
             {
-                if (nit.is.pojo (value) || nit.is.str (value))
+                var isPojo = nit.is.pojo (value);
+                var name = isPojo ? value["@name"] : (nit.is.str (value) ? value : undefined);
+
+                if (name)
                 {
-                    var category = nit.pluralize (prop.type.split (".").pop ()).toLowerCase ();
-                    var name = nit.is.pojo (value) ? value["@name"] : value;
-
-                    if (!name)
-                    {
-                        Object.throw ("error.component_name_required", { property: prop, class: this.constructor.name });
-                    }
-
+                    var category = nit.categoryName (prop.type);
                     var cls = nit.lookupComponent (name, category, prop.type);
 
-                    return new cls (nit.is.pojo (value) ? value : undefined);
+                    return new cls (isPojo ? value : undefined);
                 }
 
                 return value;
@@ -5670,6 +5724,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .staticGetter ("superclass", true, false, function ()
         {
             return nit.getSuperclass (this);
+        })
+        .staticMethod ("defineCaster", function (caster)
+        {
+            var cls = this;
+
+            return cls.staticMethod (cls.kCaster, function ()
+            {
+                var c = nit.is.str (caster) ? cls.TYPE_CASTERS[caster] : caster;
+
+                return c.apply (this, arguments);
+            });
         })
         .staticMethod ("beginDefineProperties", function ()
         {
@@ -5903,6 +5968,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var cls = this;
 
             return cls.invokeClassChainMethod ([obj, cls.kPostConstruct], args);
+        })
+        .staticLifecycleMethod ("postNsInvoke", function ()
+        {
+            var cls = this;
+
+            return cls.invokeClassChainMethod (cls.kPostNsInvoke, [cls], true, cls);
         })
         .staticLifecycleMethod ("defineSubclass", function (name, construct, local, pargs) // eslint-disable-line no-unused-vars
         {
@@ -6376,6 +6447,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    nit.categoryName = function (comp)
+    {
+        comp = nit.trim (nit.is.func (comp) ? comp.name : comp);
+
+        return nit.pluralize (comp.split (".").pop ()).toLowerCase ();
+    };
+
+
     nit.Object.defineSubclass ("nit.Constraint")
         .m ("error.validation_failed", "The value '%{value}' is invalid.")
         .m ("error.invalid_target_value_type", "The constraint value type '%{type} is invalid.")
@@ -6486,7 +6565,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                     delete q.result;
 
-                    return skip ? new nit.Queue.Stop : validate.call (cls, ctx);
+                    return skip ? nit.Queue.STOP : validate.call (cls, ctx);
                 })
                 .push (function (q)
                 {
@@ -7193,7 +7272,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.lookupComponents = function (category, superclass)
     {
-        superclass = nit.lookupClass (superclass);
+        if (nit.is.func (category))
+        {
+            superclass = category;
+            category = nit.categoryName (superclass);
+        }
+        else
+        {
+            superclass = nit.lookupClass (superclass);
+        }
 
         return nit
             .listComponents (category)
@@ -7452,7 +7539,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 {
                     if (ctx.violations.length)
                     {
-                        return new nit.Queue.Stop;
+                        return nit.Queue.STOP;
                     }
                 })
                 .push (function ()

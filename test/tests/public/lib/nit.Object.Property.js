@@ -183,6 +183,41 @@ test ("nit.Object.Property.caster ()", () =>
     let a = new A (...["a", "b", "c"]);
 
     expect (a.extensions).toEqual ([".a", ".b", ".c"]);
+
+    // pre-defined caster
+    nit.defineClass ("test.Comp");
+
+    let nextId = 1;
+
+    nit.defineClass ("test.comps.MyComp", "test.Comp")
+        .field ("id", "integer", "id", () => nextId++)
+    ;
+
+    const B = nit.defineClass ("B")
+        .field ("comp", "test.Comp", { caster: "component" })
+    ;
+
+    let b = new B ({ comp: "test:my-comp" });
+    expect (b.toPojo ().comp).toEqual ({ id: 1 });
+
+    b = new B ({ comp: { "@name": "test:my-comp" } });
+    expect (b.toPojo ().comp).toEqual ({ id: 2 });
+
+    // class defined caster
+    const C = nit.defineClass ("C")
+        .defineCaster (function (value)
+        {
+            return new C ({ cname: value });
+        })
+        .field ("cname", "string")
+    ;
+
+    const D = nit.defineClass ("D")
+        .field ("c", "C")
+    ;
+
+    let d = new D ({ c: "my-name" });
+    expect (d.toPojo ()).toEqual ({ c: { cname: "my-name" } });
 });
 
 

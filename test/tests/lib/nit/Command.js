@@ -56,7 +56,7 @@ test ("nit.Command.describe ()", () =>
         .describe ("Run tests.")
     ;
 
-    expect (Test.DESCRIPTION).toBe ("Run tests.");
+    expect (Test.description).toBe ("Run tests.");
 });
 
 
@@ -149,6 +149,21 @@ test ("nit.Command.Input", () =>
     expect (Input.isBooleanOption (Input.fieldMap.boolOpt)).toBe (true);
     expect (Input.isBooleanOption (Input.fieldMap.paramB)).toBe (false);
     expect (Input.isBooleanOption (Input.fieldMap.paramE)).toBe (true);
+
+
+    nit.defineClass ("ApiSubcommand", "nit.Subcommand");
+
+    const Api = nit.defineClass ("Api", "nit.Command");
+
+    expect (() => Api.Input.option ("apisubcommand", "ApiSubcommand")).toThrow (/subcommand.*required/);
+    expect (() => Api.Input.option ("<apisubcommand...>", "ApiSubcommand")).toThrow (/subcommand.*non-array/);
+
+    Api.Input.option ("<apisubcommand>", "ApiSubcommand");
+
+    expect (Api.Input.subcommandOption).toBeInstanceOf (nit.Command.Option);
+    expect (() => Api.Input.option ("<sc2>", "ApiSubcommand")).toThrow (/only one/i);
+    expect (() => Api.Input.option ("[parg]", "string")).toThrow (/positional option.*not allowed/i);
+    expect (Api.Input.option ("parg", "string")).toBe (Api.Input);
 });
 
 
@@ -173,6 +188,92 @@ test ("nit.Command.Input.parseArgv ()", () =>
     expect (Test.Input.parseArgv ("a", { paramB: "b" })).toEqual ({ paramA: "a", paramB: "b" });
     expect (Test.Input.parseArgv ({ paramA: "a", paramB: "b" })).toEqual ({ paramA: "a", paramB: "b" });
     expect (Test.Input.parseArgv ({ paramA: "a", location: "{ latitude: 3.3, longitude: 4.4 }" })).toEqual ({ paramA: "a", location: { latitude: 3.3, longitude: 4.4 }});
+    expect (Test.Input.parseArgv ("a", "--paramB=bb")).toEqual ({ paramA: "a", paramB: "bb" });
+
+    const MyCommand = nit.defineClass ("MyCommand", "nit.Command")
+        .defineInput (function (Input)
+        {
+            Input
+                .option ("extract", "boolean")
+                .option ("verbose", "boolean")
+                .option ("compress", "boolean")
+            ;
+        })
+    ;
+
+    expect (MyCommand.Input.parseArgv ("-evc=true")).toEqual ({ extract: true, verbose: true, compress: true });
+});
+
+
+test ("nit.Command.Input.parseArgv () - with subcommand", () =>
+{
+    nit.defineClass ("Git");
+
+    nit.defineClass ("gits.Pull", "Git")
+        .field ("all", "boolean")
+        .field ("verbose", "boolean")
+        .field ("repository", "string")
+    ;
+
+    nit.defineClass ("GitSubcommand", "nit.Subcommand")
+        .meta ("category", "gits")
+        .registerSubcommands ()
+        .onBuildSubcommand ((Subcommand, Git) =>
+        {
+            Subcommand
+                .defineInput (Input => Input.import (Git.fields))
+            ;
+        })
+    ;
+
+    const GitCommand = nit.defineClass ("commands.Git", "nit.Command")
+        .defineInput (function (Input)
+        {
+            Input
+                .option ("<gitsubcommand>", "GitSubcommand")
+                .option ("silent", "boolean")
+                .option ("auth", "string")
+            ;
+        })
+    ;
+
+    expect (GitCommand.Input.parseArgv ("--auth", "user:pass", "pull", "-r", "my-repo")).toEqual (
+    {
+        auth: "user:pass",
+        gitsubcommand:
+        {
+            input:
+            {
+                repository: "my-repo"
+            }
+        }
+    });
+
+    expect (GitCommand.Input.parseArgv ("-s", "pull", "-r", "my-repo")).toEqual (
+    {
+        silent: true,
+        gitsubcommand:
+        {
+            input:
+            {
+                repository: "my-repo"
+            }
+        }
+    });
+
+    expect (GitCommand.Input.parseArgv ("-s", "false", "-a", "u:p", "pull", "-r", "my-repo", "-v")).toEqual (
+    {
+        auth: "u:p",
+        silent: false,
+        gitsubcommand:
+        {
+            input:
+            {
+                repository: "my-repo",
+                verbose: true
+            }
+        }
+    });
 });
 
 
@@ -209,6 +310,14 @@ test ("nit.Command.Input.fromArgv ()", () =>
     });
 
     expect (Test.Input.fromArgv (["--param-a", "value-a", "value-b"]).toPojo ()).toEqual (
+    {
+        boolOpt: false,
+        paramA: "value-a",
+        paramB: 0,
+        paramD: ""
+    });
+
+    expect (Test.Input.fromArgv (["--param-a", "value-a", "--param-a", "value-b"]).toPojo ()).toEqual (
     {
         boolOpt: false,
         paramA: "value-b",

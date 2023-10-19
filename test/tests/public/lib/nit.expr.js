@@ -9,4 +9,5 @@ test ("nit.expr () turns an expression into a function", () =>
     let expr2 = nit.expr ("a.b * 2");
 
     expect (() => expr2 ()).toThrow ();
+    expect (expr2.expr).toBe ("a.b * 2");
 });
