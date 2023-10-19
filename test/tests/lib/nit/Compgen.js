@@ -264,8 +264,8 @@ test ("nit.Compgen.parseWords ()", async () =>
     await testParseWords ("nit test-cmd -b ")
         .run (async ({ compgen, nit }) =>
         {
-            expect (compgen.context.state).toBe (nit.Compgen.STATES.option);
-            expect (await compgen.listCompletions ()).toEqual (["OPTION", "--file", "--choice", "--service", "--doc-ids"]);
+            expect (compgen.context.state).toBe (nit.Compgen.STATES.value);
+            expect (await compgen.listCompletions ()).toEqual (["FILE"]);
         })
     ;
 
@@ -292,6 +292,7 @@ test ("nit.Compgen.parseWords ()", async () =>
             expect (await compgen.listCompletions ()).toEqual (
             [
                 "COMMAND",
+                "git",
                 "hello-world",
                 "invalid-cmd",
                 "no-args",
@@ -319,6 +320,125 @@ test ("nit.Compgen.listCompletions ()", async () =>
             .push (async ({ compgen }) => await compgen.listCompletions ())
         ;
     }
+
+    await testListCompletions ("nit git --auth user:pass")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["VALUE"]);
+        })
+    ;
+
+    await testListCompletions ("nit git --auth user:pass ")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["SUBCOMMAND", "pull", "push"]);
+        })
+    ;
+
+    await testListCompletions ("nit git --auth user:pass pu")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["SUBCOMMAND", "pull", "push"]);
+        })
+    ;
+
+    await testListCompletions ("nit git --auth user:pass push ")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["VALUE"]);
+        })
+    ;
+
+    await testListCompletions ("nit git --auth user:pass push -a ")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["VALUE"]);
+        })
+    ;
+
+    await testListCompletions ("nit git --auth ")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["VALUE"]);
+        })
+    ;
+
+    await testListCompletions ("nit git --silent ")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["SUBCOMMAND", "pull", "push"]);
+        })
+    ;
+
+    await testListCompletions ("nit git --silent pus")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["SUBCOMMAND", "push"]);
+        })
+    ;
+
+    await testListCompletions ("nit git --silent pull ")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["OPTION", "--all"]);
+        })
+    ;
+
+    await testListCompletions ("nit git --silent pull --all ")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["OPTION", "--verbose", "--repository"]);
+        })
+    ;
+
+    await testListCompletions ("nit git --silent push ")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["VALUE"]);
+        })
+    ;
+
+    await testListCompletions ("nit git")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["COMMAND", "git"]);
+        })
+    ;
+
+    await testListCompletions ("nit git --")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["OPTION", "--auth", "--silent"]);
+        })
+    ;
+
+    await testListCompletions ("nit git push ")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["VALUE"]);
+        })
+    ;
+
+    await testListCompletions ("nit gi")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["COMMAND", "git"]);
+        })
+    ;
+
+    await testListCompletions ("nit git ")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["VALUE", "pull", "push"]);
+        })
+    ;
+
+    await testListCompletions ("nit git pus")
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["SUBCOMMAND", "push"]);
+        })
+    ;
 
     await testListCompletions ("nit test-cmd > /tmp/output.log")
         .run (({ result }) =>
