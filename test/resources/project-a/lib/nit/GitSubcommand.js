@@ -5,7 +5,7 @@ module.exports = function (nit)
         .onBuildSubcommand ((Subcommand, Git) =>
         {
             Subcommand
-                .meta ("description", Git.description)
+                .describe (Git.description)
                 .defineInput (Input =>
                 {
                     Input.import (Git.fields);
