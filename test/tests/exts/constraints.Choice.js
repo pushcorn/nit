@@ -1,7 +1,13 @@
+nit.defineClass ("test.Timezone")
+    .field ("<name>", "string")
+        .constraint ("choice", ...nit.require ("constraints.Timezone").TIMEZONES)
+;
+
+
 test.method ("constraints.Choice.completers.Choice", "getChoiceConstraint", true)
     .should ("recursively find the choice constraint")
         .up (s => s.MyClass = nit.defineClass ("MyClass")
-            .field ("<timezone>", "nit.Date.Timezone")
+            .field ("<timezone>", "test.Timezone")
         )
         .before (s => s.args = s.MyClass.fields[0])
         .returnsInstanceOf ("constraints.Choice")
@@ -25,7 +31,7 @@ test.method ("constraints.Choice.completers.Choice", "completeForConstraint", tr
             .defineInput (Input =>
             {
                 Input
-                    .option ("<timezone>", "nit.Date.Timezone")
+                    .option ("<timezone>", "test.Timezone")
                     .option ("silent", "boolean")
                     .option ("opts", "string")
                         .constraint ("choice", "opt 1", "opt & 2", "opt-3")

@@ -313,269 +313,176 @@ test ("nit.Compgen.parseWords ()", async () =>
 
 test ("nit.Compgen.listCompletions ()", async () =>
 {
-    function testListCompletions ()
+    function testListCompletions (opts)
     {
-        return testCompgen (...arguments)
+        return testCompgen (...opts.args)
             .push (({ compgen }) => compgen.parseWords ())
             .push (async ({ compgen }) => await compgen.listCompletions ())
+            .run (({ result }) =>
+            {
+                expect ({ args: opts.args, comps: result }).toEqual (opts);
+            })
         ;
     }
 
-    await testListCompletions ("nit git - push", 9)
-        .run (({ result }) =>
+    let tests =
+    [
         {
-            expect (result).toEqual (["OPTION", "--auth", "--silent"]);
-        })
-    ;
-
-    await testListCompletions ("nit git --auth user:pass")
-        .run (({ result }) =>
+            "args": ["nit git push my-repo i"],
+            "comps": ["VALUE", "info"]
+        },
         {
-            expect (result).toEqual (["VALUE"]);
-        })
-    ;
-
-    await testListCompletions ("nit git --auth user:pass ")
-        .run (({ result }) =>
+            "args": ["nit git push my-repo "],
+            "comps": ["VALUE", "info", "error", "warn", "debug"]
+        },
         {
-            expect (result).toEqual (["SUBCOMMAND", "pull", "push"]);
-        })
-    ;
-
-    await testListCompletions ("nit git --auth user:pass pu")
-        .run (({ result }) =>
+            "args": ["nit git - push", 9],
+            "comps": ["OPTION", "--auth", "--silent"]
+        },
         {
-            expect (result).toEqual (["SUBCOMMAND", "pull", "push"]);
-        })
-    ;
-
-    await testListCompletions ("nit git --auth user:pass push ")
-        .run (({ result }) =>
+            "args": ["nit git --auth user:pass"],
+            "comps": ["VALUE"]
+        },
         {
-            expect (result).toEqual (["VALUE"]);
-        })
-    ;
-
-    await testListCompletions ("nit git --auth user:pass push -a ")
-        .run (({ result }) =>
+            "args": ["nit git --auth user:pass "],
+            "comps": ["SUBCOMMAND", "pull", "push"]
+        },
         {
-            expect (result).toEqual (["VALUE"]);
-        })
-    ;
-
-    await testListCompletions ("nit git --auth ")
-        .run (({ result }) =>
+            "args": ["nit git --auth user:pass pu"],
+            "comps": ["SUBCOMMAND", "pull", "push"]
+        },
         {
-            expect (result).toEqual (["VALUE"]);
-        })
-    ;
-
-    await testListCompletions ("nit git --silent ")
-        .run (({ result }) =>
+            "args": ["nit git --auth user:pass push "],
+            "comps": ["VALUE"]
+        },
         {
-            expect (result).toEqual (["SUBCOMMAND", "pull", "push"]);
-        })
-    ;
-
-    await testListCompletions ("nit git --silent pus")
-        .run (({ result }) =>
+            "args": ["nit git --auth user:pass push -a "],
+            "comps": ["VALUE"]
+        },
         {
-            expect (result).toEqual (["SUBCOMMAND", "push"]);
-        })
-    ;
-
-    await testListCompletions ("nit git --silent pull ")
-        .run (({ result }) =>
+            "args": ["nit git --auth "],
+            "comps": ["VALUE"]
+        },
         {
-            expect (result).toEqual (["OPTION", "--all"]);
-        })
-    ;
-
-    await testListCompletions ("nit git --silent pull --all ")
-        .run (({ result }) =>
+            "args": ["nit git --silent "],
+            "comps": ["SUBCOMMAND", "pull", "push"]
+        },
         {
-            expect (result).toEqual (["OPTION", "--verbose", "--repository"]);
-        })
-    ;
-
-    await testListCompletions ("nit git --silent push ")
-        .run (({ result }) =>
+            "args": ["nit git --silent pus"],
+            "comps": ["SUBCOMMAND", "push"]
+        },
         {
-            expect (result).toEqual (["VALUE"]);
-        })
-    ;
-
-    await testListCompletions ("nit git")
-        .run (({ result }) =>
+            "args": ["nit git --silent pull "],
+            "comps": ["OPTION", "--all"]
+        },
         {
-            expect (result).toEqual (["COMMAND", "git"]);
-        })
-    ;
-
-    await testListCompletions ("nit git --")
-        .run (({ result }) =>
+            "args": ["nit git --silent pull --all "],
+            "comps": ["OPTION", "--verbose", "--repository"]
+        },
         {
-            expect (result).toEqual (["OPTION", "--auth", "--silent"]);
-        })
-    ;
-
-    await testListCompletions ("nit git push ")
-        .run (({ result }) =>
+            "args": ["nit git --silent push "],
+            "comps": ["VALUE"]
+        },
         {
-            expect (result).toEqual (["VALUE"]);
-        })
-    ;
-
-    await testListCompletions ("nit gi")
-        .run (({ result }) =>
+            "args": ["nit git"],
+            "comps": ["COMMAND", "git"]
+        },
         {
-            expect (result).toEqual (["COMMAND", "git"]);
-        })
-    ;
-
-    await testListCompletions ("nit git ")
-        .run (({ result }) =>
+            "args": ["nit git --"],
+            "comps": ["OPTION", "--auth", "--silent"]
+        },
         {
-            expect (result).toEqual (["VALUE", "pull", "push"]);
-        })
-    ;
-
-    await testListCompletions ("nit git pus")
-        .run (({ result }) =>
+            "args": ["nit git push "],
+            "comps": ["VALUE"]
+        },
         {
-            expect (result).toEqual (["SUBCOMMAND", "push"]);
-        })
-    ;
-
-    await testListCompletions ("nit test-cmd > /tmp/output.log")
-        .run (({ result }) =>
+            "args": ["nit gi"],
+            "comps": ["COMMAND", "git"]
+        },
         {
-            expect (result).toEqual (["FILE"]);
-        })
-    ;
-
-    await testListCompletions ("nit te")
-        .run (({ result }) =>
+            "args": ["nit git "],
+            "comps": ["VALUE", "pull", "push"]
+        },
         {
-            expect (result).toEqual (["COMMAND", "test-cmd", "test"]);
-        })
-    ;
-
-    await testListCompletions ("nit test-cmd ")
-        .run (({ result }) =>
+            "args": ["nit git pus"],
+            "comps": ["SUBCOMMAND", "push"]
+        },
         {
-            expect (result).toEqual (["FILE"]);
-        })
-    ;
-
-    await testListCompletions ("nit no-args ")
-        .run (({ result }) =>
+            "args": ["nit test-cmd > /tmp/output.log"],
+            "comps": ["FILE"]
+        },
         {
-            expect (result).toEqual (["OPTION"]);
-        })
-    ;
-
-    await testListCompletions ("nit single-arg ")
-        .run (({ result }) =>
+            "args": ["nit te"],
+            "comps": ["COMMAND", "test-cmd", "test"]
+        },
         {
-            expect (result).toEqual (["OPTION", "--arg"]);
-        })
-    ;
-
-
-    await testListCompletions ("nit single-arg --arg val more")
-        .run (({ result }) =>
+            "args": ["nit test-cmd "],
+            "comps": ["FILE"]
+        },
         {
-            expect (result).toEqual (["NONE"]);
-        })
-    ;
-
-
-    await testListCompletions ("nit single-arg --arg val ")
-        .run (({ result }) =>
+            "args": ["nit no-args "],
+            "comps": ["OPTION"]
+        },
         {
-            expect (result).toEqual (["OPTION"]);
-        })
-    ;
-
-
-    await testListCompletions ("nit positional-args sfile tfile ")
-        .run (({ result }) =>
+            "args": ["nit single-arg "],
+            "comps": ["OPTION", "--arg"]
+        },
         {
-            expect (result).toEqual (["FILE"]);
-        })
-    ;
-
-
-    await testListCompletions ("nit --file ")
-        .run (({ result }) =>
+            "args": ["nit single-arg --arg val more"],
+            "comps": ["NONE"]
+        },
         {
-            expect (result).toEqual (["OPTION"]);
-        })
-    ;
-
-    await testListCompletions ("nit hello-world ")
-        .run (({ result }) =>
+            "args": ["nit single-arg --arg val "],
+            "comps": ["OPTION"]
+        },
         {
-            expect (result).toEqual (["VALUE"]);
-        })
-    ;
-
-    await testListCompletions ("nit test-cmd --cho")
-        .run (({ result }) =>
+            "args": ["nit positional-args sfile tfile "],
+            "comps": ["FILE"]
+        },
         {
-            expect (result).toEqual (["OPTION", "--choice"]);
-        })
-    ;
-
-    await testListCompletions ("nit test-cmd --choice")
-        .run (({ result }) =>
+            "args": ["nit --file "],
+            "comps": ["OPTION"]
+        },
         {
-            expect (result).toEqual (["OPTION", "--choice"]);
-        })
-    ;
-
-    await testListCompletions ("nit test-cmd -c")
-        .run (({ result }) =>
+            "args": ["nit hello-world "],
+            "comps": ["VALUE"]
+        },
         {
-            expect (result).toEqual (["OPTION", "-c"]);
-        })
-    ;
-
-    await testListCompletions ("nit test-cmd --file ")
-        .run (({ result }) =>
+            "args": ["nit test-cmd --cho"],
+            "comps": ["OPTION", "--choice"]
+        },
         {
-            expect (result).toEqual (["FILE"]);
-        })
-    ;
-
-    await testListCompletions ("nit test-cmd --choice ")
-        .run (({ result }) =>
+            "args": ["nit test-cmd --choice"],
+            "comps": ["OPTION", "--choice"]
+        },
         {
-            expect (result).toEqual (["VALUE", '"first choice"', "second_choice", '"3rd choice"', '"first <! second"', '"with a \\" quote"', "size:large", "colon:sep:value"]);
-        })
-    ;
-
-    await testListCompletions ("nit hello-world --message ")
-        .run (({ result }) =>
+            "args": ["nit test-cmd -c"],
+            "comps": ["OPTION", "-c"]
+        },
         {
-            expect (result).toEqual (["VALUE"]);
-        })
-    ;
-
-    await testListCompletions ("nit test-cmd > out.txt ")
-        .run (({ result }) =>
+            "args": ["nit test-cmd --file "],
+            "comps": ["FILE"]
+        },
         {
-            expect (result).toEqual (["NONE"]);
-        })
-    ;
-
-    await testListCompletions ("nit test-cmd \">")
-        .run (({ result }) =>
+            "args": ["nit test-cmd --choice "],
+            "comps": ["VALUE", "\"first choice\"", "second_choice", "\"3rd choice\"", "\"first <! second\"", "\"with a \\\" quote\"", "size:large", "colon:sep:value"] },
         {
-            expect (result).toEqual (["FILE"]);
-        })
-    ;
+            "args": ["nit hello-world --message "],
+            "comps": ["VALUE"]
+        },
+        {
+            "args": ["nit test-cmd > out.txt "],
+            "comps": ["NONE"]
+        },
+        {
+            "args": ["nit test-cmd \">"],
+            "comps": ["FILE"]
+        }
+    ];
+
+    // tests = [tests[2]]; // single
+
+    await nit.parallel (tests.map (t => testListCompletions (t)));
 });
 
 
