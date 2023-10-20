@@ -3,6 +3,11 @@ test.method ("nit.utils.Colorizer", "colorize", true)
         .given ("bold", "bold", "underline")
         .returns ("\x1b[4m\x1b[1mbold\x1b[22m\x1b[24m")
         .commit ()
+
+    .should ("not colorize the empty string")
+        .given ("", "bold")
+        .returns ("")
+        .commit ()
 ;
 
 

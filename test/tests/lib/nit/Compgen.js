@@ -321,6 +321,13 @@ test ("nit.Compgen.listCompletions ()", async () =>
         ;
     }
 
+    await testListCompletions ("nit git - push", 9)
+        .run (({ result }) =>
+        {
+            expect (result).toEqual (["OPTION", "--auth", "--silent"]);
+        })
+    ;
+
     await testListCompletions ("nit git --auth user:pass")
         .run (({ result }) =>
         {

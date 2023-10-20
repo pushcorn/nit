@@ -5,5 +5,9 @@ module.exports = function (nit)
         .field ("all", "boolean")
         .field ("verbose", "boolean")
         .field ("repository", "string")
+        .onRun (function ()
+        {
+            return "pull completed";
+        })
     ;
 };

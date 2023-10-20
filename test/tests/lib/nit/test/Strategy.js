@@ -93,6 +93,27 @@ test ("nit.test.Strategy.Project", () =>
 
     expect (oldProjectPaths).toEqual (afterProjectPaths);
     expect (oldAssetPaths).toEqual (afterAssetPaths);
+
+    // package dir
+    nit.dpg (nit, "CWD", nit.path.join (nit.HOME, "packages/http"), true);
+
+    let paths =
+    [
+        nit.HOME,
+        nit.path.join (nit.HOME, "packages/http"),
+        nit.path.join (nit.HOME, "packages/cron"),
+        nit.path.join (nit.HOME, "packages/ui")
+    ];
+
+    Project.removeRootPackages (paths);
+
+    expect (paths).toEqual (
+    [
+        nit.HOME,
+        nit.path.join (nit.HOME, "packages/http")
+    ]);
+
+    nit.dpg (nit, "CWD", nit.HOME, true);
 });
 
 

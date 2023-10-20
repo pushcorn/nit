@@ -7,5 +7,6 @@ module.exports = function (nit)
         {
             return this.meta ("description", description);
         })
+        .lifecycleMethod ("run")
     ;
 };

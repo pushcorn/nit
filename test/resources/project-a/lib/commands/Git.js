@@ -9,5 +9,9 @@ module.exports = function (nit)
                 .option ("silent", "boolean")
             ;
         })
+        .onRun (function ({ input: { gitcommand } })
+        {
+            return gitcommand.new ().run ();
+        })
     ;
 };

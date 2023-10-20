@@ -15,13 +15,15 @@ test ("nit.Command - command primitive type", () =>
     const MyClass = nit.defineClass ("MyClass")
         .field ("<fa>", "string")
         .field ("fb", "integer")
+            .constraint ("min", 10)
     ;
 
-    MyCommand.Input.import (MyClass.fields);
+    MyCommand.Input.import (MyClass.fields, "constraints");
 
     expect (MyCommand.Input.properties.length).toBe (2);
     expect (MyCommand.Input.propertyMap.fa.type).toBe ("string");
     expect (MyCommand.Input.propertyMap.fb.type).toBe ("integer");
+    expect (MyCommand.Input.propertyMap.fb.constraints.length).toBe (0);
 
 });
 
@@ -237,31 +239,35 @@ test ("nit.Command.Input.parseArgv () - with subcommand", () =>
         })
     ;
 
-    expect (GitCommand.Input.parseArgv ("--auth", "user:pass", "pull", "-r", "my-repo")).toEqual (
+    expect (nit.clone (GitCommand.Input.parseArgv ("--auth", "user:pass", "pull", "-r", "my-repo"))).toEqual (
     {
         auth: "user:pass",
         gitsubcommand:
         {
             input:
             {
-                repository: "my-repo"
+                all: false,
+                repository: "my-repo",
+                verbose: false
             }
         }
     });
 
-    expect (GitCommand.Input.parseArgv ("-s", "pull", "-r", "my-repo")).toEqual (
+    expect (nit.clone (GitCommand.Input.parseArgv ("-s", "pull", "-r", "my-repo"))).toEqual (
     {
         silent: true,
         gitsubcommand:
         {
             input:
             {
-                repository: "my-repo"
+                all: false,
+                repository: "my-repo",
+                verbose: false
             }
         }
     });
 
-    expect (GitCommand.Input.parseArgv ("-s", "false", "-a", "u:p", "pull", "-r", "my-repo", "-v")).toEqual (
+    expect (nit.clone (GitCommand.Input.parseArgv ("-s", "false", "-a", "u:p", "pull", "-r", "my-repo", "-v"))).toEqual (
     {
         auth: "u:p",
         silent: false,
@@ -269,6 +275,7 @@ test ("nit.Command.Input.parseArgv () - with subcommand", () =>
         {
             input:
             {
+                all: false,
                 repository: "my-repo",
                 verbose: true
             }

@@ -1,3 +1,11 @@
+test.method ("nit.Subcommand", "forComponent", true)
+    .should ("set the category for the given component")
+        .given ("test.Api")
+        .expectingPropertyToBe ("class.category", "apis")
+        .commit ()
+;
+
+
 test.method ("nit.Subcommand", "listBackingComponents", true)
     .should ("list the components that will be transformed to subcommands")
         .project ("project-a")
@@ -56,6 +64,27 @@ test.method ("nit.Subcommand", "listSubcommands", true)
         .before (s => s.object = nit.require ("nit.GitSubcommand"))
         .given (true)
         .returns (["pull", "push"])
+        .commit ()
+;
+
+
+test.method ("nit.Subcommand", "new")
+    .should ("create an instance of component that backs the subcommand")
+        .project ("project-a")
+        .before (() => nit.require ("nit.GitSubcommand"))
+        .before (s => s.object = nit.new ("gitsubcommands.Pull", { input: { verbose: true } }))
+        .expectingPropertyToBe ("result.verbose", true)
+        .expectingPropertyToBe ("result.all", false)
+        .commit ()
+
+    .reset ()
+        .project ("project-a")
+        .given ({ all: true, repository: "my-repo" })
+        .before (() => nit.require ("nit.GitSubcommand"))
+        .before (s => s.object = nit.new ("gitsubcommands.Pull", { input: { verbose: true } }))
+        .expectingPropertyToBe ("result.verbose", false)
+        .expectingPropertyToBe ("result.all", true)
+        .expectingPropertyToBe ("result.repository", "my-repo")
         .commit ()
 ;
 

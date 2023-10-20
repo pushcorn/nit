@@ -48,6 +48,25 @@ test ("nit.test.Jest", async () =>
             {
                 "/a/b/lib/Class.js":
                 {
+                    branchMap:
+                    {
+                        1:
+                        {
+                            line: 100
+                        }
+                        ,
+                        2:
+                        {
+                            line: 103
+                        }
+                    }
+                    ,
+                    b:
+                    {
+                        1: [1, 1],
+                        2: [0, 1]
+                    }
+                    ,
                     getLineCoverage: function ()
                     {
                         return { 1: 1, 2: 0, 3: 0 };
@@ -65,7 +84,7 @@ test ("nit.test.Jest", async () =>
         }
     };
 
-    expect (Jest.getUncoveredLines (results)).toBe (2);
+    expect (Jest.getUncoveredLines (results)).toBe (3);
 
     let logMock = test.mock (nit, "log", null, 4);
     Jest.logUncoveredLines (3);
