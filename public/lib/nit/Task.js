@@ -25,7 +25,6 @@ module.exports = function (nit, Self)
                         var self = this;
                         var cls = self.constructor;
                         var kEvent = nit.k.v (Self, method);
-                        var result;
 
                         return nit.Queue ()
                             .push (function ()
@@ -34,15 +33,13 @@ module.exports = function (nit, Self)
                             })
                             .push (function (c)
                             {
-                                result = c.result;
+                                ctx.result = nit.coalesce (c.result, ctx.result);
 
                                 return self.emit (method, ctx);
                             })
-                            .run (function (c)
+                            .run (function ()
                             {
-                                c.result = undefined;
-
-                                return result;
+                                return ctx.result;
                             })
                         ;
                     });
@@ -68,10 +65,6 @@ module.exports = function (nit, Self)
                 .push (self.preRun.bind (self, ctx))
                 .push (self.run.bind (self, ctx))
                 .push (self.postRun.bind (self, ctx))
-                .success (function (c)
-                {
-                    ctx.result = c.result;
-                })
                 .failure (function (c)
                 {
                     ctx.error = c.error;
