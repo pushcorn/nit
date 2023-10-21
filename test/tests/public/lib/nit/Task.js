@@ -7,6 +7,14 @@ test.object ("nit.Task")
 ;
 
 
+test.method ("nit.Task", "describe", true)
+    .should ("set the description metadata")
+    .given ("Do something...")
+    .expectingPropertyToBe ("class.description", "Do something...")
+    .commit ()
+;
+
+
 test.method ("nit.Task", "execute")
     .should ("invoke the run and hook methods")
         .up (s => s.class = nit.defineTask ("MyTask")

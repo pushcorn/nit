@@ -46,6 +46,10 @@ module.exports = function (nit, Self)
                 });
             });
         })
+        .staticMethod ("describe", function (description)
+        {
+            return this.meta ("description", description);
+        })
         .staticMethod ("defineContext", function (builder)
         {
             return this.defineInnerClass ("Context", this.superclass.Context.name, builder);

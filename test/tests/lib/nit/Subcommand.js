@@ -1,3 +1,23 @@
+test.custom ("nit.Subcommand.autoRegister")
+    .should ("not register the subcommands if set to false")
+        .project ("project-a")
+        .init (s =>
+        {
+            s.Subcommand = nit.require ("nit.Subcommand");
+            s.Subcommand.autoRegister = false;
+        })
+        .mock ("Subcommand", "registerSubcommands")
+        .before (s => s.GitSubcommand = nit.require ("nit.GitSubcommand"))
+        .after (s =>
+        {
+            s.Subcommand.autoRegister = true;
+            nit.resetRequireCache ();
+        })
+        .expectingPropertyToBe ("mocks.0.invocations.length", 0)
+        .commit ()
+;
+
+
 test.method ("nit.Subcommand", "forComponent", true)
     .should ("set the category for the given component")
         .given ("test.Api")

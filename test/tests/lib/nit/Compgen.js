@@ -303,6 +303,7 @@ test ("nit.Compgen.parseWords ()", async () =>
                 "help",
                 "lint",
                 "run",
+                "task",
                 "test",
                 "version"
             ]);
@@ -465,7 +466,8 @@ test ("nit.Compgen.listCompletions ()", async () =>
         },
         {
             "args": ["nit test-cmd --choice "],
-            "comps": ["VALUE", "\"first choice\"", "second_choice", "\"3rd choice\"", "\"first <! second\"", "\"with a \\\" quote\"", "size:large", "colon:sep:value"] },
+            "comps": ["VALUE", "\"first choice\"", "second_choice", "\"3rd choice\"", "\"first <! second\"", "\"with a \\\" quote\"", "size:large", "colon:sep:value"]
+        },
         {
             "args": ["nit hello-world --message "],
             "comps": ["VALUE"]
@@ -503,6 +505,4 @@ test ("nit.Compgen.run ()", async () =>
             ]);
         })
     ;
-
-
 });

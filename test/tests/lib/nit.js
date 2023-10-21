@@ -1,6 +1,22 @@
 const no_path = require ("path");
 
 
+test ("nit.resetRequireCache ()", async () =>
+{
+    let path = no_path.join (test.pathForProject ("project-a"), "lib/Work");
+    let d1 = nit.require (path).loadedAt;
+    let d2 = nit.require (path).loadedAt;
+
+    await nit.sleep (5);
+    nit.resetRequireCache ();
+
+    let d3 = nit.require (path).loadedAt;
+
+    expect (d1).toBe (d2);
+    expect (d2).not.toBe (d3);
+});
+
+
 test ("nit getters", () =>
 {
     expect (nit.READY).toBe (true);
