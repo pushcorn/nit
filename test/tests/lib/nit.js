@@ -823,12 +823,7 @@ test ("nit.Compgen completers", async () =>
     process.argv = ["node", global.nit.HOME];
     console.log = function () { logContent = global.nit.array (arguments); };
 
-    const nit = await test.reloadNit ();
-    const Compgen = nit.lookupClass ("nit.Compgen");
-    const Completer = Compgen.Completer;
-
-    expect (nit.CLASSES["nit.File.completers.File"].superclass).toBe (Completer);
-    expect (nit.CLASSES["constraints.Choice.completers.Choice"].superclass).toBe (Completer);
+    await test.reloadNit ();
     expect (logContent).toEqual (["NONE"]);
 });
 

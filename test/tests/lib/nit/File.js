@@ -9,11 +9,11 @@ test ("nit.File - file primitive type", () =>
 });
 
 
-test ("nit.File.completers.File.completeForType ()", () =>
+test ("nit.File.compgencompleters.Completer ()", async () =>
 {
     nit.require ("nit.Compgen");
 
-    let comp = nit.File.completers.File;
+    let comp = nit.lookupClass ("nit.File.compgencompleters.Completer");
 
     const A = nit.defineCommand ("TestCommand")
         .defineInput (Input =>
@@ -26,14 +26,17 @@ test ("nit.File.completers.File.completeForType ()", () =>
         })
     ;
 
-    let ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.file1 });
-    expect (comp.completeForType (ctx)).toEqual ([nit.Compgen.ACTIONS.FILE]);
+    let ctx = new nit.Compgen.Context ({ completionType: "type", currentOption: A.Input.fieldMap.file1 });
+    expect (await comp.generate (ctx)).toEqual ([nit.Compgen.ACTIONS.FILE]);
 
-    ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.file2 });
-    expect (comp.completeForType (ctx)).toEqual ([nit.Compgen.ACTIONS.FILE]);
+    ctx.currentOption = A.Input.fieldMap.file2;
+    expect (await comp.generate (ctx)).toEqual ([nit.Compgen.ACTIONS.FILE]);
 
-    ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.file3 });
-    expect (comp.completeForType (ctx)).toBeUndefined ();
+    ctx.currentOption = A.Input.fieldMap.file3;
+    expect (await comp.generate (ctx)).toBeUndefined ();
+
+    ctx.completionType = "redirect";
+    expect (await comp.generate (ctx)).toEqual (["FILE"]);
 });
 
 

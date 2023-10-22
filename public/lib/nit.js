@@ -7284,7 +7284,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         return nit
             .listComponents (category)
-            .map (function (c) { return nit.lookupClass (c.className); })
+            .map (function (c) { return c.class; })
             .filter (function (cls) { return nit.is.subclassOf (cls, superclass); })
         ;
     };

@@ -28,11 +28,11 @@ test ("nit.Command - command primitive type", () =>
 });
 
 
-test ("nit.Command.completers.Command.completeForType ()", () =>
+test ("nit.Command.compgencompleters.Completer", async () =>
 {
     nit.require ("nit.Compgen");
 
-    let comp = nit.Command.completers.Command;
+    let comp = nit.lookupClass ("nit.Command.compgencompleters.Completer");
 
     const A = nit.defineCommand ("TestCommand")
         .defineInput (Input =>
@@ -44,11 +44,11 @@ test ("nit.Command.completers.Command.completeForType ()", () =>
         })
     ;
 
-    let ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.cmd1 });
-    expect (comp.completeForType (ctx)).toEqual (expect.arrayContaining (["test", "lint"]));
+    let ctx = new nit.Compgen.Context ({ completionType: "type", currentOption: A.Input.fieldMap.cmd1 });
+    expect (await comp.generate (ctx)).toEqual (expect.arrayContaining (["test", "lint"]));
 
-    ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.cmd2 });
-    expect (comp.completeForType (ctx)).toBeUndefined ();
+    ctx.currentOption = A.Input.fieldMap.cmd2;
+    expect (await comp.generate (ctx)).toBeUndefined ();
 });
 
 

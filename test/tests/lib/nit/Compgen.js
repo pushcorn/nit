@@ -27,6 +27,47 @@ function testParseWords ()
 }
 
 
+test ("nit.Compgen.compgencompleters", async () =>
+{
+    const nit = await test.reloadNit ("project-a");
+
+    nit.requireAll ("nit.Compgen");
+
+    expect (nit.Compgen.completers.some (c => c.name == "nit.compgencompleters.TimezoneConstraint")).toBe (true);
+    expect (nit.Compgen.completers.some (c => c.name == "nit.compgencompleters.ChoiceConstraint")).toBe (true);
+    expect (nit.Compgen.completers[0].name).toBe ("nit.compgencompleters.Demo");
+
+    const Cmd = nit.defineCommand ("Cmd")
+        .defineInput (Input =>
+        {
+            Input
+                .option ("<type>", "string")
+                    .constraint ("choice", "a", "b")
+                .option ("<tz>", "string")
+                    .constraint ("timezone")
+                .option ("output", "file")
+            ;
+        })
+    ;
+
+    let compgen = new nit.Compgen;
+    let ctx = new nit.Compgen.Context;
+
+    compgen.context = ctx;
+
+    ctx.currentOption = Cmd.Input.fieldMap.type;
+    expect (await compgen.invokeCompleters ("constraint")).toEqual (["VALUE", "a", "b"]);
+
+    ctx.currentOption = Cmd.Input.fieldMap.tz;
+    expect ((await compgen.invokeCompleters ("constraint")).slice (0, 3)).toEqual (["VALUE", "Africa/Abidjan", "Africa/Accra"]);
+
+    expect (await compgen.invokeCompleters ("redirect")).toEqual (["FILE"]);
+
+    ctx.currentOption = Cmd.Input.fieldMap.output;
+    expect (await compgen.invokeCompleters ("type")).toEqual (["FILE"]);
+});
+
+
 test ("nit.Compgen.construct ()", async () =>
 {
     await testCompgen ("nit tes")

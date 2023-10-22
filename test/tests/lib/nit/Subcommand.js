@@ -7,7 +7,7 @@ test.custom ("nit.Subcommand.autoRegister")
             s.Subcommand.autoRegister = false;
         })
         .mock ("Subcommand", "registerSubcommands")
-        .before (s => s.GitSubcommand = nit.require ("nit.GitSubcommand"))
+        .task (s => s.GitSubcommand = nit.require ("nit.GitSubcommand"))
         .after (s =>
         {
             s.Subcommand.autoRegister = true;
@@ -109,26 +109,27 @@ test.method ("nit.Subcommand", "new")
 ;
 
 
-test.method ("nit.Subcommand.Completer", "completeForType", true)
+test.custom ("Method: nit.Subcommand.compgencompleters.Completer.generate ()")
     .should ("return the completions for the subcommand")
         .project ("project-a")
         .before (s => s.GitSubcommand = nit.require ("nit.GitSubcommand"))
         .before (s => s.GitCommand = nit.require ("commands.Git"))
-        .before (s => s.object = s.GitSubcommand.completers.Subcommand)
-        .before (s => s.args = nit.new ("nit.Compgen.Context",
+        .before (s => s.Completer = nit.lookupClass ("nit.GitSubcommand.compgencompleters.Completer"))
+        .task (s => s.Completer.generate (nit.new ("nit.Compgen.Context",
         {
-            currentOption: s.GitCommand.Input.fieldMap.gitcommand
-        }))
+            currentOption: s.GitCommand.Input.fieldMap.gitcommand,
+            completionType: "type"
+        })))
         .returns (["VALUE", "pull", "push"])
         .commit ()
 
     .should ("return undefined if the option type is not the specified subcommand")
         .project ("project-a")
-        .before (s => s.object = s.GitSubcommand.completers.Subcommand)
-        .before (s => s.args = nit.new ("nit.Compgen.Context",
+        .task (s => s.Completer.generate (nit.new ("nit.Compgen.Context",
         {
-            currentOption: s.GitCommand.Input.fieldMap.auth
-        }))
+            currentOption: s.GitCommand.Input.fieldMap.auth,
+            completionType: "type"
+        })))
         .returns ()
         .commit ()
 ;

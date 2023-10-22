@@ -9,11 +9,11 @@ test ("nit.Dir - dir primitive type", () =>
 });
 
 
-test ("nit.Dir.completers.Dir.completeForType ()", () =>
+test ("nit.Dir.compgencompleters.Completer ()", async () =>
 {
     nit.require ("nit.Compgen");
 
-    let comp = nit.Dir.completers.Dir;
+    let comp = nit.lookupClass ("nit.Dir.compgencompleters.Completer");
 
     const A = nit.defineCommand ("TestCommand")
         .defineInput (Input =>
@@ -26,14 +26,14 @@ test ("nit.Dir.completers.Dir.completeForType ()", () =>
         })
     ;
 
-    let ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.dir1 });
-    expect (comp.completeForType (ctx)).toEqual ([nit.Compgen.ACTIONS.DIR]);
+    let ctx = new nit.Compgen.Context ({ completionType: "type", currentOption: A.Input.fieldMap.dir1 });
+    expect (await comp.generate (ctx)).toEqual ([nit.Compgen.ACTIONS.DIR]);
 
-    ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.dir2 });
-    expect (comp.completeForType (ctx)).toEqual ([nit.Compgen.ACTIONS.DIR]);
+    ctx.currentOption = A.Input.fieldMap.dir2;
+    expect (await comp.generate (ctx)).toEqual ([nit.Compgen.ACTIONS.DIR]);
 
-    ctx = new nit.Compgen.Context ({ currentOption: A.Input.fieldMap.dir3 });
-    expect (comp.completeForType (ctx)).toBeUndefined ();
+    ctx.currentOption = A.Input.fieldMap.dir3;
+    expect (await comp.generate (ctx)).toBeUndefined ();
 });
 
 
