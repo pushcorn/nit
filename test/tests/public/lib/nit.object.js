@@ -1254,6 +1254,11 @@ test ("nit.Object.properties", () =>
     expect (AP.properties[1].name).toBe ("email");
     expect (AP.pargs.length).toBe (1);
     expect (AP.pargs[0].name).toBe ("name");
+    expect (AP.nargs.length).toBe (1);
+    expect (AP.pargNames).toEqual (["name"]);
+    expect (AP.nargs[0].name).toBe ("email");
+    expect (AP.nargNames).toEqual (["email"]);
+    expect (nit.keys (AP.nargMap)).toEqual (["email"]);
     expect (nit.keys (AP.pargMap)).toEqual (["name"]);
 });
 

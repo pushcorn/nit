@@ -67,7 +67,7 @@ test ("nit.Command.help ()", async () =>
     const nit = await test.setupCliMode ("", "project-a", true);
     const TestCmd = nit.lookupCommand ("test-cmd");
 
-    TestCmd.defaults ({ choice: "first choice" });
+    TestCmd.Input.defaults ({ choice: "first choice" });
 
     expect (TestCmd.help ().build ()).toBe (`A test command.
 
@@ -78,7 +78,8 @@ Options:
  [file]            file option
 
  -b, --base64      base64 option
- -c, --choice      choice option     [default: first choice]
+ -c, --choice      choice option
+                   { default: first choice }
  -d, --doc-ids...  docIds option
  -s, --service     service option`
 );
@@ -92,7 +93,7 @@ Usage: nit no-args`
 
     const HelloWorld = nit.lookupCommand ("hello-world");
 
-    HelloWorld.defaults ({ message: "hello!" });
+    HelloWorld.Input.defaults ({ message: "hello!" });
 
     expect (HelloWorld.help ().build ()).toBe (`Description not available.
 
@@ -100,10 +101,64 @@ Usage: nit hello-world [message]
 
 Options:
 
- [message]        The greeting message.  [default: hello!]
+ [message]        The greeting message.
+                  { default: hello! }
 
      --color      The message color.`
 );
+
+    const Git = nit.lookupCommand ("git");
+
+    expect (Git.help ().build ()).toBe (`Execute a git command.
+
+Usage: nit git <gitcommand>
+
+Options:
+
+ <gitcommand>     The git subcommand.
+
+ -a, --auth       The auth token.
+ -s, --silent     Do not output the status code stderr.
+
+Available subcommands:
+
+ pull             Fetch from and integrate with another repository or a local
+                  branch
+ push             Update remote refs along with associated objects`
+);
+
+
+    expect (Git.help ("pull").build ()).toBe (`Fetch from and integrate with another repository or a local branch
+
+Usage: nit git [command-options...] pull
+
+Options:
+
+ -a, --all
+ -r, --repository
+ -v, --verbose
+
+Command Options:
+
+ -a, --auth       The auth token.
+ -s, --silent     Do not output the status code stderr.`
+);
+
+    test.mock (Git.Input.subcommandOption.class, "listSubcommands", () => []);
+    expect (Git.help ().build ()).toBe (`Execute a git command.
+
+Usage: nit git <gitcommand>
+
+Options:
+
+ <gitcommand>     The git subcommand.
+
+ -a, --auth       The auth token.
+ -s, --silent     Do not output the status code stderr.
+
+No subcommands available.`
+);
+
 
 });
 

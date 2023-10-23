@@ -5721,6 +5721,18 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             return nit.index (this.pargs, "name");
         })
+        .staticMemo ("nargs", function ()
+        {
+            return this.properties.filter (function (p) { return !p.positional; });
+        })
+        .staticMemo ("nargNames", function ()
+        {
+            return this.nargs.map (function (p) { return p.name; });
+        })
+        .staticMemo ("nargMap", function ()
+        {
+            return nit.index (this.nargs, "name");
+        })
         .staticGetter ("superclass", true, false, function ()
         {
             return nit.getSuperclass (this);

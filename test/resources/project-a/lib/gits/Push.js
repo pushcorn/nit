@@ -9,8 +9,8 @@ module.exports = function (nit, Self)
                     .constraint ("choice", "info", "error", "warn", "debug")
             ;
         })
-        .field ("[repo]", "string")
-        .field ("[logLevel]", Self.LogLevel.name)
-        .field ("all", "boolean")
+        .field ("[repo]", "string", "The target repository.")
+        .field ("[logLevel]", Self.LogLevel.name, "The log level.")
+        .field ("all", "boolean", "Push all commits.")
     ;
 };

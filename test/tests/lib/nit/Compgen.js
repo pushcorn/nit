@@ -169,6 +169,30 @@ test ("nit.Compgen.parseWords ()", async () =>
         })
     ;
 
+    await testParseWords ("nit dynamic-option ")
+        .run (async ({ compgen, nit }) =>
+        {
+            expect (compgen.context.state).toBe (nit.Compgen.STATES.option);
+            expect (await compgen.listCompletions ()).toEqual (["VALUE", "bird", "dog"]);
+        })
+    ;
+
+    await testParseWords ("nit dynamic-option dog ")
+        .run (async ({ compgen, nit }) =>
+        {
+            expect (compgen.context.state).toBe (nit.Compgen.STATES.value);
+            expect (await compgen.listCompletions ()).toEqual (["VALUE", "swim", "run"]);
+        })
+    ;
+
+    await testParseWords ("nit dynamic-option bird ")
+        .run (async ({ compgen, nit }) =>
+        {
+            expect (compgen.context.state).toBe (nit.Compgen.STATES.value);
+            expect (await compgen.listCompletions ()).toEqual (["VALUE", "fly", "eat"]);
+        })
+    ;
+
     await testParseWords ("nit test-cmd --choice fir --service srv1", 25)
         .run (async ({ compgen, nit }) =>
         {
@@ -333,6 +357,7 @@ test ("nit.Compgen.parseWords ()", async () =>
             expect (await compgen.listCompletions ()).toEqual (
             [
                 "COMMAND",
+                "dynamic-option",
                 "git",
                 "hello-world",
                 "invalid-cmd",
@@ -360,9 +385,16 @@ test ("nit.Compgen.listCompletions ()", async () =>
         return testCompgen (...opts.args)
             .push (({ compgen }) => compgen.parseWords ())
             .push (async ({ compgen }) => await compgen.listCompletions ())
-            .run (({ result }) =>
+            .run (({ compgen, result }) =>
             {
-                expect ({ args: opts.args, comps: result }).toEqual (opts);
+                let expected = { args: opts.args, comps: result };
+
+                if (opts.values)
+                {
+                    expected.values = compgen.context.specifiedValues;
+                }
+
+                expect (expected).toEqual (opts);
             })
         ;
     }
@@ -371,7 +403,8 @@ test ("nit.Compgen.listCompletions ()", async () =>
     [
         {
             "args": ["nit git push my-repo i"],
-            "comps": ["VALUE", "info"]
+            "comps": ["VALUE", "info"],
+            "values": { gitcommand: "push", repo: "my-repo", logLevel: "i" }
         },
         {
             "args": ["nit git push my-repo "],
@@ -383,7 +416,8 @@ test ("nit.Compgen.listCompletions ()", async () =>
         },
         {
             "args": ["nit git --auth user:pass"],
-            "comps": ["VALUE"]
+            "comps": ["VALUE"],
+            "values": { auth: "user:pass" }
         },
         {
             "args": ["nit git --auth user:pass "],
@@ -391,7 +425,8 @@ test ("nit.Compgen.listCompletions ()", async () =>
         },
         {
             "args": ["nit git --auth user:pass pu"],
-            "comps": ["SUBCOMMAND", "pull", "push"]
+            "comps": ["SUBCOMMAND", "pull", "push"],
+            "values": { auth: "user:pass", gitcommand: "pu" }
         },
         {
             "args": ["nit git --auth user:pass push "],
@@ -399,7 +434,8 @@ test ("nit.Compgen.listCompletions ()", async () =>
         },
         {
             "args": ["nit git --auth user:pass push -a "],
-            "comps": ["VALUE"]
+            "comps": ["VALUE"],
+            "values": { auth: "user:pass", gitcommand: "push", all: "true", repo: "" }
         },
         {
             "args": ["nit git --auth "],
@@ -443,7 +479,7 @@ test ("nit.Compgen.listCompletions ()", async () =>
         },
         {
             "args": ["nit git "],
-            "comps": ["VALUE", "pull", "push"]
+            "comps": ["SUBCOMMAND", "pull", "push"]
         },
         {
             "args": ["nit git pus"],
@@ -523,9 +559,9 @@ test ("nit.Compgen.listCompletions ()", async () =>
         }
     ];
 
-    // tests = [tests[2]]; // single
+    // tests = [tests[9]]; // single
 
-    await nit.parallel (tests.map (t => testListCompletions (t)));
+    await nit.parallel (tests.map (t => function () { return testListCompletions (t); }));
 });
 
 

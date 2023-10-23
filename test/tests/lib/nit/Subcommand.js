@@ -18,6 +18,83 @@ test.custom ("nit.Subcommand.autoRegister")
 ;
 
 
+test.method ("nit.Subcommand", "help", true)
+    .should ("return the help builder for the subcommand")
+        .project ("project-a")
+        .up (() => nit.require ("nit.Command"))
+        .up (s => s.args = s.Cmd = nit.lookupCommand ("git"))
+        .up (s => s.Cmd.Input.subcommandOption.class.registerSubcommands ())
+        .up (s => s.class = s.Cmd.Input.subcommandOption.class.lookup ("Push"))
+        .returnsInstanceOf ("nit.utils.HelpBuilder")
+        .expectingMethodToReturnValue ("result.build", null, nit.trim.text (`
+        Update remote refs along with associated objects
+
+        Usage: nit git [command-options...] push [repo] [log-level]
+
+        Options:
+
+         [repo]           The target repository.
+         [log-level]      The log level.
+
+         -a, --all        Push all commits.
+        `))
+        .commit ()
+
+    .reset ()
+        .project ("project-a")
+        .up (s => s.args = s.Cmd)
+        .up (s => s.class = s.Cmd.Input.subcommandOption.class.lookup ("Pull"))
+        .returnsInstanceOf ("nit.utils.HelpBuilder")
+        .expectingMethodToReturnValue ("result.build", null, nit.trim.text (`
+        Fetch from and integrate with another repository or a local branch
+
+        Usage: nit git [command-options...] pull
+
+        Options:
+
+         -a, --all
+         -r, --repository
+         -v, --verbose
+        `))
+        .commit ()
+
+    .should ("not include the command options")
+        .project ("project-a")
+        .up (() => nit.require ("nit.Command"))
+        .up (s => s.args = s.Cmd)
+        .up (s => s.class = s.Cmd.Input.subcommandOption.class.lookup ("Push"))
+        .up (s => s.Cmd.Input.nargs.splice (0))
+        .returnsInstanceOf ("nit.utils.HelpBuilder")
+        .expectingMethodToReturnValue ("result.build", null, nit.trim.text (`
+        Update remote refs along with associated objects
+
+        Usage: nit git push [repo] [log-level]
+
+        Options:
+
+         [repo]           The target repository.
+         [log-level]      The log level.
+
+         -a, --all        Push all commits.
+        `))
+        .commit ()
+
+    .should ("not include the subcommand options section none available")
+        .project ("project-a")
+        .up (() => nit.require ("nit.Command"))
+        .up (s => s.args = s.Cmd)
+        .up (s => s.class = s.Cmd.Input.subcommandOption.class.lookup ("Pull"))
+        .up (s => s.class.Input.nargs.splice (0))
+        .returnsInstanceOf ("nit.utils.HelpBuilder")
+        .expectingMethodToReturnValue ("result.build", null, nit.trim.text (`
+        Fetch from and integrate with another repository or a local branch
+
+        Usage: nit git pull
+        `))
+        .commit ()
+;
+
+
 test.method ("nit.Subcommand", "forComponent", true)
     .should ("set the category for the given component")
         .given ("test.Api")
@@ -120,7 +197,7 @@ test.custom ("Method: nit.Subcommand.compgencompleters.Completer.generate ()")
             currentOption: s.GitCommand.Input.fieldMap.gitcommand,
             completionType: "type"
         })))
-        .returns (["VALUE", "pull", "push"])
+        .returns (["SUBCOMMAND", "pull", "push"])
         .commit ()
 
     .should ("return undefined if the option type is not the specified subcommand")

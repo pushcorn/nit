@@ -285,6 +285,9 @@ test ("nit.require ()", async () =>
     expect (() => nit.require ("InvalidClass")).toThrow (/load error/);
     expect (nit.projectExtenstionLoaded).toBe (true);
 
+    expect (nit.require ("", true)).toBeUndefined ();
+    expect (() => nit.require ()).toThrow (/file '' does not exist/i);
+
     nit.require ("c");
     nit.require ("Eee");
     await nit.sleep (10);
@@ -753,6 +756,7 @@ test ("nit.lookupCommand ()", async () =>
 
     expect (() => nit.lookupCommand ("error-cmd")).toThrow (/error loading command/);
     expect (() => nit.lookupCommand ("invalid-type-command")).toThrow (/component.*InvalidPlugin.*not found/i);
+    expect (nit.lookupCommand ("not-found-command", true)).toBeUndefined ();
 });
 
 
