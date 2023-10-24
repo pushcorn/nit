@@ -4599,7 +4599,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     value = nit.is.func (prop.defval) ? prop.defval (prop, owner) : nit.clone (prop.defval);
                 }
 
-                if ((cv = (parser || prop.parser).cast (value, prop.type)) === undefined)
+                if ((cv = (parser || prop.parser).cast (value, prop.type, prop.localClass)) === undefined)
                 {
                     nit.throw.call (owner, { code: Property.invalidValueCode (prop), source: prop, owner: owner }, { value: value, property: prop });
                 }
@@ -4646,6 +4646,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 var array = !!cfg.array;
                 var writer = cfg.writer;
                 var caster = cfg.caster;
+                var localClass = cfg.localClass;
                 var typeMod = type.slice (-1);
                 var nullable;
                 var emptyAllowed;
@@ -4699,6 +4700,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     primitive: !(parser instanceof nit.Object.ClassTypeParser),
                     mixedType: parser instanceof nit.Object.MixedTypeParser,
                     parser: parser,
+                    localClass: localClass,
                     privProp: nit.PPP + name,
                     constraints: nit.array (cfg.constraints),
                     get: function () { return get (prop, this); },
@@ -4763,6 +4765,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 onUnlink: undefined,
                 caster: undefined,
                 parser: undefined,
+                localClass: undefined,
                 privProp: "",
                 constraints: [],
                 // A constraint is an object with a "validate" method
@@ -4808,7 +4811,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             {
                 class: function ()
                 {
-                    return this.primitive ? undefined : nit.lookupClass (this.type);
+                    var prop = this;
+
+                    return prop.primitive ? undefined : (prop.localClass || nit.lookupClass (prop.type));
                 }
             });
         })
@@ -5557,7 +5562,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     return new cls (v);
                 }
                 ,
-                cast: function (v, type)
+                cast: function (v, type, localClass)
                 {
                     if (nit.is.undef (v))
                     {
@@ -5570,7 +5575,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     }
 
                     var self = this;
-                    var cls = self.lookupClass (type);
+                    var cls = localClass || self.lookupClass (type);
 
                     if (!cls)
                     {
@@ -5642,7 +5647,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                         try
                         {
-                            if (nit.Object.TYPE_PARSERS.some (function (p) { return p != self && p.supports (t) && (casted = p.cast (v, t)) !== undefined; }))
+                            if (nit.Object.TYPE_PARSERS.some (function (p) { return p != self && p.supports (t) && (casted = p.cast (v, t, self.localClass)) !== undefined; }))
                             {
                                 return casted;
                             }
@@ -6766,15 +6771,18 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .property ("primitive", "boolean") // should not be set manually
         .property ("mixedType", "boolean") // should not be set manually
         .property ("parser", "nit.Object.ITypeParser")
+        .property ("localClass", "function") // the class of the local type
         .property ("writer", "nit.Object.Property.Writer")
         .property ("privProp", "string", "", true, false)
         .property ("constraints...", "nit.Constraint")
 
         .getter ("class", function ()
         {
-            if (!this.primitive)
+            var prop = this;
+
+            if (!prop.primitive)
             {
-                return this.parser.lookupClass (this.type);
+                return prop.localClass || prop.parser.lookupClass (prop.type);
             }
         })
         .method ("constraint", function (name)
