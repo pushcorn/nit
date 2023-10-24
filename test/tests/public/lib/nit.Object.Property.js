@@ -420,3 +420,27 @@ test ("nit.Object - pargs", () =>
 
     expect (Obj.pargNames).toEqual (["vargs", "opt1", "opt2"]);
 });
+
+
+test ("nit.Object.Property - local class", () =>
+{
+    let Context = nit.defineClass ("test.Context")
+        .field ("scope", "object")
+    ;
+
+    let Input = nit.defineClass ("test.Input")
+        .field ("firstname")
+        .field ("lastname")
+    ;
+
+
+    let localInput = Input.defineSubclass (Input.name, true);
+    let localContext = Context.defineSubclass (Context.name, true)
+        .field ("input", localInput.name, { localClass: localInput, defval: function () { return {}; } })
+    ;
+
+    let ctx = new localContext;
+
+    expect (ctx.input.firstname).toBe ("");
+    expect (ctx.input.lastname).toBe ("");
+});

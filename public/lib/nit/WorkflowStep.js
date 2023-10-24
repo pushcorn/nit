@@ -28,7 +28,7 @@ module.exports = function (nit, Self)
             {
                 try
                 {
-                    var step = nit.new (nit.lookupComponent (value.type, "workflowsteps", Self), value);
+                    var step = nit.new (nit.lookupComponent (value.type, "workflowsteps", Self), nit.omit (value, "type"));
 
                     return nit.dpv (step, Self.kConfig, value);
                 }

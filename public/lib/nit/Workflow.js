@@ -5,7 +5,6 @@ module.exports = function (nit, Self, global)
         .m ("error.subroutine_not_defined", "The subroutine '%{name}' was not defined.")
         .defineMeta ("exprOpenTag", "string", "${")
         .defineMeta ("exprCloseTag", "string", "}")
-        .defineMeta ("globalSource", "string", "global") // The global variable name of that will be used as the source of Context.$.
         .use ("nit.WorkflowField")
         .use ("workflowsteps.Return")
         .staticMethod ("isExpr", function (str)
@@ -143,6 +142,13 @@ module.exports = function (nit, Self, global)
                 })
             ;
         })
+        .defineInnerClass ("Constraint", function (Constraint)
+        {
+            Constraint
+                .field ("<name>", "string", "The constraint name.")
+                .field ("options", "object?", "The constraint options.")
+            ;
+        })
         .defineInnerClass ("Option", function (Option)
         {
             Option
@@ -150,24 +156,28 @@ module.exports = function (nit, Self, global)
                 .field ("[type]", "string", "The option type.", "string")
                 .field ("[description]", "string", "The option description.")
                 .field ("[defval]", "any", "The default value.")
+                .field ("constraints...", Self.Constraint.name, "The option constraints.")
             ;
         })
         .defineInnerClass ("Input", "nit.Model", function (Input)
         {
             Input
-                .staticProperty ("seq", "integer", 1)
                 .staticMethod ("defineRuntimeClass", function (options)
                 {
                     var cls = this;
 
                     options = nit.array (arguments, true);
 
-                    return cls.defineSubclass (cls.name + "$" + cls.seq++)
+                    return cls.defineSubclass (cls.name, true)
                         .do (function (cls)
                         {
                             nit.each (options, function (option)
                             {
-                                cls.field (option.toPojo ());
+                                var opt = option.toPojo ();
+
+                                cls.field (nit.omit (opt, "constraints"));
+
+                                opt.constraints.forEach (function (c) { cls.constraint (c.name, c.options); });
                             });
                         })
                         .validatePropertyDeclarations ()
@@ -178,22 +188,22 @@ module.exports = function (nit, Self, global)
         .defineInnerClass ("Context", function (Context)
         {
             Context
-                .staticProperty ("seq", "integer", 1)
+                .defineMeta ("globalSource", "string", "global") // The global variable name of that will be used as the source of Context.$.
                 .staticMethod ("new", function ()
                 {
                     return nit.assign.apply (nit, [new this].concat (nit.array (arguments)));
                 })
                 .staticMethod ("defineRuntimeClass", function ()
                 {
-                    return Context.defineSubclass (Context.name + "$" + Context.seq++);
+                    return Context.defineSubclass (Context.name, true);
                 })
                 .field ("workflow", Self.name, "The workflow.", { enumerable: false })
                 .field ("scope", "object", "The scope of the service providers.", function () { return new Self.Scope; })
                 .field ("output", "any", "The workflow output.")
                 .field ("error", "any", "The workflow error.")
-                .getter ("$", true, false, function ()
+                .memo ("$", false, function ()
                 {
-                    return global[Self.globalSource];
+                    return nit.get (global, this.constructor.globalSource);
                 })
             ;
         })
@@ -204,13 +214,13 @@ module.exports = function (nit, Self, global)
                 .defineInnerClass ("Context", Self.Context.name, function (Context)
                 {
                     Context
-                        .staticProperty ("seq", "integer", 1)
                         .staticMethod ("defineRuntimeClass", function ()
                         {
-                            return Context.defineSubclass (Context.name + "$" + Context.seq++);
+                            return Context.defineSubclass (Context.name, true);
                         })
                         .field ("caller", Self.Context.name, "The caller context.", { enumerable: false })
-                        .delegate ("workflow", "caller.workflow", { enumerable: false })
+                        .delegate ("workflow", "caller.workflow", false)
+                        .delegate ("$", "caller.$", false)
                     ;
                 })
                 .field ("<name>", "string", "The name of the subroutine.")
@@ -225,7 +235,11 @@ module.exports = function (nit, Self, global)
                 .memo ("contextClass", function ()
                 {
                     return Subroutine.Context.defineRuntimeClass ()
-                        .field ("input", this.inputClass.name, "The input options.", function () { return {}; })
+                        .field ("input", this.inputClass.name, "The input options.",
+                        {
+                            defval: {},
+                            localClass: this.inputClass
+                        })
                     ;
                 })
                 .method ("run", function (caller)
@@ -266,6 +280,7 @@ module.exports = function (nit, Self, global)
         .field ("options...", Self.Option.name, "The workflow option definitions.")
         .field ("subroutines...", Self.Subroutine.name, "The subroutines which can be invoked by another step.")
         .field ("catch", "nit.WorkflowStep", "The step to handle the error.")
+        .field ("globalSource", "string", "The source of the context's $ property.", "global")
 
         .memo ("inputClass", function ()
         {
@@ -274,7 +289,12 @@ module.exports = function (nit, Self, global)
         .memo ("contextClass", function ()
         {
             return Self.Context.defineRuntimeClass ()
-                .field ("input", this.inputClass.name, "The input options.", function () { return {}; })
+                .meta ("globalSource", this.globalSource)
+                .field ("input", this.inputClass.name, "The input options.",
+                {
+                    defval: {},
+                    localClass: this.inputClass
+                })
             ;
         })
         .memo ("subroutineMap", function ()
