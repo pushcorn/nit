@@ -1,16 +1,26 @@
 module.exports = function (nit)
 {
+    var writer = new nit.Object.Property.Writer;
+
+
     return nit.definePlugin ("ServiceProvider")
         .field ("[options]", "any", "The provider options.")
         .staticMethod ("onUsePlugin", function (hostClass, plugin)
         {
             hostClass
+                .m ("error.invalid_instance", "The service is not an instance of '%{type}'.")
                 .defineInnerClass ("ServiceProviderEntry", function (ServiceProviderEntry)
                 {
                     ServiceProviderEntry
-                        .field ("<id>", "integer", "The service provider ID.")
+                        .staticProperty ("seq", "integer", 1)
                         .field ("<scope>", "any", "The scope to which the provider applies.")
                         .field ("<instance>", hostClass.name, "The provider instance.")
+
+                        .property ("id", "integer", { writer: writer }) // The service provider ID.
+                        .onConstruct (function ()
+                        {
+                            this.id = writer.value (ServiceProviderEntry.seq++);
+                        })
                     ;
                 })
                 .staticProperty ("serviceProviderEntries...", hostClass.ServiceProviderEntry.name)
@@ -20,7 +30,6 @@ module.exports = function (nit)
                     var entries = cls.serviceProviderEntries;
                     var entry = new hostClass.ServiceProviderEntry (
                     {
-                        id: entries.length + 1,
                         scope: scope,
                         instance: new cls (plugin.options)
                     });
@@ -40,6 +49,31 @@ module.exports = function (nit)
                     var entry = cls.serviceProviderEntries.find (function (e) { return e.scope == scope; }) || cls.createServiceProviderEntry (scope);
 
                     return entry.instance;
+                })
+                .staticMethod ("set", function (scope, instance)
+                {
+                    var cls = this;
+
+                    if (!(instance instanceof hostClass))
+                    {
+                        cls.throw ("error.invalid_instance", { type: hostClass.name });
+                    }
+
+                    scope = scope || cls;
+
+                    var entries = cls.serviceProviderEntries;
+
+                    nit.arrayRemove (entries, function (e) { return e.scope == scope; });
+
+                    var entry = new hostClass.ServiceProviderEntry (
+                    {
+                        scope: scope,
+                        instance: instance
+                    });
+
+                    entries.push (entry);
+
+                    return instance;
                 })
             ;
         })

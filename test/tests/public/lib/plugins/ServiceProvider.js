@@ -35,13 +35,29 @@ test.method ("plugins.ServiceProvider", "onUsePlugin", true)
         s.SubcontextDb = s.Subcontext.db;
         s.subctxtDb = (new s.Subcontext).db;
     })
+    .after (s =>
+    {
+        const A = nit.defineClass ("A");
+        let db = s.Db.get (A);
+        let newDb = new s.Db ();
+
+        expect (db.id).not.toBe (newDb.id);
+
+        s.Db.set (A, newDb);
+        expect (s.Db.serviceProviderEntries.length).toBe (4);
+        expect (s.Db.serviceProviderEntries.find (e => e.scope == A).instance).toBe (newDb);
+
+        expect (() => s.Db.set (A, A)).toThrow (/not an instance/);
+
+        s.Db.set (null, newDb);
+    })
     .expectingExprToReturnValue ("contextDb != SubcontextDb", true)
     .expectingExprToReturnValue ("ContextDb != ctxDb", true)
     .expectingExprToReturnValue ("ctxDb != subctxDb", true)
     .expectingPropertyToBe ("sameGetResult", true)
-    .expectingPropertyToBe ("Db.serviceProviderEntries.length", 3)
-    .expectingPropertyToBe ("createCalled", 5)
-    .expectingPropertyToBeOfType ("dbEntry.instance", "MyDb")
+    .expectingPropertyToBe ("Db.serviceProviderEntries.length", 4)
+    .expectingPropertyToBe ("createCalled", 6)
+    .expectingPropertyToBeOfType ("dbEntry.instance", "Db")
     .expectingPropertyToBe ("MyDb.serviceProviderEntries.length", 2)
     .commit ()
 ;

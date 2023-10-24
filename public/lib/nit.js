@@ -3396,7 +3396,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             case ":":
                                 isBlock = true;
 
-
                                 if (!nit.is.empty (token.children))
                                 {
                                     children = token.children.map (untokenize).join ("");
@@ -3625,6 +3624,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         error.message = message;
         error.stack = prefix + message + "\n" + st.slice (msgLen);
+
+        return error;
     };
 
 

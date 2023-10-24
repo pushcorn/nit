@@ -794,6 +794,12 @@ test ("nit.test.Strategy.expecting... ()", async () =>
 
     strategy.expectingExprToReturnValue ("object.returnObject ()", { b: 2 }, true);
     expect (strategy.expectors[14].valueGetter (strategy)).toEqual ({ a: 1, b: 2 });
+
+    strategy.expecting ("accept the value getter as the second arg", function (s)
+    {
+        return s.object.name == "AAA";
+    });
+    expect (strategy.expectors[15].valueGetter (strategy)).toEqual (true);
 });
 
 
