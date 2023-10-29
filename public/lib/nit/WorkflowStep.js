@@ -1,7 +1,7 @@
 module.exports = function (nit, Self)
 {
     return (Self = nit.defineClass ("nit.WorkflowStep"))
-        .k ("config")
+        .k ("config", "constantFields")
         .use ("nit.Workflow")
         .use ("nit.WorkflowField")
         .categorize ("workflowsteps")
@@ -12,6 +12,10 @@ module.exports = function (nit, Self)
             nit.new (Self.WorkflowField, arguments).bind (cls.prototype);
 
             return cls.validatePropertyDeclarations ();
+        })
+        .getter ("type", function ()
+        {
+            return this.constructor.name;
         })
         .field ("description", "string", "The description about the step.")
         .field ("condition", "boolean", "Whether the step should be run.", true, { exprAllowed: true })
@@ -28,9 +32,9 @@ module.exports = function (nit, Self)
             {
                 try
                 {
-                    var step = nit.new (nit.lookupComponent (value.type, "workflowsteps", Self), nit.omit (value, "type"));
+                    var opts = nit.omit (value, "type");
 
-                    return nit.dpv (step, Self.kConfig, value);
+                    return nit.new (nit.lookupComponent (value.type, "workflowsteps", Self), opts);
                 }
                 catch (e)
                 {
@@ -40,59 +44,96 @@ module.exports = function (nit, Self)
 
             return value;
         })
+        .onPreConstruct (function ()
+        {
+            var self = this;
+
+            if (!self[Self.kConstantFields])
+            {
+                var cls = self.constructor;
+                var rcp = self[Self.kRawConstructorParams];
+
+                nit.dpv (self, Self.kConfig, rcp);
+                nit.dpv (self, Self.kConstantFields, nit.each (cls.fields, function (f)
+                {
+                    var n = f.name;
+
+                    return (n in rcp && !Self.Workflow.isExpr (rcp[n])) ? n : nit.each.SKIP;
+
+                }), true, false);
+            }
+        })
         .method ("evaluate", function (ctx)
         {
             var self = this;
+            var cls = self.constructor;
+            var opts = {};
+            var step = Object.create (cls.prototype);
+            var constantFields = self[Self.kConstantFields];
 
-            self.constructor.fields.forEach (function (field)
+            nit.dpv (step, Self.WorkflowField.kSet, true, true, false);
+            nit.dpv (step, Self.kConstantFields, constantFields, true, false);
+
+            cls.fields.forEach (function (field)
             {
-                field.evaluate (self, ctx);
+                opts[field.name] = ~constantFields.indexOf (field.name) ? self[field.name] : field.evaluate (self, ctx);
             });
 
-            return self;
+            step = nit.constructObject (cls, step, opts);
+
+            cls.fields.forEach (function (field)
+            {
+                var ev = self[field.evaluatorProp];
+
+                if (ev)
+                {
+                    nit.dpv (step, field.evaluatorProp, ev, true, false);
+                }
+            });
+
+            delete step[Self.WorkflowField.kSet];
+
+            return step;
         })
-        .lifecycleMethod ("run", true, function (ctx /* the workflow context */)
+        .lifecycleMethod ("run", true, function (ctx) // The hook method should return the output value.
         {
+            ctx = Self.Workflow.Subcontext.new (ctx instanceof Self.Workflow.Context ? { parent: ctx } : ctx);
+            ctx.output = nit.coalesce (ctx.output, ctx.input);
+
             var self = this;
             var cls = self.constructor;
-
-            ctx = ctx instanceof Self.Workflow.Context ? ctx : Self.Workflow.Context.new (ctx);
+            var step = ctx.owner = self.evaluate (ctx);
 
             return nit.Queue ()
+                .stopOn (function ()
+                {
+                    return ctx.canceled;
+                })
                 .push (function ()
                 {
-                    return self.evaluate (ctx);
-                })
-                .push (function (c)
-                {
-                    delete c.result;
-
-                    if (self.condition)
+                    if (step.condition)
                     {
-                        return cls[cls.kRun].call (self, ctx);
+                        return cls[cls.kRun].call (step, ctx);
                     }
                 })
                 .failure (function (c)
                 {
-                    if (self.catch)
-                    {
-                        ctx.error = c.error;
+                    ctx.error = c.error;
 
-                        return self.catch.run (ctx);
+                    if (step.catch)
+                    {
+                        return step.catch.run (ctx);
                     }
                     else
                     {
-                        nit.dpv (c.error, Self.Workflow.kContext, ctx, true, false);
-
-                        throw c.error;
+                        throw nit.dpv (ctx.error, Self.Workflow.kContext, ctx, true, false);
                     }
                 })
                 .complete (function (c)
                 {
-                    if (c.result != ctx)
-                    {
-                        ctx.output = nit.coalesce (c.result, ctx.output);
-                    }
+                    var output = c.result instanceof Self.Workflow.Context ? c.result.output : nit.coalesce (c.result, ctx.output);
+
+                    ctx.output = nit.coalesce (output, ctx.output);
 
                     return ctx;
                 })

@@ -6,9 +6,20 @@ test.method ("nit.WorkflowStep", "evaluate")
         .up (s => s.class = s.class.defineSubclass ("MyStep")
             .field ("delay", "integer", "Job delay", "${ speed / 10 }", { exprAllowed: true })
         )
-        .up (s => s.createArgs = "MyStep")
         .up (s => s.args = { speed: 60 })
+        .returnsInstanceOf ("MyStep")
         .expectingPropertyToBe ("result.delay", 6)
+        .expecting ("a new step is returned", s => s.result != s.object)
+        .commit ()
+
+    .should ("not evaluate the constant fields")
+        .up (s => s.class = s.class.defineSubclass ("MyStep")
+            .field ("delay", "integer", "Job delay", "${ speed / 10 }", { exprAllowed: true })
+        )
+        .up (s => s.createArgs = { delay: 20 })
+        .up (s => s.args = { speed: 60 })
+        .returnsInstanceOf ("MyStep")
+        .expectingPropertyToBe ("result.delay", 20)
         .commit ()
 ;
 
@@ -33,28 +44,34 @@ test.method ("nit.WorkflowStep", "nit.Object.caster", true)
         .given ({ type: "break345" })
         .throws (/component.*not found.*Config.*/)
         .commit ()
+
+    .should ("track the fields with constant (non-expression) values")
+        .given ({ type: "assign", key: "test-key", value: "${input * 3}"})
+        .returnsInstanceOf ("workflowsteps.Assign")
+        .expectingPropertyToBe ("result.nit\\.WorkflowStep\\.constantFields", ["key"])
+        .commit ()
 ;
 
 
 test.method ("nit.WorkflowStep", "run")
     .should ("run the step")
         .up (s => s.class = s.class.defineSubclass ("AddOne")
-            .field ("<value>", "integer")
-            .onRun (function ()
+            .onRun (function (ctx)
             {
-                return this.value + 1;
+                return ++ctx.data.value;
             })
         )
-        .up (s => s.createArgs = 10)
-        .returnsInstanceOf ("nit.Workflow.Context")
+        .given ({ data: { value: 10 } })
+        .returnsInstanceOf ("nit.Workflow.Subcontext")
         .expectingPropertyToBe ("result.output", 11)
+        .expectingPropertyToBe ("result.data", { value: 11 })
         .commit ()
 
     .should ("handle the error if the catch step is specified")
         .up (s => s.Catcher = s.class.defineSubclass ("Catcher")
             .onRun (function (ctx)
             {
-                ctx.handled = ctx.error;
+                ctx.root.handled = ctx.parent.error;
 
                 return 20;
             })
@@ -67,9 +84,9 @@ test.method ("nit.WorkflowStep", "run")
             })
         )
         .up (s => s.createArgs = [10, { catch: "Catcher" }])
-        .returnsInstanceOf ("nit.Workflow.Context")
+        .returnsInstanceOf ("nit.Workflow.Subcontext")
         .expectingPropertyToBe ("result.output", 20)
-        .expectingPropertyToBe ("result.handled.message", "NO!!")
+        .expectingPropertyToBe ("result.root.handled.message", "NO!!")
         .commit ()
 
     .should ("rethrow the error if no hanlder was specified")
@@ -94,7 +111,7 @@ test.method ("nit.WorkflowStep", "run")
         )
         .up (s => s.createArgs = [10, { condition: "${ count > 10 }" }])
         .given ({ count: 10 })
-        .returnsInstanceOf ("nit.Workflow.Context")
+        .returnsInstanceOf ("nit.Workflow.Subcontext")
         .expectingPropertyToBe ("result.output", undefined)
         .commit ()
 
@@ -108,7 +125,8 @@ test.method ("nit.WorkflowStep", "run")
         )
         .up (s => s.createArgs = [10, { condition: "${ count > 10 }" }])
         .given ({ count: 20 })
-        .returnsInstanceOf ("nit.Workflow.Context")
+        .returnsInstanceOf ("nit.Workflow.Subcontext")
         .expectingPropertyToBe ("result.output", 11)
+        .expectingPropertyToBe ("result.owner.type", "AddOne")
         .commit ()
 ;

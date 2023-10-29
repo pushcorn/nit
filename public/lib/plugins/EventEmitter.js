@@ -1,6 +1,7 @@
-module.exports = function (nit)
+module.exports = function (nit, Self)
 {
-    return nit.definePlugin ("EventEmitter")
+    return (Self = nit.definePlugin ("EventEmitter"))
+        .k ("realListener")
         .field ("<events...>", "string", "The event names.")
         .field ("prePost", "boolean", "Add pre- and post- events.")
         .field ("listenerName", "string", "The listener's class name.", "Listener")
@@ -49,6 +50,8 @@ module.exports = function (nit)
                         .m ("error.unsupported_event", "The event '%{event}' is not supported.")
                         .staticMethod ("normalizeEvent", function (event)
                         {
+                            event = nit.trim (event);
+
                             return ~event.indexOf (".") ? event : nit.k.v (hostClass, event);
                         })
                         .staticMethod ("validateEvent", function (event)
@@ -137,7 +140,7 @@ module.exports = function (nit)
                         ;
                     }
 
-                    self.listeners.get (event).push (once);
+                    self.listeners.get (event).push (nit.dpv (once, Self.kRealListener, listener));
 
                     return self;
                 })
@@ -145,7 +148,7 @@ module.exports = function (nit)
                 {
                     var self = this;
 
-                    nit.arrayRemove (self.listeners.get (event), function (l) { return !listener || l == listener; });
+                    nit.arrayRemove (self.listeners.get (event), function (l) { return !listener || l == listener || l[Self.kRealListener] == listener; });
 
                     return self;
                 })

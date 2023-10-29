@@ -1,38 +1,35 @@
 /* eslint-disable  no-template-curly-in-string */
 
 
-test.object ("nit.WorkflowField")
-    .should ("update the string defval to an evaluation function if expr is allowed")
-        .given ("diff", "integer", "The diff between two numbers.", "${ a - b }", { exprAllowed: true })
-        .expectingPropertyToBeOfType ("result.defval", "function")
-        .expectingExprToReturnValue ("result.defval (result, {})", 0)
-        .commit ()
-;
-
-
-test.method ("nit.WorkflowField", "set")
+test.custom ("Method: nit.WorkflowField.set ()")
     .should ("create the evaluator object if expr is allowed")
-        .up (s => s.createArgs = ["diff", "integer", { exprAllowed: true }])
-        .given ("${ a - b }")
+        .up (s => s.MyClass = nit.defineClass ("MyClass"))
+        .up (s => s.object = new s.MyClass)
+        .up (s => s.field = nit.new ("nit.WorkflowField", "diff", "integer", { exprAllowed: true }))
+        .up (s => s.field.bind (s.object))
+        .task (s => s.object.diff = "${ a - b }")
         .expectingPropertyToBeOfType ("object.$__diff\\.nit\\.WorkflowField\\.evaluator", nit.lookupClass ("nit.Workflow.Evaluator"))
         .commit ()
 
     .should ("NOT create the evaluator object if expr is NOT allowed")
-        .up (s => s.createArgs = ["diff", "integer"])
-        .given (9)
+        .up (s => s.MyClass = nit.defineClass ("MyClass"))
+        .up (s => s.object = new s.MyClass)
+        .up (s => s.field = nit.new ("nit.WorkflowField", "diff", "integer"))
+        .up (s => s.field.bind (s.object))
+        .task (s => s.object.diff = 9)
         .expectingPropertyToBe ("object.$__diff\\.nit\\.WorkflowField\\.evaluator", undefined)
         .commit ()
 ;
 
 
 test.method ("nit.WorkflowField", "evaluate")
-    .should ("set the field value to the evaluator's evaluation result")
+    .should ("evaluate the field's value to a real value")
         .up (s => s.createArgs = ["diff", "integer", { exprAllowed: true }])
         .up (s => s.MyClass = nit.defineClass ("MyClass"))
         .up (s => s.owner = new s.MyClass)
         .before (s => s.object.set.call (s.owner, "${ a - b }"))
         .before (s => s.args = [s.owner, { a: 3, b: 4 }])
-        .expectingPropertyToBe ("owner.$__diff", -1)
+        .returns (-1)
         .commit ()
 
     .should ("throw if evaluation failed")
@@ -49,4 +46,19 @@ test.method ("nit.WorkflowField", "evaluate")
         .returns ()
         .commit ()
 
+    .should ("create a default evaluator if the defval is an expression")
+        .up (s => s.createArgs = ["diff", "integer", "a diff value", "${ a - b }"])
+        .up (s => s.owner = new s.MyClass)
+        .before (s => s.object.bind (s.owner))
+        .before (s => s.args = [s.owner, { a: 5, b: 7 }])
+        .returns (-2)
+        .commit ()
+
+    .should ("not create a default evaluator if the defval is NOT an expression")
+        .up (s => s.createArgs = ["diff", "integer", "a diff value", 20])
+        .up (s => s.owner = new s.MyClass)
+        .before (s => s.object.bind (s.owner))
+        .before (s => s.args = [s.owner, { a: 5, b: 7 }])
+        .returns (20)
+        .commit ()
 ;

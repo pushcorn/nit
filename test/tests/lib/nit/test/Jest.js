@@ -17,7 +17,7 @@ test ("nit.test.Jest", async () =>
 
     expect (res[0]).toEqual (
     {
-        bail: true,
+        bail: false,
         config: '{"rootDir":"."}',
         testPathPattern: [],
         watch: false,
@@ -84,7 +84,53 @@ test ("nit.test.Jest", async () =>
         }
     };
 
-    expect (Jest.getUncoveredLines (results)).toBe (3);
+    expect (Jest.getUncoveredLines (results)).toBe (2);
+
+    results =
+    {
+        testResults:
+        [
+        {
+            testFilePath: "/a/b/test/tests/lib/Class.js"
+        }
+        ]
+        ,
+        coverageMap:
+        {
+            data:
+            {
+                "/a/b/lib/Class.js":
+                {
+                    branchMap:
+                    {
+                        1:
+                        {
+                            line: 100
+                        }
+                        ,
+                        2:
+                        {
+                            line: 103
+                        }
+                    }
+                    ,
+                    b:
+                    {
+                        1: [1, 1],
+                        2: [0, 1]
+                    }
+                    ,
+                    getLineCoverage: function ()
+                    {
+                        return { 1: 1, 2: 1, 3: 1 };
+                    }
+                }
+            }
+        }
+    };
+
+    expect (Jest.getUncoveredLines (results)).toBe (1);
+
 
     let logMock = test.mock (nit, "log", null, 4);
     Jest.logUncoveredLines (3);

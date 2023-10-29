@@ -165,9 +165,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.sleep = function (timeout, cb)
     {
-        return new Promise (function (resolve, reject)
+        var timeoutId, res, rej;
+
+        var p = new Promise (function (resolve, reject)
         {
-            setTimeout (function ()
+            res = resolve;
+            rej = reject;
+            timeoutId = setTimeout (function ()
             {
                 try
                 {
@@ -179,6 +183,20 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 }
 
             }, timeout);
+        });
+
+        return nit.dpv (p, "cancel", function (result)
+        {
+            clearTimeout (timeoutId);
+
+            if (result instanceof Error)
+            {
+                rej (result);
+            }
+            else
+            {
+                res (result);
+            }
         });
     };
 
@@ -410,8 +428,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             cls = obj.constructor;
         }
 
-        var that = obj; // the original this
-
         if (!(obj instanceof cls))
         {
             obj = OBJECT_CREATE (cls.prototype);
@@ -419,7 +435,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         if (cls.constructObject)
         {
-            obj = cls.constructObject (obj, ARRAY (args || []), that) || obj;
+            obj = cls.constructObject (obj, nit.array (args)) || obj;
         }
 
         return obj;
@@ -3971,7 +3987,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 {
                     var value = condition;
 
-                    condition = nit.is.func (value) ? value : function (result) { return result === value; };
+                    condition = nit.is.func (value) ? value : function (ctx) { return ctx.result === value; };
 
                     this.stopOns.push (condition);
 
@@ -4109,20 +4125,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         else
                         {
                             ctx.result = result === undefined ? ctx.result : result;
-
-                            if (!stopped)
-                            {
-                                for (var i = 0, sc = self.stopOns; i < sc.length; ++i)
-                                {
-                                    if (sc[i] (ctx.result))
-                                    {
-                                        stopped = true;
-                                        currentTasks = [];
-                                        break;
-                                    }
-                                }
-                            }
-
                             return run ();
                         }
                     }
@@ -4130,6 +4132,19 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                     function run ()
                     {
+                        if (!finalizing && !stopped)
+                        {
+                            for (var i = 0, sc = self.stopOns; i < sc.length; ++i)
+                            {
+                                if (sc[i] (ctx))
+                                {
+                                    stopped = true;
+                                    currentTasks = [];
+                                    break;
+                                }
+                            }
+                        }
+
                         var task = getNextTask ();
 
                         if (task)
@@ -4597,6 +4612,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     }
 
                     value = nit.is.func (prop.defval) ? prop.defval (prop, owner) : nit.clone (prop.defval);
+
+                    if (nit.is.undef (value))
+                    {
+                        return value;
+                    }
                 }
 
                 if ((cv = (parser || prop.parser).cast (value, prop.type, prop.localClass)) === undefined)
@@ -5132,6 +5152,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         ,
         constant: function (name, value, freeze)
         {
+            if (arguments.length == 3 && value === true)
+            {
+                value = freeze;
+                freeze = true;
+            }
+
             if (freeze)
             {
                 value = nit.freeze (value);
@@ -5501,7 +5527,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     nit.Object
-        .k ("property", "meta", "defvals", "caster", "validatePropertyDeclarationsDisabled")
+        .k ("property", "meta", "defvals", "caster", "rawConstructorParams", "validatePropertyDeclarationsDisabled")
         .m ("error.name_required", "The %{property.kind} name is required.")
         .m ("error.value_required", "The %{property.kind} '%{property.name}' is required. (Class: %{class})")
         .m ("error.class_name_required", "The class name cannot be empty.")
@@ -6165,6 +6191,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             nit.argsToObj.cleanup (params);
 
+            nit.dpv (obj, cls.kRawConstructorParams, nit.clone.shallow (params), true, false);
+
             var queue = nit.Queue ();
 
             // use a queue to build params so async objects will be resolved sequentially
@@ -6185,7 +6213,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             cls.pargs.forEach (function (p)
             {
-                args.push.apply (args, nit.array (params[p.name]));
+                var v = params[p.name];
+
+                args.push.apply (args, nit.is.undef (v) ? [v] : nit.array (v));
             });
 
             args.push (params);
@@ -6225,6 +6255,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 })
                 .push (function ()
                 {
+                    delete obj[cls.kRawConstructorParams];
+
                     return obj;
                 })
             ;

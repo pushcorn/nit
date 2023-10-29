@@ -5,6 +5,7 @@ test ("nit.Object.Property", () =>
     let a = new A;
     let stringProp = nit.Object.Property.new (A, "items...", "string");
     let objProp = nit.Object.Property.new (A, "b", "B");
+    let undefDefvalProp = nit.Object.Property.new (B, "c", "any", function () {});
 
     nit.dp (A.prototype, stringProp.name, stringProp);
     expect (() => stringProp.cast (a, [])).toThrow (/items.*should be a string/);
@@ -15,6 +16,7 @@ test ("nit.Object.Property", () =>
 
     let funcProp = nit.Object.Property.new (A, "work", "function");
     expect (funcProp.cast (a)).toBeUndefined ();
+    expect (undefDefvalProp.cast (a)).toBeUndefined ();
 
     let dateProp = nit.Object.Property.new (A, "createdAt", "date");
     dateProp.defval = function () { return new Date; };

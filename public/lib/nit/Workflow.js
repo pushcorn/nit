@@ -3,16 +3,64 @@ module.exports = function (nit, Self, global)
     return (Self = nit.defineClass ("nit.Workflow"))
         .k ("context")
         .m ("error.subroutine_not_defined", "The subroutine '%{name}' was not defined.")
+        .use ("nit.WorkflowField")
+        .defineInnerClass ("Break")
+        .defineInnerClass ("Continue")
+        .defineInnerClass ("Return", function (Return)
+        {
+            Return
+                .field ("[value]", "any", "The value to be returned.")
+            ;
+        })
+        .defineInnerClass ("ParentCancellation")
+        .constant ("CONTROLS", true,
+        {
+            Break: new Self.Break,
+            Continue: new Self.Continue,
+            Return: new Self.Return
+
+        })
+        .constant ("CONTROL_TYPES", [Self.Break, Self.Return, Self.Continue])
+        .constant ("CANCEL_REASONS", true,
+        {
+            ParentCancellation: new Self.ParentCancellation
+        })
         .defineMeta ("exprOpenTag", "string", "${")
         .defineMeta ("exprCloseTag", "string", "}")
-        .use ("nit.WorkflowField")
-        .use ("workflowsteps.Return")
-        .staticMethod ("isExpr", function (str)
+
+        .staticMethod ("isControl", function (o)
         {
-            return nit.is.str (str)
-                && str.slice (0, 2) == Self.exprOpenTag
-                && str.slice (-1) == Self.exprCloseTag
-            ;
+            return !!(o && ~Self.CONTROL_TYPES.indexOf (o.constructor));
+        })
+        .staticMethod ("isExpr", function (expr)
+        {
+            if (nit.is.empty (expr))
+            {
+                return false;
+            }
+
+            if (nit.is.str (expr))
+            {
+                return expr.slice (0, 2) == Self.exprOpenTag && expr.slice (-1) == Self.exprCloseTag;
+            }
+
+            if (nit.is.obj (expr))
+            {
+                return nit.entries (expr).some (function (e)
+                {
+                    return Self.isExpr (e.k) || Self.isExpr (e.v);
+                });
+            }
+
+            if (nit.is.arr (expr))
+            {
+                return expr.some (function (e)
+                {
+                    return Self.isExpr (e);
+                });
+            }
+
+            return false;
         })
         .staticMethod ("exprToFunc", function (expr)
         {
@@ -26,31 +74,28 @@ module.exports = function (nit, Self, global)
 
             return cls.validatePropertyDeclarations ();
         })
-        .defineInnerClass ("Scope", "nit.Class")
         .defineInnerClass ("Evaluator", "nit.Class", "evaluators", function (Evaluator)
         {
             Evaluator
                 .m ("error.invalid_expression", "Unable to evaluate the expression '%{expr}'. (Cause: %{cause})")
                 .staticMethod ("create", function (expr)
                 {
-                    if (nit.is.undef (expr))
+                    if (!nit.is.empty (expr))
                     {
-                        return;
-                    }
+                        if (nit.is.str (expr))
+                        {
+                            return new Self.evaluators.String ({ expr: expr });
+                        }
 
-                    if (nit.is.str (expr))
-                    {
-                        return new Self.evaluators.String ({ expr: expr });
-                    }
+                        if (nit.is.obj (expr))
+                        {
+                            return new Self.evaluators.Object ({ expr: expr });
+                        }
 
-                    if (nit.is.obj (expr))
-                    {
-                        return new Self.evaluators.Object ({ expr: expr });
-                    }
-
-                    if (nit.is.arr (expr))
-                    {
-                        return new Self.evaluators.Array ({ expr: expr });
+                        if (nit.is.arr (expr))
+                        {
+                            return new Self.evaluators.Array ({ expr: expr });
+                        }
                     }
 
                     return new Self.evaluators.Identity ({ expr: expr });
@@ -74,7 +119,7 @@ module.exports = function (nit, Self, global)
         .defineEvaluator ("Identity", function (IdentityEvaluator)
         {
             IdentityEvaluator
-                .field ("<expr>", "any", "The value to be returned.")
+                .field ("[expr]", "any", "The value to be returned.")
                 .onEvaluate (function ()
                 {
                     return this.expr;
@@ -188,22 +233,137 @@ module.exports = function (nit, Self, global)
         .defineInnerClass ("Context", function (Context)
         {
             Context
+                .plugin ("event-emitter", "cancel")
                 .defineMeta ("globalSource", "string", "global") // The global variable name of that will be used as the source of Context.$.
                 .staticMethod ("new", function ()
                 {
-                    return nit.assign.apply (nit, [new this].concat (nit.array (arguments)));
+                    var cls = this;
+                    var args = nit.argsToObj (arguments);
+                    var pargs = nit.each (args, function (v, k)
+                    {
+                        if (nit.is.int (k))
+                        {
+                            delete args[k];
+                            return v;
+                        }
+                        else
+                        {
+                            return nit.each.SKIP;
+                        }
+                    });
+
+                    var opts = nit.pick (args, cls.propertyNames);
+                    var data = nit.omit (args, cls.propertyNames);
+
+                    return nit.assign (nit.new (cls, pargs.concat (opts)), data);
                 })
                 .staticMethod ("defineRuntimeClass", function ()
                 {
                     return Context.defineSubclass (Context.name, true);
                 })
-                .field ("workflow", Self.name, "The workflow.", { enumerable: false })
-                .field ("scope", "object", "The scope of the service providers.", function () { return new Self.Scope; })
-                .field ("output", "any", "The workflow output.")
+                .field ("workflow", Self.name, "The workflow.")
+                .field ("input", "any", "The input data.")
+                .field ("output", "any", "The output data.")
                 .field ("error", "any", "The workflow error.")
-                .memo ("$", false, function ()
+                .field ("canceled", "boolean", "Whether the workflow should be canceled.")
+                .property ("cancelReason", "any")
+                .getter ("root", false, false, function ()
+                {
+                    return this;
+                })
+                .memo ("$", false, false, function ()
                 {
                     return nit.get (global, this.constructor.globalSource);
+                })
+                .onConstruct (function ()
+                {
+                    this.output = nit.coalesce (this.output, this.input);
+                })
+                .method ("uncancel", function ()
+                {
+                    var self = this;
+
+                    self.canceled = false;
+                    self.cancelReason = undefined;
+
+                    return self;
+                })
+                .method ("cancel", function (reason)
+                {
+                    var self = this;
+
+                    self.canceled = true;
+                    self.cancelReason = reason;
+
+                    return self.emit ("cancel", self, reason);
+                })
+            ;
+        })
+        .defineInnerClass ("Subcontext", Self.Context.name, function (Subcontext)
+        {
+            Subcontext
+                .k ("parentCancelListener")
+                .staticMethod ("defineRuntimeClass", function ()
+                {
+                    return Subcontext.defineSubclass (Subcontext.name, true);
+                })
+                .field ("[parent]", Self.Context.name, "The parent context.",
+                {
+                    onLink: function (parent)
+                    {
+                        var self = this;
+
+                        parent.once ("cancel", self[Subcontext.kParentCancelListener]);
+
+                        self.input = nit.coalesce (self.input, parent.output);
+                        self.delegateCustomProperties ();
+                    }
+                    ,
+                    onUnlink: function (parent)
+                    {
+                        parent.off ("cancel", this[Subcontext.kParentCancelListener]);
+                    }
+                })
+                .field ("owner", "nit.WorkflowStep|nit.Workflow.Subroutine", "The subcontext owner.")
+                .delegate ("workflow", "parent.workflow", false)
+                .delegate ("$", "parent.$", false)
+                .onConstruct (function (parent)
+                {
+                    if (!parent)
+                    {
+                        this.parent = new Self.Context;
+                    }
+                })
+                .memo (Subcontext.kParentCancelListener, true, false, function ()
+                {
+                    var self = this;
+
+                    return function () { return self.cancel (Self.CANCEL_REASONS.ParentCancellation); };
+                })
+                .getter ("root", false, false, function ()
+                {
+                    var p = this;
+
+                    while (p.parent)
+                    {
+                        p = p.parent;
+                    }
+
+                    return p;
+                })
+                .method ("delegateCustomProperties", function ()
+                {
+                    var self = this;
+
+                    nit.each (Object.getOwnPropertyDescriptors (self.parent), function (p, name)
+                    {
+                        if (p.configurable && p.enumerable)
+                        {
+                            nit.Object.defineDelegate (self, name, "parent." + name, true, true);
+                        }
+                    });
+
+                    return self;
                 })
             ;
         })
@@ -211,22 +371,10 @@ module.exports = function (nit, Self, global)
         {
             Subroutine
                 .defineInnerClass ("Input", Self.Input.name)
-                .defineInnerClass ("Context", Self.Context.name, function (Context)
-                {
-                    Context
-                        .staticMethod ("defineRuntimeClass", function ()
-                        {
-                            return Context.defineSubclass (Context.name, true);
-                        })
-                        .field ("caller", Self.Context.name, "The caller context.", { enumerable: false })
-                        .delegate ("workflow", "caller.workflow", false)
-                        .delegate ("$", "caller.$", false)
-                    ;
-                })
                 .field ("<name>", "string", "The name of the subroutine.")
                 .field ("<steps...>", "nit.WorkflowStep", "The steps to run.")
                 .field ("options...", Self.Option.name, "The subroutine options.")
-                .field ("inheritScope", "boolean", "Whether to inherit caller's scope.", true)
+                .field ("catch", "nit.WorkflowStep", "The step to handle the error.")
 
                 .memo ("inputClass", function ()
                 {
@@ -234,7 +382,7 @@ module.exports = function (nit, Self, global)
                 })
                 .memo ("contextClass", function ()
                 {
-                    return Subroutine.Context.defineRuntimeClass ()
+                    return Self.Subcontext.defineRuntimeClass ()
                         .field ("input", this.inputClass.name, "The input options.",
                         {
                             defval: {},
@@ -242,36 +390,14 @@ module.exports = function (nit, Self, global)
                         })
                     ;
                 })
-                .method ("run", function (caller)
+                .method ("run", function (ctx)
                 {
-                    caller = caller instanceof Self.Context ? caller : Self.Context.new (caller);
-
                     var self = this;
-                    var ctx = new self.contextClass ({ caller: caller, scope: self.inheritScope ? caller.scope : new Self.Scope });
 
-                    var queue = nit.Queue ()
-                        .stopOn (Self.Return.SIGNAL)
-                        .push (function ()
-                        {
-                            return self.inputClass.validate (ctx.input);
-                        })
-                    ;
+                    ctx = ctx instanceof Self.Subcontext ? ctx : self.contextClass.new (ctx);
+                    ctx.owner = self;
 
-                    self.steps.forEach (function (step)
-                    {
-                        queue.push (function ()
-                        {
-                            return step.run (ctx);
-                        });
-                    });
-
-                    return queue
-                        .complete (function ()
-                        {
-                            return ctx;
-                        })
-                        .run ()
-                    ;
+                    return Self.run (ctx);
                 })
             ;
         })
@@ -282,6 +408,73 @@ module.exports = function (nit, Self, global)
         .field ("catch", "nit.WorkflowStep", "The step to handle the error.")
         .field ("globalSource", "string", "The source of the context's $ property.", "global")
 
+        .staticMethod ("run", function (ctx, owner)
+        {
+            owner = owner || ctx.owner;
+
+            return nit.Queue ()
+                .stopOn (function (c)
+                {
+                    var control = nit.get (c, "result.output");
+
+                    if (Self.isControl (control))
+                    {
+                        delete c.result;
+
+                        if (!(control instanceof Self.Continue))
+                        {
+                            ctx.cancel (control);
+
+                            if (control instanceof Self.Return)
+                            {
+                                ctx.output = nit.coalesce (control.value, ctx.output);
+                            }
+
+                            return true;
+                        }
+                    }
+                })
+                .stopOn (function ()
+                {
+                    return ctx.canceled;
+                })
+                .push (function ()
+                {
+                    return owner.inputClass.validate (ctx.input);
+                })
+                .push (function (c)
+                {
+                    delete c.result;
+                })
+                .push (owner.steps.map (function (step)
+                {
+                    return [
+                        function () { return step.run (ctx); },
+                        function (c) { ctx.output = nit.coalesce (nit.get (c, "result.output"), ctx.output); }
+                    ];
+                }))
+                .failure (function (c)
+                {
+                    ctx.error = c.error;
+
+                    if (owner.catch)
+                    {
+                        return owner.catch.run (ctx);
+                    }
+                    else
+                    {
+                        throw ctx.error;
+                    }
+                })
+                .complete (function (c)
+                {
+                    ctx.output = c.result instanceof Self.Context ? c.result.output : nit.coalesce (c.result, ctx.output);
+
+                    return ctx;
+                })
+                .run ()
+            ;
+        })
         .memo ("inputClass", function ()
         {
             return Self.Input.defineRuntimeClass (this.options);
@@ -316,46 +509,10 @@ module.exports = function (nit, Self, global)
         {
             var self = this;
 
-            ctx = self.contextClass.new (ctx, { workflow: self });
+            ctx = ctx instanceof Self.Context ? ctx : self.contextClass.new (ctx);
+            ctx.workflow = self;
 
-            return nit.Queue ()
-                .push (function ()
-                {
-                    return self.inputClass.validate (ctx.input);
-                })
-                .push (self.steps.map (function (step)
-                {
-                    return function ()
-                    {
-                        return step.run (ctx);
-                    };
-                }))
-                .failure (function (c)
-                {
-                    if (self.catch)
-                    {
-                        ctx.error = c.error;
-
-                        return self.catch.run (ctx);
-                    }
-                    else
-                    {
-                        nit.dpv (c.error, Self.kContext, ctx, true, false);
-
-                        throw c.error;
-                    }
-                })
-                .complete (function (c)
-                {
-                    if (c.result != ctx)
-                    {
-                        ctx.output = nit.coalesce (c.result, ctx.output);
-                    }
-
-                    return ctx;
-                })
-                .run ()
-            ;
+            return Self.run (ctx, self);
         })
     ;
 };
