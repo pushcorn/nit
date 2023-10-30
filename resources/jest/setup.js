@@ -2,6 +2,7 @@ const CWD = process.cwd ();
 
 process.setMaxListeners (0);
 process.stdout.isTTY = true;
+process.stdout.columns = 80;
 
 afterAll (async () =>
 {

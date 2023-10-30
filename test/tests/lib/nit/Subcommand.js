@@ -1,29 +1,10 @@
-test.custom ("nit.Subcommand.autoRegister")
-    .should ("not register the subcommands if set to false")
-        .project ("project-a")
-        .init (s =>
-        {
-            s.Subcommand = nit.require ("nit.Subcommand");
-            s.Subcommand.autoRegister = false;
-        })
-        .mock ("Subcommand", "registerSubcommands")
-        .task (s => s.GitSubcommand = nit.require ("nit.GitSubcommand"))
-        .after (s =>
-        {
-            s.Subcommand.autoRegister = true;
-            nit.resetRequireCache ();
-        })
-        .expectingPropertyToBe ("mocks.0.invocations.length", 0)
-        .commit ()
-;
+nit.require ("nit.Command");
 
 
 test.method ("nit.Subcommand", "help", true)
     .should ("return the help builder for the subcommand")
         .project ("project-a")
-        .up (() => nit.require ("nit.Command"))
         .up (s => s.args = s.Cmd = nit.lookupCommand ("git"))
-        .up (s => s.Cmd.Input.subcommandOption.class.registerSubcommands ())
         .up (s => s.class = s.Cmd.Input.subcommandOption.class.lookup ("Push"))
         .returnsInstanceOf ("nit.utils.HelpBuilder")
         .expectingMethodToReturnValue ("result.build", null, nit.trim.text (`
@@ -60,7 +41,6 @@ test.method ("nit.Subcommand", "help", true)
 
     .should ("not include the command options")
         .project ("project-a")
-        .up (() => nit.require ("nit.Command"))
         .up (s => s.args = s.Cmd)
         .up (s => s.class = s.Cmd.Input.subcommandOption.class.lookup ("Push"))
         .up (s => s.Cmd.Input.nargs.splice (0))
@@ -81,7 +61,6 @@ test.method ("nit.Subcommand", "help", true)
 
     .should ("not include the subcommand options section none available")
         .project ("project-a")
-        .up (() => nit.require ("nit.Command"))
         .up (s => s.args = s.Cmd)
         .up (s => s.class = s.Cmd.Input.subcommandOption.class.lookup ("Pull"))
         .up (s => s.class.Input.nargs.splice (0))
@@ -106,7 +85,7 @@ test.method ("nit.Subcommand", "forComponent", true)
 test.method ("nit.Subcommand", "listBackingComponents", true)
     .should ("list the components that will be transformed to subcommands")
         .project ("project-a")
-        .before (s => s.object = nit.require ("nit.GitSubcommand"))
+        .before (s => s.object = nit.require ("commands.Git.GitSubcommand"))
         .after (s =>
         {
             s.Pull = s.object.lookup ("pull");
@@ -139,7 +118,7 @@ test.method ("nit.Subcommand", "listBackingComponents", true)
 test.method ("nit.Subcommand", "listSubcommands", true)
     .should ("list the subcommands")
         .project ("project-a")
-        .before (s => s.object = nit.require ("nit.GitSubcommand"))
+        .before (s => s.object = nit.require ("commands.Git.GitSubcommand"))
         .returnsResultContaining (
         [
         {
@@ -158,7 +137,7 @@ test.method ("nit.Subcommand", "listSubcommands", true)
 
     .should ("return the subcommand names if returnNames is true")
         .project ("project-a")
-        .before (s => s.object = nit.require ("nit.GitSubcommand"))
+        .before (s => s.object = nit.require ("commands.Git.GitSubcommand"))
         .given (true)
         .returns (["pull", "push"])
         .commit ()
@@ -168,7 +147,6 @@ test.method ("nit.Subcommand", "listSubcommands", true)
 test.method ("nit.Subcommand", "new")
     .should ("create an instance of component that backs the subcommand")
         .project ("project-a")
-        .before (() => nit.require ("nit.GitSubcommand"))
         .before (s => s.object = nit.new ("gitsubcommands.Pull", { input: { verbose: true } }))
         .expectingPropertyToBe ("result.verbose", true)
         .expectingPropertyToBe ("result.all", false)
@@ -177,7 +155,6 @@ test.method ("nit.Subcommand", "new")
     .reset ()
         .project ("project-a")
         .given ({ all: true, repository: "my-repo" })
-        .before (() => nit.require ("nit.GitSubcommand"))
         .before (s => s.object = nit.new ("gitsubcommands.Pull", { input: { verbose: true } }))
         .expectingPropertyToBe ("result.verbose", false)
         .expectingPropertyToBe ("result.all", true)
@@ -189,9 +166,9 @@ test.method ("nit.Subcommand", "new")
 test.custom ("Method: nit.Subcommand.compgencompleters.Completer.generate ()")
     .should ("return the completions for the subcommand")
         .project ("project-a")
-        .before (s => s.GitSubcommand = nit.require ("nit.GitSubcommand"))
+        .before (s => s.object = nit.require ("commands.Git.GitSubcommand"))
         .before (s => s.GitCommand = nit.require ("commands.Git"))
-        .before (s => s.Completer = nit.lookupClass ("nit.GitSubcommand.compgencompleters.Completer"))
+        .before (s => s.Completer = nit.lookupClass ("commands.Git.GitSubcommand.compgencompleters.Completer"))
         .task (s => s.Completer.generate (nit.new ("nit.Compgen.Context",
         {
             currentOption: s.GitCommand.Input.fieldMap.gitcommand,

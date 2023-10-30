@@ -144,6 +144,24 @@ Command Options:
  -s, --silent     Do not output the status code stderr.`
 );
 
+
+    nit.lookupClass ("gitsubcommands.Push").Input.nargs.pop ();
+    expect (Git.help ("push").build ()).toBe (`Update remote refs along with associated objects
+
+Usage: nit git [command-options...] push [repo] [log-level]
+
+Options:
+
+ [repo]           The target repository.
+ [log-level]      The log level.
+
+Command Options:
+
+ -a, --auth       The auth token.
+ -s, --silent     Do not output the status code stderr.`
+);
+
+
     test.mock (Git.Input.subcommandOption.class, "listSubcommands", () => []);
     expect (Git.help ().build ()).toBe (`Execute a git command.
 
@@ -274,7 +292,6 @@ test ("nit.Command.Input.parseArgv () - with subcommand", () =>
 
     nit.defineClass ("GitSubcommand", "nit.Subcommand")
         .meta ("category", "gits")
-        .registerSubcommands ()
         .onBuildSubcommand ((Subcommand, Git) =>
         {
             Subcommand

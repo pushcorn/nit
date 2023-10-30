@@ -1,4 +1,4 @@
-test ("nit.test.strategies.Command", async () =>
+test ("nit.test.strategies.Subcommand", async () =>
 {
     const nit = await test.reloadNit ("project-a");
 
