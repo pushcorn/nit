@@ -180,29 +180,6 @@ test.method ("nit.Workflow.Subcontext", "defineRuntimeClass", true)
 ;
 
 
-test.custom ("Method: nit.Workflow.Subcontext.delegateCustomProperties ()")
-    .should ("find the closest context value for the specified property")
-        .up (s => s.grandparent = s.Workflow.Context.new ({ q: 10, items: [] }))
-        .up (s => s.parent = s.Workflow.Subcontext.new ({ parent: s.grandparent, p: 20 }))
-        .up (s => s.child = new s.Workflow.Subcontext (s.parent))
-        .after (s => s.child.p = 100)
-        .after (s => s.child.q = 200)
-        .after (s => s.parent.items.push (1234))
-        .after (s => s.child.items.push (5678))
-        .expectingPropertyToBe ("child.p", 100)
-        .expectingPropertyToBe ("parent.p", 100)
-        .expectingPropertyToBe ("grandparent.p", undefined)
-        .expectingPropertyToBe ("child.q", 200)
-        .expectingPropertyToBe ("parent.q", 200)
-        .expectingPropertyToBe ("grandparent.q", 200)
-        .expectingPropertyToBe ("child.items", [1234, 5678])
-        .expectingPropertyToBe ("parent.items", [1234, 5678])
-        .expectingPropertyToBe ("grandparent.items", [1234, 5678])
-        .expecting ("all items properties refer to the same array", s => s.child.items == s.parent.items && s.parent.items == s.grandparent.items)
-        .commit ()
-;
-
-
 test.method ("nit.Workflow.Subcontext", "cancel")
     .should ("cancel current subcontext")
         .up (s => s.parent = new s.Workflow.Context)

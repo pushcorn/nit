@@ -230,33 +230,11 @@ module.exports = function (nit, Self, global)
                 })
             ;
         })
-        .defineInnerClass ("Context", function (Context)
+        .defineInnerClass ("Context", "nit.Context", function (Context)
         {
             Context
                 .plugin ("event-emitter", "cancel")
                 .defineMeta ("globalSource", "string", "global") // The global variable name of that will be used as the source of Context.$.
-                .staticMethod ("new", function ()
-                {
-                    var cls = this;
-                    var args = nit.argsToObj (arguments);
-                    var pargs = nit.each (args, function (v, k)
-                    {
-                        if (nit.is.int (k))
-                        {
-                            delete args[k];
-                            return v;
-                        }
-                        else
-                        {
-                            return nit.each.SKIP;
-                        }
-                    });
-
-                    var opts = nit.pick (args, cls.propertyNames);
-                    var data = nit.omit (args, cls.propertyNames);
-
-                    return nit.assign (nit.new (cls, pargs.concat (opts)), data);
-                })
                 .staticMethod ("defineRuntimeClass", function ()
                 {
                     return Context.defineSubclass (Context.name, true);
@@ -269,7 +247,7 @@ module.exports = function (nit, Self, global)
                 .property ("cancelReason", "any")
                 .getter ("root", false, false, function ()
                 {
-                    return this;
+                    return this[Context.kRoot];
                 })
                 .memo ("$", false, false, function ()
                 {
@@ -316,12 +294,16 @@ module.exports = function (nit, Self, global)
                         parent.once ("cancel", self[Subcontext.kParentCancelListener]);
 
                         self.input = nit.coalesce (self.input, parent.output);
-                        self.delegateCustomProperties ();
+                        self[Subcontext.kParent] = parent;
                     }
                     ,
                     onUnlink: function (parent)
                     {
-                        parent.off ("cancel", this[Subcontext.kParentCancelListener]);
+                        var self = this;
+
+                        parent.off ("cancel", self[Subcontext.kParentCancelListener]);
+
+                        self[Subcontext.kParent] = undefined;
                     }
                 })
                 .field ("owner", "nit.WorkflowStep|nit.Workflow.Subroutine", "The subcontext owner.")
@@ -339,31 +321,6 @@ module.exports = function (nit, Self, global)
                     var self = this;
 
                     return function () { return self.cancel (Self.CANCEL_REASONS.ParentCancellation); };
-                })
-                .getter ("root", false, false, function ()
-                {
-                    var p = this;
-
-                    while (p.parent)
-                    {
-                        p = p.parent;
-                    }
-
-                    return p;
-                })
-                .method ("delegateCustomProperties", function ()
-                {
-                    var self = this;
-
-                    nit.each (Object.getOwnPropertyDescriptors (self.parent), function (p, name)
-                    {
-                        if (p.configurable && p.enumerable)
-                        {
-                            nit.Object.defineDelegate (self, name, "parent." + name, true, true);
-                        }
-                    });
-
-                    return self;
                 })
             ;
         })

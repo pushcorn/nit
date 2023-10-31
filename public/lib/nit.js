@@ -1551,18 +1551,36 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.k = function (cls) // generate a namespaced key for a function
     {
-        ARRAY (arguments)
-            .slice (1)
-            .forEach (function (k)
-            {
-                var key = "k" + nit.pascalCase (nit.sanitizeVarName (k));
+        var keys = ARRAY (arguments).slice (1);
+        var sep = keys[0];
 
-                nit.dpv (cls, key, nit.k.v (cls, k));
-            })
-        ;
+        if (sep.length == 1 && sep.match (nit.k.NON_WORD))
+        {
+            keys.shift ();
+        }
+        else
+        {
+            sep = undefined;
+        }
+
+        keys.forEach (function (k)
+        {
+            var key = "k" + nit.pascalCase (nit.sanitizeVarName (k));
+            var v = nit.k.v (cls, k);
+
+            if (sep)
+            {
+                v = v.split (".").join (sep);
+            }
+
+            nit.dpv (cls, key, v, true, false);
+        });
 
         return cls;
     };
+
+
+    nit.k.NON_WORD = /[^0-9a-z]/i;
 
 
     nit.k.v = function (cls, k)
