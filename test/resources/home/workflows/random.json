@@ -1,0 +1,10 @@
+{
+    "description": "Random test.",
+    "steps":
+    [
+    {
+        "type": "eval",
+        "statements": "return Math.random () * 10"
+    }
+    ]
+}

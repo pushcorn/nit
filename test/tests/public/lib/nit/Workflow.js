@@ -28,6 +28,17 @@ test.method ("nit.Workflow", "isExpr", true)
 ;
 
 
+test.method ("nit.Workflow", "configure", true)
+    .should ("set the config for the workflow class")
+        .up (s => s.class = nit.defineWorkflow ("test.workflows.MyFlow"))
+        .given ({ description: "My Flow" })
+        .returnsInstanceOf ("nit.Workflow", true)
+        .expecting ("the config was set", () => nit.config ("test.workflows.MyFlow.description") == "My Flow")
+        .expectingPropertyToBe ("result.config", { description: "My Flow" })
+        .commit ()
+;
+
+
 test.method ("nit.Workflow", "isControl", true)
     .should ("return true if the argument is an instance of flow control object")
         .given (nit.Workflow.CONTROLS.Break)

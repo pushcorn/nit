@@ -1,0 +1,34 @@
+{
+    "description": "Test some echos.",
+    "options":
+    [
+    {
+        "spec": "colorize",
+        "type": "boolean",
+        "description": "Colorize the output.",
+        "defval": false
+    }
+    ]
+    ,
+    "steps":
+    [
+    {
+        "type": "shell",
+        "command": "echo test 1"
+    }
+    ,
+    {
+        "type": "log"
+    }
+    ,
+    {
+        "type": "shell",
+        "command": "${'echo test 2 ' + options.colorize}"
+    }
+    ,
+    {
+        "type": "log",
+        "timestamp": true
+    }
+    ]
+}

@@ -371,7 +371,8 @@ test ("nit.Compgen.parseWords ()", async () =>
                 "run",
                 "task",
                 "test",
-                "version"
+                "version",
+                "workflow"
             ]);
         })
     ;

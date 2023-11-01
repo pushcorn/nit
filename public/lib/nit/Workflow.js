@@ -4,6 +4,7 @@ module.exports = function (nit, Self, global)
         .k ("context")
         .m ("error.subroutine_not_defined", "The subroutine '%{name}' was not defined.")
         .use ("nit.WorkflowField")
+        .categorize ("workflows")
         .defineInnerClass ("Break")
         .defineInnerClass ("Continue")
         .defineInnerClass ("Return", function (Return)
@@ -28,6 +29,18 @@ module.exports = function (nit, Self, global)
         .defineMeta ("exprOpenTag", "string", "${")
         .defineMeta ("exprCloseTag", "string", "}")
 
+        .staticMethod ("configure", function (config)
+        {
+            var cls = this;
+
+            nit.config (cls.name, config);
+
+            return cls;
+        })
+        .staticGetter ("config", function ()
+        {
+            return nit.coalesce (nit.config (this.name), {});
+        })
         .staticMethod ("isControl", function (o)
         {
             return !!(o && ~Self.CONTROL_TYPES.indexOf (o.constructor));
@@ -240,6 +253,7 @@ module.exports = function (nit, Self, global)
                     return Context.defineSubclass (Context.name, true);
                 })
                 .field ("workflow", Self.name, "The workflow.")
+                .field ("options", "any", "The workflow options.")
                 .field ("input", "any", "The input data.")
                 .field ("output", "any", "The output data.")
                 .field ("error", "any", "The workflow error.")
@@ -308,6 +322,7 @@ module.exports = function (nit, Self, global)
                 })
                 .field ("owner", "nit.WorkflowStep|nit.Workflow.Subroutine", "The subcontext owner.")
                 .delegate ("workflow", "parent.workflow", false)
+                .delegate ("options", "parent.options", false)
                 .delegate ("$", "parent.$", false)
                 .onConstruct (function (parent)
                 {
@@ -468,6 +483,7 @@ module.exports = function (nit, Self, global)
 
             ctx = ctx instanceof Self.Context ? ctx : self.contextClass.new (ctx);
             ctx.workflow = self;
+            ctx.options = ctx.input;
 
             return Self.run (ctx, self);
         })

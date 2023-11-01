@@ -160,6 +160,14 @@ test.method ("nit.Subcommand", "new")
         .expectingPropertyToBe ("result.all", true)
         .expectingPropertyToBe ("result.repository", "my-repo")
         .commit ()
+
+    .reset ()
+        .project ("project-a")
+        .before (s => s.object = nit.new ("gitsubcommands.Pull"))
+        .expectingPropertyToBe ("result.verbose", false)
+        .expectingPropertyToBe ("result.all", false)
+        .expectingPropertyToBe ("result.repository", "")
+        .commit ()
 ;
 
 
