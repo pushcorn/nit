@@ -24,4 +24,7 @@ test ("nit.uuid () returns a random UUID.", () =>
 
     global.crypto.randomUUID = () => no_crypto.randomUUID ();
     expect (nit.uuid ()).toEqual (expect.stringMatching (/^[0-9a-f]{32}$/));
+
+    global.crypto = null;
+    expect (nit.uuid ()).toEqual (expect.stringMatching (/^[0-9a-f]{32}$/));
 });

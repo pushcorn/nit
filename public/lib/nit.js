@@ -1972,6 +1972,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                 }, { name: object.name });
         }
+        else
+        if (object instanceof Error)
+        {
+            object = { message: object.message, stack: object.stack };
+        }
 
         var cloned  = {};
         var nodes   = [{ obj: object, k: "result", result: cloned, ancestors: [] }];

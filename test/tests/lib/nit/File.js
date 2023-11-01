@@ -75,4 +75,10 @@ test ("nit.File", async () =>
 
     copy.rm ();
     expect (copy.exists ()).toBe (false);
+
+    await tmp.appendAsync ("5678");
+    expect (tmp.read ()).toBe ("12345678");
+
+    tmp.append ("9000");
+    expect (tmp.read ()).toBe ("123456789000");
 });

@@ -403,6 +403,18 @@ test ("nit.Compgen.listCompletions ()", async () =>
     let tests =
     [
         {
+            "args": ["nit task "],
+            "comps": ["SUBCOMMAND", "nit:do-something", "nit:say-hello"]
+        },
+        {
+            "args": ["nit task nit:do-something "],
+            "comps": ["OPTION"]
+        },
+        {
+            "args": ["nit task nit:do-nothing "],
+            "comps": ["OPTION"]
+        },
+        {
             "args": ["nit git push my-repo i"],
             "comps": ["VALUE", "info"],
             "values": { gitcommand: "push", repo: "my-repo", logLevel: "i" }
@@ -560,7 +572,7 @@ test ("nit.Compgen.listCompletions ()", async () =>
         }
     ];
 
-    // tests = [tests[9]]; // single
+    // tests = [tests[2]]; // single
 
     await nit.parallel (tests.map (t => function () { return testListCompletions (t); }));
 });

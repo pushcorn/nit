@@ -38,6 +38,10 @@ test ("nit.clone () clones the given object.", () =>
     expect (nit.clone (circular)).toEqual ({ name: "circ", self: "[circular]" });
     expect (nit.clone (circular, filter)).toEqual ({ name: "circ", self: null });
 
+    let error = new Error ("ERR!");
+    expect (nit.clone (error).message).toBe ("ERR!");
+    expect (nit.clone (error).stack).toMatch (/^Error: ERR/);
+
     let D = function () { this.a = 1; };
     {
         D.prototype.clone = function () { return { e: 3, f: 4 }; };
