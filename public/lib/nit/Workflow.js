@@ -4,6 +4,7 @@ module.exports = function (nit, Self, global)
         .k ("context")
         .m ("error.subroutine_not_defined", "The subroutine '%{name}' was not defined.")
         .use ("nit.WorkflowField")
+        .plugin ("event-emitter", "complete")
         .categorize ("workflows")
         .defineInnerClass ("Break")
         .defineInnerClass ("Continue")
@@ -29,17 +30,20 @@ module.exports = function (nit, Self, global)
         .defineMeta ("exprOpenTag", "string", "${")
         .defineMeta ("exprCloseTag", "string", "}")
 
-        .staticMethod ("configure", function (config)
+        .staticMethod ("config", function (config)
         {
             var cls = this;
 
-            nit.config (cls.name, config);
+            if (arguments.length == 1)
+            {
+                nit.config (cls.name, config);
 
-            return cls;
-        })
-        .staticGetter ("config", function ()
-        {
-            return nit.coalesce (nit.config (this.name), {});
+                return cls;
+            }
+            else
+            {
+                return nit.coalesce (nit.config (cls.name), {});
+            }
         })
         .staticMethod ("isControl", function (o)
         {
@@ -271,6 +275,14 @@ module.exports = function (nit, Self, global)
                 {
                     this.output = nit.coalesce (this.output, this.input);
                 })
+                .method ("updateOutput", function (newOutput)
+                {
+                    var self = this;
+
+                    self.output = nit.coalesce (newOutput instanceof Self.Context ? newOutput.output : newOutput, self.output);
+
+                    return self;
+                })
                 .method ("uncancel", function ()
                 {
                     var self = this;
@@ -321,9 +333,9 @@ module.exports = function (nit, Self, global)
                     }
                 })
                 .field ("owner", "nit.WorkflowStep|nit.Workflow.Subroutine", "The subcontext owner.")
-                .delegate ("workflow", "parent.workflow", false)
-                .delegate ("options", "parent.options", false)
-                .delegate ("$", "parent.$", false)
+                .getter ("workflow", "parent.workflow", false)
+                .getter ("options", "parent.options", false)
+                .getter ("$", false, false, function () { return this.parent.$; })
                 .onConstruct (function (parent)
                 {
                     if (!parent)
@@ -346,6 +358,7 @@ module.exports = function (nit, Self, global)
                 .field ("<name>", "string", "The name of the subroutine.")
                 .field ("<steps...>", "nit.WorkflowStep", "The steps to run.")
                 .field ("options...", Self.Option.name, "The subroutine options.")
+                .field ("vars", "object", "The variables (with their default values) to be declared.", { exprAllowed: true })
                 .field ("catch", "nit.WorkflowStep", "The step to handle the error.")
 
                 .memo ("inputClass", function ()
@@ -369,15 +382,26 @@ module.exports = function (nit, Self, global)
                     ctx = ctx instanceof Self.Subcontext ? ctx : self.contextClass.new (ctx);
                     ctx.owner = self;
 
+                    nit.assign (ctx, nit.clone (self.vars));
+
                     return Self.run (ctx);
                 })
             ;
         })
-        .field ("[description]", "string", "The description about the workflow.")
+        .field ("[description]", "string", "The description about the workflow.", function (prop, owner)
+        {
+            return nit.kababCase (owner.constructor.simpleName)
+                .split ("-")
+                .map (nit.pascalCase)
+                .join (" ")
+            ;
+        })
         .field ("[steps...]", "nit.WorkflowStep", "The steps to run.")
         .field ("options...", Self.Option.name, "The workflow option definitions.")
         .field ("subroutines...", Self.Subroutine.name, "The subroutines which can be invoked by another step.")
+        .field ("vars", "object", "The variables (with their default values) to be declared.", { exprAllowed: true })
         .field ("catch", "nit.WorkflowStep", "The step to handle the error.")
+        .field ("silent", "boolean", "Suppress the output.")
         .field ("globalSource", "string", "The source of the context's $ property.", "global")
 
         .staticMethod ("run", function (ctx, owner)
@@ -422,7 +446,7 @@ module.exports = function (nit, Self, global)
                 {
                     return [
                         function () { return step.run (ctx); },
-                        function (c) { ctx.output = nit.coalesce (nit.get (c, "result.output"), ctx.output); }
+                        function (c) { ctx.updateOutput (c.result); }
                     ];
                 }))
                 .failure (function (c)
@@ -440,9 +464,7 @@ module.exports = function (nit, Self, global)
                 })
                 .complete (function (c)
                 {
-                    ctx.output = c.result instanceof Self.Context ? c.result.output : nit.coalesce (c.result, ctx.output);
-
-                    return ctx;
+                    return ctx.updateOutput (c.result);
                 })
                 .run ()
             ;
@@ -483,9 +505,36 @@ module.exports = function (nit, Self, global)
 
             ctx = ctx instanceof Self.Context ? ctx : self.contextClass.new (ctx);
             ctx.workflow = self;
-            ctx.options = ctx.input;
+            ctx.options = ctx.output = ctx.input;
 
-            return Self.run (ctx, self);
+            nit.assign (ctx, nit.clone (self.vars));
+
+            return nit.Queue ()
+                .push (function ()
+                {
+                    return Self.run (ctx, self);
+                })
+                .complete (function ()
+                {
+                    return nit.Queue ()
+                        .push (function ()
+                        {
+                            return self.emit ("complete", self);
+                        })
+                        .complete (function ()
+                        {
+                            if (self.silent)
+                            {
+                                ctx.output = undefined;
+                            }
+
+                            return ctx;
+                        })
+                        .run ()
+                    ;
+                })
+                .run ()
+            ;
         })
     ;
 };

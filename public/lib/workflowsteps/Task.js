@@ -10,7 +10,16 @@ module.exports = function (nit)
             var taskCtx = new taskCls.Context;
             var task = new taskCls (self.input);
 
-            return task.execute (taskCtx);
+            return nit.Queue ()
+                .push (function ()
+                {
+                    return task.execute (taskCtx);
+                })
+                .push (function ()
+                {
+                    return taskCtx.result;
+                })
+            ;
         })
     ;
 };

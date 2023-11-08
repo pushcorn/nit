@@ -61,9 +61,11 @@ test.method ("nit.WorkflowStep", "run")
                 return ++ctx.data.value;
             })
         )
+        .up (s => s.createArgs = { exportAs: "testResult" })
         .given ({ data: { value: 10 } })
         .returnsInstanceOf ("nit.Workflow.Subcontext")
         .expectingPropertyToBe ("result.output", 11)
+        .expectingPropertyToBe ("result.parent.testResult", 11)
         .expectingPropertyToBe ("result.data", { value: 11 })
         .commit ()
 

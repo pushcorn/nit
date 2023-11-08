@@ -82,7 +82,7 @@ module.exports = function (nit, Self)
                         })
                     ;
                 })
-                .memo ("listeners", function ()
+                .memo ("listeners", true, false, function ()
                 {
                     return new hostClass.Listeners ();
                 })

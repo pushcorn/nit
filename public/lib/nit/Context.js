@@ -34,7 +34,7 @@ module.exports = function (nit, Self)
             {
                 if (!~name.indexOf (nit.PPP) && !myProps[name])
                 {
-                    nit.Object.defineDelegate (self, name, Self.kParent + "." + name, p.configurable, false);
+                    nit.Object.defineDelegate (self, name, Self.kParent + "." + nit.get.escape (name), p.configurable, false);
                 }
             });
 

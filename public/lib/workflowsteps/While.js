@@ -68,23 +68,28 @@ module.exports = function (nit, Self)
                     .push (self.steps.map (function (step)
                     {
                         return [
-                            function () { return step.run ({ parent: ctx }); },
+                            function () { return step.run ({ parent: ctx, input: ctx.output }); },
                             function (c) { ctx.output = nit.coalesce (c.result.output, ctx.output); }
                         ];
                     }))
                     .success (next)
+                    .complete (function ()
+                    {
+                        return ctx;
+                    })
                     .run ()
                 ;
             }
 
-            return nit.Queue ()
-                .push (next)
-                .complete (function ()
-                {
-                    return ctx;
-                })
-                .run ()
-            ;
+            return next ();
+            // return nit.Queue ()
+                // .push (next)
+                // .complete (function ()
+                // {
+                    // return ctx;
+                // })
+                // .run ()
+            // ;
         })
     ;
 };

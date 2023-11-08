@@ -21,7 +21,11 @@ module.exports = function (nit)
                 prefix += "[" + self.level.toUpperCase () + "] ";
             }
 
-            nit.log (nit.format (prefix + self.message, ctx));
+            var message = self.message;
+
+            message = nit.is.obj (message) ? nit.toJson (message instanceof nit.Object ? message.toPojo () : nit.clone (message), "  ") : message;
+
+            nit.log (nit.format (prefix + message, ctx));
         })
     ;
 };

@@ -110,6 +110,15 @@ test ("nit.Object.Property.Writer", () =>
 });
 
 
+test ("nit.Object.Property: order", () =>
+{
+    nit.defineClass ("A").field ("fa");
+    const B = nit.defineClass ("B", "A").field ("fb", { order: 1 });
+
+    expect (B.propertyNames).toEqual (["fb", "fa"]);
+});
+
+
 test ("nit.Object.Property: push/unshift invalid values", () =>
 {
     const B = nit.defineClass ("B") // eslint-disable-line no-unused-vars

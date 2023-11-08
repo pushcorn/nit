@@ -2,12 +2,12 @@ module.exports = function (nit, Self)
 {
     return (Self = nit.defineClass ("nit.Task"))
         .categorize ("tasks")
+        .k ("context")
         .defineMeta ("description", "string")
         .plugin ("event-emitter", "run", "catch", "finally", { prePost: true, listenerName: "TaskListener" })
-        .defineInnerClass ("Context", function (Context)
+        .defineInnerClass ("Context", "nit.Context", function (Context)
         {
             Context
-                .field ("scope", "object", "The scope of the service providers.")
                 .field ("result", "any", "The task result.")
                 .field ("error", "any", "The task error.")
             ;
@@ -37,10 +37,7 @@ module.exports = function (nit, Self)
 
                                 return self.emit (method, ctx);
                             })
-                            .run (function ()
-                            {
-                                return ctx.result;
-                            })
+                            .run ()
                         ;
                     });
                 });
@@ -63,7 +60,7 @@ module.exports = function (nit, Self)
             var self = this;
             var cls = self.constructor;
 
-            ctx = ctx instanceof cls.Context ? ctx : new cls.Context (ctx);
+            ctx = ctx instanceof Self.Context ? ctx : cls.Context.new (ctx);
 
             return nit.Queue ()
                 .push (self.preRun.bind (self, ctx))
@@ -92,10 +89,14 @@ module.exports = function (nit, Self)
                         .push (self.postFinally.bind (self, ctx))
                         .complete (function (c)
                         {
-                            if (c.error)
+                            ctx.error = nit.coalesce (c.error, ctx.error);
+
+                            if (ctx.error)
                             {
-                                ctx.error = c.error;
+                                nit.dpv (ctx.error, Self.kContext, ctx, true, false);
                             }
+
+                            return ctx;
                         })
                         .run ()
                     ;

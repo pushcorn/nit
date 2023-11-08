@@ -322,6 +322,39 @@ test ("nit.Object.TYPE_CASTERS.component", () =>
 });
 
 
+test ("nit.Object.TYPE_CASTERS.object", () =>
+{
+    const A = nit.defineClass ("A")
+        .field ("a", "string")
+        .field ("b", "integer")
+    ;
+
+    const C = nit.defineClass ("C")
+        .field ("<a>", "string")
+        .field ("[b]", "integer")
+        .field ("[c]", "integer")
+    ;
+
+    const B = nit.defineClass ("B")
+        .field ("a", "A")
+    ;
+
+    let c = new C ("str", 5, 6);
+    let obj = B.TYPE_CASTERS.object (c, B.fieldMap.a);
+
+    expect (obj).toBeInstanceOf (A);
+    expect (obj.toPojo ()).toEqual ({ a: "str", b: 5 });
+
+    obj = B.TYPE_CASTERS.object (new A ({ a: 1, b: 2 }), B.fieldMap.a);
+    expect (obj).toBeInstanceOf (A);
+    expect (obj.toPojo ()).toEqual ({ a: "1", b: 2 });
+
+    obj = B.TYPE_CASTERS.object ({ a: 3, b: 4, c: 5 }, B.fieldMap.a);
+    expect (obj).toBeInstanceOf (A);
+    expect (obj.toPojo ()).toEqual ({ a: "3", b: 4 });
+});
+
+
 test ("nit.Object.staticLifecycleMethod ()", () =>
 {
     const A = nit.defineClass ("AS")
@@ -679,6 +712,19 @@ test ("nit.Object.staticMemo ()", () =>
 });
 
 
+test ("nit.Object.memo ()", () =>
+{
+    nit.Object.memo ("createdAt", function ()
+    {
+        return new Date ();
+    });
+
+    let obj = new nit.Object;
+    let createAt = obj.createAt;
+    expect (obj.createAt).toBe (createAt);
+});
+
+
 test ("nit.Object.staticMemoMethod ()", () =>
 {
     let called = 0;
@@ -906,19 +952,6 @@ test ("nit.Object.mixin ()", () =>
 });
 
 
-test ("nit.Object.memo ()", () =>
-{
-    nit.Object.memo ("createdAt", function ()
-    {
-        return new Date ();
-    });
-
-    let obj = new nit.Object;
-    let createAt = obj.createAt;
-    expect (obj.createAt).toBe (createAt);
-});
-
-
 test ("nit.Object.categorize ()", () =>
 {
     nit.Object.defineSubclass ("nit.Task").categorize ();
@@ -931,6 +964,18 @@ test ("nit.Object.categorize ()", () =>
 });
 
 
+test ("nit.Object.categorize () - circular reference of the superclass", async () =>
+{
+    const nit = await test.reloadNit ("project-c");
+
+    nit.lookupClass ("Main");
+
+    const Rel = nit.lookupClass ("Rel");
+
+    expect (Rel.propertyNames).toEqual (["rel", "c", "a", "z", "b"]);
+});
+
+
 test ("nit.Object.ClassTypeParser.cast ()", () =>
 {
     let Shape = nit.Object.defineSubclass ("Shape");
@@ -939,9 +984,21 @@ test ("nit.Object.ClassTypeParser.cast ()", () =>
     expect (() => parser.cast ("@Shape")).toThrow (/class name cannot be empty/);
     expect (() => parser.cast ("@Shape", "Circle")).toThrow (/class.*circle.*not defined/i);
 
-    let Circle = Shape.defineSubclass ("Circle");
+    let Circle = Shape.defineSubclass ("Circle")
+        .property ("<radius>", "number")
+        .property ("[width]", "number")
+    ;
+
     expect (parser.cast ("@Circle", "Shape")).toBeInstanceOf (Shape);
     expect (Circle.superclass).toBe (Shape);
+
+    nit.config ("defaults.mycircle", { radius: 9, width: 10 });
+
+    let circle = parser.cast ("@@defaults.mycircle", "Circle");
+    expect (circle.toPojo ()).toEqual ({ radius: 9, width: 10 });
+
+    circle = parser.cast ({ "@config": "defaults.mycircle", width: 2 }, "Circle");
+    expect (circle.toPojo ()).toEqual ({ radius: 9, width: 2 });
 });
 
 

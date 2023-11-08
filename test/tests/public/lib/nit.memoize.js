@@ -78,3 +78,39 @@ test ("nit.memoize.dpg () defines a memoized getter on the target object", async
     flag = 2;
     expect (obj.cached).toBe (2);
 });
+
+
+test ("nit.memoize.dpgs () - define multiple memoized getters", async () =>
+{
+    let obj = {};
+    let cnt = 0;
+
+    nit.memoize.dpgs (obj,
+    {
+        a: function () { return ++cnt; },
+        b: function () { return ++cnt; }
+    });
+
+    expect (obj.a).toBe (1);
+    expect (obj.a).toBe (1);
+    expect (obj.b).toBe (2);
+    expect (obj.b).toBe (2);
+});
+
+
+test ("nit.memoize.dms () - define multiple memoized methods", async () =>
+{
+    let obj = {};
+    let cnt = 0;
+
+    nit.memoize.dms (obj,
+    {
+        a: function () { return ++cnt; },
+        b: function () { return ++cnt; }
+    });
+
+    expect (obj.a ()).toBe (1);
+    expect (obj.a ()).toBe (1);
+    expect (obj.b ()).toBe (2);
+    expect (obj.b ()).toBe (2);
+});

@@ -16,14 +16,18 @@ test ("nit.Command - command primitive type", () =>
         .field ("<fa>", "string")
         .field ("fb", "integer")
             .constraint ("min", 10)
+        .field ("fc", "string*")
+        .field ("fd", "string?")
     ;
 
     MyCommand.Input.import (MyClass.fields, "constraints");
 
-    expect (MyCommand.Input.properties.length).toBe (2);
+    expect (MyCommand.Input.properties.length).toBe (4);
     expect (MyCommand.Input.propertyMap.fa.type).toBe ("string");
     expect (MyCommand.Input.propertyMap.fb.type).toBe ("integer");
     expect (MyCommand.Input.propertyMap.fb.constraints.length).toBe (0);
+    expect (MyCommand.Input.propertyMap.fc.emptyAllowed).toBe (true);
+    expect (MyCommand.Input.propertyMap.fd.nullable).toBe (true);
 
 });
 

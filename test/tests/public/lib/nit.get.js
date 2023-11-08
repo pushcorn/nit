@@ -9,3 +9,9 @@ test ("nit.get () returns the value of an object at the given object path.", () 
     expect (nit.get ({ a: { b: 3, c: null } }, "a.c", 1)).toBe (1);
     expect (nit.get ({ a: { b: 3, c: null } }, "c", 1)).toBe (1);
 });
+
+
+test ("nit.get.escape ()", () =>
+{
+    expect (nit.get.escape ("a.b.c")).toBe ("a\\.b\\.c");
+});

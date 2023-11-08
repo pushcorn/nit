@@ -6,7 +6,7 @@ nit.require ("nit.Workflow");
 test.method ("workflowsteps.Workflow", "run")
     .should ("run a workflow class")
         .up (() => nit.defineWorkflow ("test.workflows.FlowTest")
-            .configure (
+            .config (
             {
                 options:
                 [

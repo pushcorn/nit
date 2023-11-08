@@ -22,6 +22,12 @@ test ("nit.error ()", () =>
     expect (getError ().stack.split ("\n")[1]).toMatch (__filename);
 
     expect (nit.error.for (new A, { code: "error.test" }, { reason: "busy" }).stack.split ("\n")[1]).toMatch (__filename);
+
+
+    let cause = new Error ("Another error");
+    let err = nit.error.for (A, { code: "error.test", cause });
+
+    expect (err.stack).toMatch (/Caused by Error: Another/);
 });
 
 

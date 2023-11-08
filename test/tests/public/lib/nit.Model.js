@@ -39,6 +39,18 @@ test ("nit.Model", async () =>
                 .field ("data", "any")
             ;
         })
+        .onPreValidate (function (ctx)
+        {
+            User.preValidateData = { entity: this, ctx };
+        })
+        .onValidate (function (ctx)
+        {
+            User.validateData = { entity: this, ctx };
+        })
+        .onPostValidate (function (ctx)
+        {
+            User.postValidateData = { entity: this, ctx };
+        })
     ;
 
     expect (User.fieldMap.job.typeIsModel).toBe (true);
@@ -47,6 +59,13 @@ test ("nit.Model", async () =>
     await expect (async () => User.validate ()).rejects.toThrow (/username.*required/is);
     await expect (async () => User.validate (new User ("janedoe", { role: "assistant" }))).rejects.toThrow (/role.*invalid value/);
     await expect (async () => User.validate ({ username: "janedoe", role: "assistant" })).rejects.toThrow (/role.*invalid value/);
+
+    expect (User.preValidateData.entity).toBeInstanceOf (User);
+    expect (User.preValidateData.ctx).toBeInstanceOf (User.ValidationContext);
+    expect (User.postValidateData.entity).toBeInstanceOf (User);
+    expect (User.postValidateData.ctx).toBeInstanceOf (User.ValidationContext);
+    expect (User.validateData.entity).toBeInstanceOf (User);
+    expect (User.validateData.ctx).toBeInstanceOf (User.ValidationContext);
 
     //----------------------------------
     let user = new User;
@@ -181,39 +200,4 @@ test ("nit.Model.new ()", async () =>
     expect (User.assign (user, function (u) { u.cred = 5678; }).cred).toBe ("5678");
 
     expect (() => User.assign (user, { cred: nit.noop }, true)).toThrow (/should be a string/);
-});
-
-
-test ("nit.Transform.preValidate ()", async () =>
-{
-    nit.defineClass ("transforms.Trans", "nit.Model.Transform")
-        .method ("preValidate", function (ctx)
-        {
-            User.preValidateInvocations.push ({ entity: ctx.entity });
-        })
-        .method ("postValidate", function (ctx)
-        {
-            User.postValidateInvocations.push ({ field: ctx.field });
-        })
-    ;
-
-    const User = nit.defineModel ("User")
-        .field ("<username>", "string")
-        .field ("[cred]", "string")
-        .do (User =>
-        {
-            User.preValidateInvocations = [];
-            User.postValidateInvocations = [];
-        })
-        .transform ("trans")
-    ;
-
-    let user = new User ("john", "1234");
-
-    await User.validate (user);
-
-    expect (User.preValidateInvocations.length).toBe (1);
-    expect (User.preValidateInvocations[0].entity).toBe (user);
-    expect (User.postValidateInvocations.length).toBe (1);
-    expect (User.postValidateInvocations[0].field.name).toBe ("cred");
 });

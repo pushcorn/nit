@@ -19,7 +19,9 @@ module.exports = function (nit, Self)
         })
         .field ("description", "string", "The description about the step.")
         .field ("condition", "boolean", "Whether the step should be run.", true, { exprAllowed: true })
+        .field ("vars", "object", "The variables (with their default values) to be declared.", { exprAllowed: true })
         .field ("catch", "nit.WorkflowStep", "The step to handle the error.")
+        .field ("exportAs", "string", "Export the output to the parent context to the specified property.", { exprAllowed: true })
 
         .defineCaster (function (value)
         {
@@ -97,12 +99,14 @@ module.exports = function (nit, Self)
         })
         .lifecycleMethod ("run", true, function (ctx) // The hook method should return the output value.
         {
-            ctx = Self.Workflow.Subcontext.new (ctx instanceof Self.Workflow.Context ? { parent: ctx } : ctx);
+            ctx = Self.Workflow.Subcontext.new (ctx instanceof Self.Workflow.Context ? { parent: ctx, input: ctx.output } : ctx);
             ctx.output = nit.coalesce (ctx.output, ctx.input);
 
             var self = this;
             var cls = self.constructor;
             var step = ctx.owner = self.evaluate (ctx);
+
+            nit.assign (ctx, nit.clone (self.vars));
 
             return nit.Queue ()
                 .stopOn (function ()
@@ -131,9 +135,12 @@ module.exports = function (nit, Self)
                 })
                 .complete (function (c)
                 {
-                    var output = c.result instanceof Self.Workflow.Context ? c.result.output : nit.coalesce (c.result, ctx.output);
+                    ctx.updateOutput (c.result);
 
-                    ctx.output = nit.coalesce (output, ctx.output);
+                    if (step.exportAs)
+                    {
+                        ctx.parent[step.exportAs] = ctx.output;
+                    }
 
                     return ctx;
                 })

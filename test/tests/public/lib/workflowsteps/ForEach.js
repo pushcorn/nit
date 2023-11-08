@@ -31,7 +31,7 @@ test.method ("workflowsteps.ForEach", "run")
                 "multiply-by-two",
                 {
                     type: "assign",
-                    key: "parent.numbers",
+                    key: "numbers",
                     mode: "append"
                 }
             ]

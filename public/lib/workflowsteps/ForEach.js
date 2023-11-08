@@ -60,6 +60,7 @@ module.exports = function (nit, Self)
             var canceled = false;
             var returned = false;
             var returnValue;
+            var input = ctx.output;
 
             function next ()
             {
@@ -69,7 +70,7 @@ module.exports = function (nit, Self)
                 }
 
                 var entry = entries.shift ();
-                var subctx = new Self.Workflow.Subcontext ({ parent: ctx });
+                var subctx = new Self.Workflow.Subcontext ({ parent: ctx, input: input });
 
                 return nit.Queue ()
                     .stopOn (function ()
@@ -178,7 +179,7 @@ module.exports = function (nit, Self)
                         return [
                             function ()
                             {
-                                var c = { parent: ctx };
+                                var c = { parent: ctx, input: ctx.output };
 
                                 c[self.key] = entry.k;
 

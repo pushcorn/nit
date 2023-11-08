@@ -67,6 +67,7 @@ test ("nit.File", async () =>
 
     file = nit.File (nit.path.join ("~", ".nit"));
     expect (file.path).toBe ("~/.nit");
+    expect (file + "").toBe ("~/.nit");
     expect (file.absPath).toBe (nit.path.join (nit.USER_HOME, ".nit"));
 
     let copy = nit.new ("nit.File", nit.path.join (nit.os.tmpdir (), nit.uuid () + "copy"));

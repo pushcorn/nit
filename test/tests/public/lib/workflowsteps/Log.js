@@ -1,3 +1,5 @@
+/* eslint-disable  no-template-curly-in-string */
+
 nit.require ("nit.Workflow");
 
 
@@ -31,5 +33,29 @@ test.method ("workflowsteps.Log", "run")
         .mock (nit, "log")
         .returnsInstanceOf ("nit.Workflow.Subcontext")
         .expectingPropertyToBe ("mocks.0.invocations.0.args.0", /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \[ERROR\] The message: hello/)
+        .commit ()
+
+    .should ("serialize the message to JSON if it's an object")
+        .up (s => s.createArgs = ["${input}", "error"])
+        .given ({ input: { mesg: "hello" } })
+        .mock (nit, "log")
+        .returnsInstanceOf ("nit.Workflow.Subcontext")
+        .expectingPropertyToBe ("mocks.0.invocations.0.args.0", nit.trim.text`
+            [ERROR] {
+              "mesg": "hello"
+            }
+        `)
+        .commit ()
+
+    .reset ()
+        .up (s => s.createArgs = ["${input}", "error"])
+        .given ({ input: new nit.defineClass ("A").field ("<mesg>") ("hello") })
+        .mock (nit, "log")
+        .returnsInstanceOf ("nit.Workflow.Subcontext")
+        .expectingPropertyToBe ("mocks.0.invocations.0.args.0", nit.trim.text`
+            [ERROR] {
+              "mesg": "hello"
+            }
+        `)
         .commit ()
 ;

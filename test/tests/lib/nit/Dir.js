@@ -94,4 +94,5 @@ test ("nit.Dir", async () =>
     let subdir = dir.subdir ("b/c");
     expect (subdir).toBeInstanceOf (nit.Dir);
     expect (subdir.path).toBe ("a/b/c");
+    expect (subdir + "").toBe ("a/b/c");
 });
