@@ -256,7 +256,7 @@ module.exports = function (nit, Self, global)
                 {
                     return Context.defineSubclass (Context.name, true);
                 })
-                .field ("workflow", Self.name, "The workflow.")
+                .field ("workflow", Self.name, "The workflow.", function () { return {}; })
                 .field ("options", "any", "The workflow options.")
                 .field ("input", "any", "The input data.")
                 .field ("output", "any", "The output data.")

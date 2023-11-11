@@ -777,10 +777,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     {
         nit.each (fs, function (f, p)
         {
-            var rp = p + "Memo";
+            var memo = p + "Memo";
 
-            nit.memoize.dpg (target, rp, f, true, false);
-            nit.dpv (target, p, function () { return this[rp]; }, configurable, enumerable);
+            nit.memoize.dpg (target, memo, f, true, false);
+            nit.dpv (target, p, function () { return this[memo]; }, configurable, enumerable);
         });
 
         return target;
@@ -1794,6 +1794,31 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         }
 
         return array;
+    };
+
+
+    nit.parseKvp = function (pairs, delimiter)
+    {
+        delimiter = delimiter || "=";
+
+        return nit.array (pairs, true)
+            .reduce (function (a, p)
+            {
+                if (nit.is.str (p))
+                {
+                    var ps = nit.kvSplit (p, delimiter);
+
+                    a[nit.trim (ps[0])] = nit.trim (ps[1]);
+                }
+                else
+                {
+                    nit.assign (a, p);
+                }
+
+                return a;
+            },
+            {})
+        ;
     };
 
 

@@ -38,10 +38,11 @@ test.method ("plugins.ServiceProvider", "onUsePlugin", true)
     .after (s =>
     {
         const A = nit.defineClass ("A");
-        let db = s.Db.get (A);
+        let db = s.Db.get (A, 99);
         let newDb = new s.Db ();
 
         expect (db.id).not.toBe (newDb.id);
+        expect (db.id).toBe ("99");
 
         s.Db.set (A, newDb);
         expect (s.Db.serviceProviderEntries.length).toBe (4);

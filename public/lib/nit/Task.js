@@ -8,6 +8,13 @@ module.exports = function (nit, Self)
         .defineInnerClass ("Context", "nit.Context", function (Context)
         {
             Context
+                .field ("[parent]", "nit.Context", "The parent context.",
+                {
+                    onLink: function (parent)
+                    {
+                        this[Context.kParent] = parent;
+                    }
+                })
                 .field ("result", "any", "The task result.")
                 .field ("error", "any", "The task error.")
             ;

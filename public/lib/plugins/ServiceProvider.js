@@ -24,14 +24,14 @@ module.exports = function (nit)
                     ;
                 })
                 .staticProperty ("serviceProviderEntries...", hostClass.ServiceProviderEntry.name)
-                .staticLifecycleMethod ("createServiceProviderEntry", function (scope)
+                .staticLifecycleMethod ("createServiceProviderEntry", function (scope, options)
                 {
                     var cls = this;
                     var entries = cls.serviceProviderEntries;
                     var entry = new hostClass.ServiceProviderEntry (
                     {
                         scope: scope,
-                        instance: new cls (plugin.options)
+                        instance: new cls (nit.coalesce (options, plugin.options))
                     });
 
                     entries.push (entry);
@@ -40,13 +40,13 @@ module.exports = function (nit)
 
                     return entry;
                 })
-                .staticMethod ("get", function (scope)
+                .staticMethod ("get", function (scope, options)
                 {
                     var cls = this;
 
                     scope = scope || cls;
 
-                    var entry = cls.serviceProviderEntries.find (function (e) { return e.scope == scope; }) || cls.createServiceProviderEntry (scope);
+                    var entry = cls.serviceProviderEntries.find (function (e) { return e.scope == scope; }) || cls.createServiceProviderEntry (scope, options);
 
                     return entry.instance;
                 })

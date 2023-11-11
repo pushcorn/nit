@@ -7,6 +7,14 @@ test.object ("nit.Task")
 ;
 
 
+test.object ("nit.Task.Context")
+    .should ("accept another context as its parent")
+    .given (nit.Task.Context.new ({ a: 1 }))
+    .expectingPropertyToBe ("result.a", 1)
+    .commit ()
+;
+
+
 test.method ("nit.Task", "describe", true)
     .should ("set the description metadata")
     .given ("Do something...")
