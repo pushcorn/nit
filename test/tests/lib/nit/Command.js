@@ -20,7 +20,7 @@ test ("nit.Command - command primitive type", () =>
         .field ("fd", "string?")
     ;
 
-    MyCommand.Input.import (MyClass.fields, "constraints");
+    MyCommand.Input.importProperties (MyClass.fields, "constraints");
 
     expect (MyCommand.Input.properties.length).toBe (4);
     expect (MyCommand.Input.propertyMap.fa.type).toBe ("string");
@@ -90,7 +90,7 @@ Options:
 
     const NoArgs = nit.lookupCommand ("no-args");
 
-    expect (NoArgs.help ().build ()).toBe (`Description not available.
+    expect (NoArgs.help ().build ()).toBe (`Command description unavailable.
 
 Usage: nit no-args`
 );
@@ -99,7 +99,7 @@ Usage: nit no-args`
 
     HelloWorld.Input.defaults ({ message: "hello!" });
 
-    expect (HelloWorld.help ().build ()).toBe (`Description not available.
+    expect (HelloWorld.help ().build ()).toBe (`Command description unavailable.
 
 Usage: nit hello-world [message]
 
@@ -299,7 +299,7 @@ test ("nit.Command.Input.parseArgv () - with subcommand", () =>
         .onBuildSubcommand ((Subcommand, Git) =>
         {
             Subcommand
-                .defineInput (Input => Input.import (Git.fields))
+                .defineInput (Input => Input.importProperties (Git.fields))
             ;
         })
     ;
@@ -531,7 +531,7 @@ test ("nit.Command.run ()", async () =>
 {
     const Test = nit.defineClass ("Test", "nit.Command");
 
-    expect (await Test ().run ()).toBe (undefined);
+    expect ((await Test ().run ()).output).toBe (undefined);
 
     Test
         .onRun (function (ctx)
@@ -542,12 +542,27 @@ test ("nit.Command.run ()", async () =>
         })
     ;
 
-    expect (await Test ().run ()).toBe (10);
+    expect ((await Test ().run ()).output).toBe (10);
 
     let ctx = new Test.Context;
 
     await Test ().run (ctx);
     expect (ctx.key).toBe ("value");
+
+
+    const TestOutput = nit.defineClass ("TestOutput")
+        .field ("val", "integer")
+    ;
+
+    const Test2 = nit.defineClass ("Test2", "nit.Command")
+        .meta ("outputType", "TestOutput")
+        .onRun (() => ({ val: 99 }))
+    ;
+
+    let output = (await Test2 ().run ()).output;
+
+    expect (output).toBeInstanceOf (TestOutput);
+    expect (output.val).toBe (99);
 });
 
 
@@ -574,15 +589,21 @@ test ("nit.Command.catch/finally ()", async () =>
 
     expect (Test.finallyCalled).toBe (true);
 
-    Test
-        .onCatch (function ()
-        {
-            Test.catchCalled = true;
-        })
-    ;
+    Test.onCatch (function ()
+    {
+        Test.catchCalled = true;
+    });
 
     await Test ().run ();
     expect (Test.catchCalled).toBe (true);
+
+
+    Test.onFinally (function ()
+    {
+        throw new Error ("FINALLY");
+    });
+
+    expect (async () => Test ().run ()).rejects.toThrow ("FINALLY");
 });
 
 
@@ -620,7 +641,7 @@ test ("nit.Command.defineContext ()", async () =>
     expect (Add.Context.name).toBe ("Add.Context");
     expect (Add.Context.superclass).toBe (nit.Command.Context);
 
-    expect (await Add ().run (3, 4)).toBe (7);
+    expect ((await Add ().run (3, 4)).output).toBe (7);
 
     let ctx = new Add.Context;
     expect (ctx.input).toBeInstanceOf (Add.Input);
@@ -658,4 +679,82 @@ test ("nit.Command.confirm ()", async () =>
 
     await Rmdir ().confirm ("info.confirmation");
     expect (mesg).toBe (nit.m.MESSAGES["Rmdir|info.confirmation"]);
+});
+
+
+test ("nit.Command.Input.tokenize ()", () =>
+{
+    const Input = nit.require ("nit.Command.Input");
+
+    expect (Input.tokenize (" --message    'hello\\'\\'s \"world' --key value"))
+        .toEqual (["--message", "hello''s \"world", "--key", "value"]);
+
+    expect (Input.tokenize ('--json \'{ "a": "b" }\' parg'))
+        .toEqual (["--json", '{ "a": "b" }', "parg"]);
+
+    expect (() => Input.tokenize ('--json \'{ "a": "b" } parg cde'))
+        .toThrow (/not closed/);
+
+    expect (Input.tokenize ('--json parg'))
+        .toEqual (["--json", "parg"]);
+
+    expect (Input.tokenize ('parg'))
+        .toEqual (["parg"]);
+
+    expect (Input.tokenize (''))
+        .toEqual ([]);
+
+    expect (Input.tokenize ("ab 'quoted'"))
+        .toEqual (["ab", "quoted"]);
+
+    expect (Input.tokenize ("ab 'quo ted'"))
+        .toEqual (["ab", "quo ted"]);
+});
+
+
+test ("nit.Command.exec ()", async () =>
+{
+    const TestExec = nit.defineClass ("commands.TestExec", "nit.Command")
+        .defineInput (Input =>
+        {
+            Input
+                .option ("<file>", "file")
+            ;
+        })
+        .onRun (({ input }) => TestExec.calledWith = input.file)
+    ;
+
+    await TestExec.exec ("test-exec", "abc");
+
+    expect (TestExec.calledWith).toBe ("abc");
+
+    await TestExec.exec ("test-exec def");
+
+    expect (TestExec.calledWith).toBe ("def");
+});
+
+
+test ("nit.Command.listenerError ()", async () =>
+{
+    const TestListener = nit.defineClass ("commands.TestListener", "nit.Command")
+        .defineInput (Input =>
+        {
+            Input
+                .option ("<file>", "file")
+            ;
+        })
+        .on ("run", function ()
+        {
+            throw new Error ("LISTENER_ERR");
+        })
+        .onRun (({ input }) => TestListener.calledWith = input.file)
+    ;
+
+    let cmd = new TestListener;
+    let mock = test.mock (cmd, "error");
+
+    await cmd.run ("abc");
+
+    expect (TestListener.calledWith).toBe ("abc");
+    expect (mock.invocations[0].args[0].message).toBe ("LISTENER_ERR");
 });
