@@ -1,54 +1,32 @@
 module.exports = function (nit, Self)
 {
+    var writer = new nit.Object.Property.Writer;
+
+
     return (Self = nit.defineClass ("nit.Task"))
-        .categorize ("tasks")
         .k ("context")
-        .defineMeta ("description", "string")
-        .plugin ("event-emitter", "run", "catch", "finally", { prePost: true, listenerName: "TaskListener" })
+        .categorize ("tasks")
+        .defineMeta ("description", "string", "Task description unavailable.")
+        .plugin ("lifecycle-component", "run", "catch", "finally", "cancel")
+        .property ("canceled", "boolean", { enumerable: false, writer: writer })
         .defineInnerClass ("Context", "nit.Context", function (Context)
         {
             Context
                 .field ("[parent]", "nit.Context", "The parent context.",
                 {
-                    onLink: function (parent)
+                    onLink: function ()
                     {
-                        this[Context.kParent] = parent;
+                        this.delegateParentProperties ();
                     }
                 })
                 .field ("result", "any", "The task result.")
                 .field ("error", "any", "The task error.")
-            ;
-        })
-        .do (function ()
-        {
-            ["run", "catch", "finally"].forEach (function (event)
-            {
-                ["pre", "post", ""].forEach (function (prefix)
+                .property ("task", "nit.Task")
+                .method ("runTask", function (task)
                 {
-                    var method = prefix ? (prefix + nit.ucFirst (event)) : event;
-
-                    Self.lifecycleMethod (method, function (ctx)
-                    {
-                        var self = this;
-                        var cls = self.constructor;
-                        var kEvent = nit.k.v (Self, method);
-
-                        return nit.Queue ()
-                            .push (function ()
-                            {
-                                return nit.invoke ([self, cls[kEvent]], ctx);
-                            })
-                            .push (function (c)
-                            {
-                                ctx.result = nit.coalesce (c.result, ctx.result);
-
-                                return self.emit (method, ctx);
-                            })
-                            .run ()
-                        ;
-                    });
-                });
-            });
+                    return nit.invoke.return ([task, "run"], { parent: this }, function (c) { return c.result; });
+                })
+            ;
         })
         .staticMethod ("describe", function (description)
         {
@@ -58,42 +36,62 @@ module.exports = function (nit, Self)
         {
             return this.defineInnerClass ("Context", this.superclass.Context.name, builder);
         })
+        .onInitInvocationQueue (function (queue, comp, method, args)
+        {
+            queue.after ("invokeHook", "checkResult", function (c)
+            {
+                if (!~method.toLowerCase ().indexOf ("cancel"))
+                {
+                    var ctx = args[0];
+
+                    ctx.result = nit.coalesce (c.result, ctx.result);
+                }
+            });
+        })
         .onDefineSubclass (function (Subclass)
         {
             Subclass.defineContext ();
         })
-        .method ("execute", function (ctx)
+        .onListenerError (function (error)
         {
-            var self = this;
-            var cls = self.constructor;
+            this.error (error);
+        })
+        .onConfigureQueueForCancel (function (queue, task, args)
+        {
+            var canceled = task.canceled;
+
+            task.canceled = writer.value (true);
+            args.splice (0, args.length, task);
+
+            queue
+                .stopOn (function () { return canceled; })
+                .complete (function () { return task; })
+            ;
+        })
+        .onConfigureQueueForRun (function (queue, task, args)
+        {
+            var cls = task.constructor;
+            var ctx = args[0];
 
             ctx = ctx instanceof Self.Context ? ctx : cls.Context.new (ctx);
+            ctx.task = task;
+            args.splice (0, args.length, ctx);
 
-            return nit.Queue ()
-                .push (self.preRun.bind (self, ctx))
-                .push (self.run.bind (self, ctx))
-                .push (self.postRun.bind (self, ctx))
+            queue
+                .stopOn (function () { return task.canceled; })
                 .failure (function (c)
+                {
+                    ctx.error = c.error;
+                    c.error = undefined;
+
+                    return task.catch (ctx);
+                })
+                .complete (function (c)
                 {
                     ctx.error = c.error;
 
                     return nit.Queue ()
-                        .push (self.preCatch.bind (self, ctx))
-                        .push (self.catch.bind (self, ctx))
-                        .push (self.postCatch.bind (self, ctx))
-                        .complete (function (c)
-                        {
-                            ctx.error = c.error;
-                        })
-                        .run ()
-                    ;
-                })
-                .complete (function ()
-                {
-                    return nit.Queue ()
-                        .push (self.preFinally.bind (self, ctx))
-                        .push (self.finally.bind (self, ctx))
-                        .push (self.postFinally.bind (self, ctx))
+                        .push (task.finally.bind (task, ctx))
                         .complete (function (c)
                         {
                             ctx.error = nit.coalesce (c.error, ctx.error);
@@ -108,7 +106,6 @@ module.exports = function (nit, Self)
                         .run ()
                     ;
                 })
-                .run ()
             ;
         })
         .onCatch (function (ctx)
