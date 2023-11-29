@@ -243,24 +243,15 @@ test.method ("nit.Task", "run")
 
 test.method ("nit.Task", "cancel")
     .should ("stop the task")
+        .up (s => s.cancelCount = 0)
         .up (s => s.class = nit.defineTask ("MyTask")
-            .onPreRun (function ()
-            {
-                this.cancel ();
-
-                return 9;
-            })
-            .onPostRun (async function ()
-            {
-                s.class.postRunCalled = true;
-            })
-            .onRun (function ()
-            {
-                s.class.runCalled = true;
-            })
             .onCancel (function ()
             {
                 s.class.cancelCalled = true;
+            })
+            .onPreCancel (function ()
+            {
+                s.cancelCount++;
             })
             .onPostCancel (function ()
             {
@@ -268,10 +259,10 @@ test.method ("nit.Task", "cancel")
             })
         )
         .expectingPropertyToBe ("result.canceled", true)
-        .expectingPropertyToBe ("class.postRunCalled")
-        .expectingPropertyToBe ("class.runCalled")
+        .expectingPropertyToBe ("cancelCount", 1)
         .expectingPropertyToBe ("class.cancelCalled", true)
         .expectingPropertyToBe ("class.postCancelCalled", true)
         .expectingMethodToReturnValueOfType ("result.cancel", null, "tasks.MyTask")
+        .expectingPropertyToBe ("cancelCount", 1)
         .commit ()
 ;
