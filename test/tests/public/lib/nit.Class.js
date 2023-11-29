@@ -87,7 +87,15 @@ test ("nit.Class.registerPlugin ()", () =>
 
 test ("nit.Class.registerPlugin", () =>
 {
-    const Condition = nit.defineClass ("test.Condition");
+    let checked = [];
+
+    const Condition = nit.defineClass ("test.Condition")
+        .method ("check", function ()
+        {
+            checked.push (this.constructor.name);
+        })
+    ;
+
     const RequestPath = Condition.defineSubclass ("test.RequestPath").field ("<val>");
     const RequestMethod = Condition.defineSubclass ("test.RequestMethod").field ("<val>");
     const A = nit.defineClass ("A")
@@ -115,6 +123,58 @@ test ("nit.Class.registerPlugin", () =>
     expect (B.getPlugins ("conditions", true).length).toBe (2);
     expect (B.getPlugins ("conditions", true)[0].val).toBe ("m3");
     expect (B.getPlugins ("conditions", true)[1].val).toBe ("p4");
+
+    A.applyPlugins ("conditions", "check");
+    expect (checked).toEqual (["test.RequestPath", "test.RequestMethod"]);
+});
+
+
+test ("nit.Class.registerPlugin - instance level", () =>
+{
+    let usedBy;
+    let checked = [];
+
+    const Condition = nit.defineClass ("test.Condition")
+        .constant ("unique", true)
+        .method ("usedBy", host => usedBy = host)
+        .method ("check", function ()
+        {
+            checked.push (this.constructor.name, this.val);
+        })
+    ;
+
+    const RequestPath = Condition.defineSubclass ("test.RequestPath").field ("<val>");
+    const RequestMethod = Condition.defineSubclass ("test.RequestMethod").field ("<val>");
+    const A = nit.defineClass ("A")
+        .registerPlugin (Condition, true, { instance: true })
+    ;
+
+    let a = new A;
+
+    A.condition (new RequestPath ("p1"))
+        .condition (new RequestMethod ("m1"))
+        .condition (new RequestPath ("p2"))
+        .condition (new RequestMethod ("m2"))
+    ;
+
+    expect (usedBy).toBe (A);
+    expect (A.prototype.conditions.length).toBe (2);
+    expect (A.getPlugins.call (a, "conditions").length).toBe (2);
+    expect (A.getPlugins.call (a, "conditions", true).length).toBe (2);
+    expect (A.getPlugins.call (a, "conditions", true)[0].val).toBe ("p2");
+    expect (A.getPlugins.call (a, "conditions", true)[1].val).toBe ("m2");
+
+    a.conditions.push (new RequestPath ("p3"));
+    a.conditions.push (new RequestMethod ("m3"));
+    expect (A.getPlugins.call (a, "conditions", true)[0].val).toBe ("p3");
+    expect (A.getPlugins.call (a, "conditions", true)[1].val).toBe ("m3");
+
+    expect (A.lookupPlugin.call (a, RequestPath)).toBeUndefined ();
+    expect (A.lookupPlugin.call (a, "test.UnknownPlugin")).toBeUndefined ();
+    expect (A.lookupPlugin.call (a, RequestPath, "conditions").val).toBe ("p3");
+
+    A.applyPlugins.call (a, "conditions", "check");
+    expect (checked).toEqual (["test.RequestPath", "p3", "test.RequestMethod", "m3"]);
 });
 
 
@@ -152,8 +212,8 @@ test ("nit.Class.getPlugins", () =>
     expect (B.getPlugins ("conditions", () => "p3").length).toBe (1);
 
     expect (A.lookupPlugin (RequestContentType).val).toBe ("ct1");
-    expect (B.lookupPlugin ("conditions", RequestMethod).val).toBe ("m3");
-    expect (B.lookupPlugin ("conditions", "test.RequestPath").val).toBe ("p3");
+    expect (B.lookupPlugin (RequestMethod, "conditions").val).toBe ("m3");
+    expect (B.lookupPlugin ("test.RequestPath", "conditions").val).toBe ("p3");
 });
 
 
