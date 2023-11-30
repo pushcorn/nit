@@ -1,73 +1,89 @@
-module.exports = function (nit)
+module.exports = function (nit, Self)
 {
-    return nit.definePlugin ("Logger")
-        .use ("nit.utils.String")
-        .staticProperty ("timestamp", "boolean?") // prepend timestamp
-
-        .field ("openTag", "string", "The template's open tag.", "%{")
-        .field ("closeTag", "string", "The template's close tag.", "}")
-        .field ("stackTrace", "boolean", "Whether to the stack trace")
-        .field ("timestamp", "boolean?", "Whether to show the timestamp")
-        .field ("transforms", "object", "The transforms.", { defval: { nit: nit } })
-
-        .memo ("timestampEnabled", function ()
+    return (Self = nit.definePlugin ("Logger"))
+        .defineInnerClass ("Logger", function (Logger)
         {
-            var self = this;
-
-            return nit.is.bool (self.timestamp)
-                ? self.timestamp
-                : (nit.is.bool (self.constructor.timestamp) ? self.constructor.timestamp : false)
-            ;
-        })
-        .getter ("prefix", function ()
-        {
-            return this.timestampEnabled ? (nit.timestamp ().replace ("T", " ") + " ") : "";
-        })
-        .getter ("stack", function ()
-        {
-            return this.stackTrace
-                ?  "\n" + new Error ().stack.split ("\n").slice (3).join ("\n")
-                : ""
-            ;
-        })
-        .method ("registerTransform", function (name, func)
-        {
-            this.transforms[name] = func;
-
-            return this;
-        })
-        .method ("formatMessage", function (host, message, args)
-        {
-            var cls = host.constructor;
-
-            if (typeof message == "string")
-            {
-                message = cls.t (message);
-
-                var p = nit.format.parse ([message].concat (args));
-
-                return nit.Template.render (message, p.data, this);
-            }
-            else
-            if (message instanceof Error)
-            {
-                return message.stack;
-            }
-            else
-            {
-                return JSON.stringify (message);
-            }
-        })
-        .staticMethod ("onUsePlugin", function (hostClass, plugin)
-        {
-            hostClass
-                .staticLifecycleMethod ("logLevelPrefix", null, function (level, host) // eslint-disable-line no-unused-vars
+            Logger
+                .defineMeta ("openTag", "string", "%{") // The template's open tag.
+                .defineMeta ("closeTag", "string", "}") // The template's close tag.
+                .defineMeta ("stackTrace", "boolean?") // Whether to append the stack trace.
+                .defineMeta ("timestamp", "boolean?") // Whether to show the timestamp.
+                .defineInnerClass ("Transforms")
+                .staticMethod ("transform", function (name, transform)
                 {
-                    return "[" + level.toUpperCase () + "] " + (level == "debug" ? "(" + this.name + ") " : "");
+                    nit.dpv (this.Transforms, name, transform, true, true);
+
+                    return this;
                 })
-                .staticLifecycleMethod ("logPrefix", null, function (level, host)
+                .transform ("nit", nit)
+                .onDefineSubclass (function (Subclass)
                 {
-                    return plugin.prefix + this.logLevelPrefix (level, host);
+                    Subclass.defineInnerClass ("Transforms", this.Transforms.name);
+                })
+                .lifecycleMethod ("formatStack", function (host, message)
+                {
+                    var self = this;
+                    var cls = self.constructor;
+                    var suffix = cls.stackTrace ? "\n" + new Error ().stack.split ("\n").slice (4).join ("\n") : "";
+
+                    suffix = nit.invoke ([self, cls[cls.kFormatStack]], nit.array (arguments).concat (suffix), suffix);
+
+                    return message + suffix;
+                })
+                .lifecycleMethod ("formatPrefix", function (host, message)
+                {
+                    var self = this;
+                    var cls = self.constructor;
+                    var prefix = cls.timestamp ? (nit.timestamp ().replace ("T", " ") + " ") : "";
+
+                    prefix = nit.invoke ([self, cls[cls.kFormatPrefix]], nit.array (arguments).concat (prefix), prefix);
+
+                    return prefix + message;
+                })
+                .lifecycleMethod ("formatLevel", function (host, level, message)
+                {
+                    var self = this;
+                    var cls = self.constructor;
+                    var prefix = "[" + level.toUpperCase () + "] " + (level == "debug" ? "(" + nit.getClass (host).name + ") " : "");
+
+                    prefix = nit.invoke ([self, cls[cls.kFormatLevel]], nit.array (arguments).concat (prefix), prefix);
+
+                    return prefix + message;
+                })
+                .method ("formatMessage", function (host, message, args)
+                {
+                    var self = this;
+                    var cls = self.constructor;
+
+                    if (typeof message == "string")
+                    {
+                        var hostClass = nit.getClass (host);
+
+                        message = hostClass.t (message);
+
+                        var p = nit.format.parse ([message].concat (args));
+                        var config = { openTag: cls.openTag, closeTag: cls.closeTag, transforms: hostClass.Logger.Transforms };
+
+                        message = nit.Template.render (message, p.data, config);
+                    }
+                    else
+                    if (message instanceof Error)
+                    {
+                        message = message.stack;
+                    }
+                    else
+                    {
+                        message = JSON.stringify (message);
+                    }
+
+                    message = nit.trim (message);
+
+                    if (~message.indexOf ("\n"))
+                    {
+                        message = nit.indent (message).trim ();
+                    }
+
+                    return message;
                 })
                 .method ("writeLog", function (message)
                 {
@@ -75,36 +91,60 @@ module.exports = function (nit)
 
                     return this;
                 })
-                .method ("log", function (message)
+                .method ("log", function (host, level, message)
                 {
-                    return this.writeLog (plugin.prefix + plugin.formatMessage (this, message, nit.array (arguments).slice (1)) + plugin.stack);
+                    var self = this;
+                    var cls = host.constructor;
+
+                    if (level == "debug" && !nit.debug.allows (cls.name))
+                    {
+                        return self;
+                    }
+
+                    message = self.formatMessage (host, message, nit.array (arguments).slice (3));
+                    message = self.formatLevel (host, level, message);
+                    message = self.formatPrefix (host, message);
+                    message = self.formatStack (host, message);
+
+                    return self.writeLog (message);
                 })
                 .do (function ()
                 {
                     nit.log.LEVELS.forEach (function (level)
                     {
-                        hostClass.method (level, function (message)
+                        Logger.method (level, function (host, message) // eslint-disable-line no-unused-vars
                         {
                             var self = this;
-                            var cls = self.constructor;
 
-                            if (level == "debug" && !nit.debug.allows (cls.name))
-                            {
-                                return self;
-                            }
+                            self.log.apply (self, [host, level].concat (nit.array (arguments).slice (1)));
+                        });
+                    });
+                })
 
-                            message = plugin.formatMessage (self, message, nit.array (arguments).slice (1));
+            ;
+        })
+        .onUsedBy (function (hostClass)
+        {
+            hostClass
+                .staticMethod ("defineLogger", function (builder)
+                {
+                    return this.defineInnerClass ("Logger", Self.Logger.name, builder);
+                })
+                .defineLogger ()
+                .staticProperty ("logger", Self.Logger.name, function (prop, owner)
+                {
+                    return new owner.Logger;
+                })
+                .do (function ()
+                {
+                    nit.log.LEVELS.forEach (function (level)
+                    {
+                        hostClass.method (level, function (message) // eslint-disable-line no-unused-vars
+                        {
+                            var host = this;
+                            var logger = host.constructor.logger;
 
-                            if (~message.indexOf ("\n"))
-                            {
-                                message = nit.indent (message).trim ();
-                            }
-                            else
-                            {
-                                message = message.trim ();
-                            }
-
-                            return self.writeLog (cls.logPrefix (level, self) + message + plugin.stack);
+                            logger[level].apply (logger, [host].concat (nit.array (arguments)));
                         });
                     });
                 })
