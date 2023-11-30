@@ -36,6 +36,20 @@ test.method ("nit.CompgenCompleter.OptionCompleter", "applicableTo")
         })
         .returns (false)
         .commit ()
+
+    .should ("return false if conditions are not satisfied")
+        .up (s => s.createArgs = [function () { return [1, 2]; }, "test.commands.MyCmd.opt1", nit.o ({ a: 9 })])
+        .up (s => s.args =
+        {
+            commandClass: s.MyCmd,
+            currentOption: s.MyCmd.Input.fieldMap.opt1,
+            specifiedValues:
+            {
+                a: 10
+            }
+        })
+        .returns (false)
+        .commit ()
 ;
 
 

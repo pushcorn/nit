@@ -369,6 +369,7 @@ test ("nit.Compgen.parseWords ()", async () =>
                 "help",
                 "lint",
                 "run",
+                "shell",
                 "task",
                 "test",
                 "version",
@@ -404,7 +405,7 @@ test ("nit.Compgen.listCompletions ()", async () =>
     [
         {
             "args": ["nit task "],
-            "comps": ["SUBCOMMAND", "nit:do-something", "nit:say-hello"]
+            "comps": ["SUBCOMMAND", "command", "workflow", "nit:do-something", "nit:say-hello"]
         },
         {
             "args": ["nit task nit:do-something "],
