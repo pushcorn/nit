@@ -106,7 +106,7 @@ test.plugin ("plugins.LifecycleComponent", "run", { hostClass: "Unwrapped", plug
 ;
 
 
-test.plugin ("plugins.LifecycleComponent", "run", { hostClass: "Instance", pluginArgs: ["run", {  instancePlugin: true }] })
+test.plugin ("plugins.LifecycleComponent", "run", { hostClass: "Instance", pluginArgs: ["run", {  instancePluginAllowed: true }] })
     .should ("invoke instance plugins")
         .up (s => s.invoked = [])
         .up (s => s.MyInstancePlugin = s.hostClass.Plugin.defineSubclass ("MyInstancePlugin")
@@ -115,7 +115,7 @@ test.plugin ("plugins.LifecycleComponent", "run", { hostClass: "Instance", plugi
             .onRun ((o, { invoked }) => invoked.push ("runPlugin"))
         )
         .up (s => s.args = { invoked: s.invoked })
-        .before (s => s.host.instanceplugin (new s.MyInstancePlugin))
+        .before (s => s.host.instanceplugins.push (new s.MyInstancePlugin))
         .expectingPropertyToBe ("host.instanceplugins.length", 1)
         .expectingPropertyToBe ("invoked", ["preRunPlugin", "runPlugin", "postRunPlugin"])
         .commit ()

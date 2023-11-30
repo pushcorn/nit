@@ -6,9 +6,10 @@ module.exports = function (nit)
         .field ("[methods...]", "string", "The component method to be added.")
         .field ("prePost", "boolean", "Define pre- and post- methods.", true)
         .field ("wrapped", "boolean", "Wrap the main method with the pre- and post- methods.", true)
-        .field ("instancePlugin", "boolean", "Register instance level plugin.")
-        .staticMethod ("onUsePlugin", function (hostClass, plugin)
+        .field ("instancePluginAllowed", "boolean", "Allow instance level plugins.")
+        .onUsedBy (function (hostClass)
         {
+            var plugin = this;
             var sn = hostClass.simpleName;
             var pluginName = sn + "Plugin";
             var prePost = plugin.prePost;
@@ -20,7 +21,7 @@ module.exports = function (nit)
 
             hostClass
                 .constant ("Plugin", pluginClass)
-                .registerPlugin (pluginClass, { instance: plugin.instancePlugin })
+                .registerPlugin (pluginClass, { instancePluginAllowed: plugin.instancePluginAllowed })
                 .plugin ("event-emitter", { prePost: plugin.prePost, listenerName: sn + "Listener" })
                 .plugin ("logger")
                 .staticClassChainMethod ("initInvocationQueue", true)
@@ -35,7 +36,7 @@ module.exports = function (nit)
                         })
                         .push (method + ".applyPlugins", function ()
                         {
-                            return cls.applyPlugins.apply (plugin.instancePlugin ? comp : cls, [pluginCategory, method, comp].concat (args));
+                            return cls.applyPlugins.apply (plugin.instancePluginAllowed ? comp : cls, [pluginCategory, method, comp].concat (args));
                         })
                         .push (method + ".emitEvent", function ()
                         {
@@ -53,12 +54,12 @@ module.exports = function (nit)
 
                         queue
                             .lpush (preQueue.tasks)
-                            .lpush ("pre", function () {})
+                            .lpush (preMethod, function () {})
                         ;
 
                         queue
                             .push (postQueue.tasks)
-                            .push ("post", function () {})
+                            .push (postMethod, function () {})
                         ;
                     }
 
