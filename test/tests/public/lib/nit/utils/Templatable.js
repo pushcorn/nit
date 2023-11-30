@@ -53,9 +53,9 @@ test.object ("nit.utils.Templatable", { property: "sql", recreate: false })
             ;
 
             s.object = Select ()
-                .$table ("users")
-                .$join ("roles", "roles.id = users.role_id", "left")
-                .$page (3, 10)
+                .Table ("users")
+                .Join ("roles", "roles.id = users.role_id", "left")
+                .Page (3, 10)
             ;
         })
         .returns (nit.trim.text`

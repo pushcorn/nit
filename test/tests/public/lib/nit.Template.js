@@ -5,7 +5,7 @@ test ("nit.Template.parseBlocks ()", () =>
         {{:title}}
   {{.}}
         {{:}}
-no name
+no name{{a.b|nit.serialize}}
         {{/}}`;
 
     tmpl = new nit.Template (tmpl);

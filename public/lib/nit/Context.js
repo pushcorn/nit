@@ -1,7 +1,7 @@
 module.exports = function (nit, Self)
 {
     return (Self = nit.defineClass ("nit.Context"))
-        .k ("_", "root", "parent", "delegateProperties")
+        .m ("error.service_not_registered", "The service '%{type}' was not registered.")
         .staticMethod ("new", function ()
         {
             var cls = this;
@@ -24,36 +24,80 @@ module.exports = function (nit, Self)
 
             return nit.assign (nit.new (cls, pargs.concat (opts)), data);
         })
-        .method (Self.kDelegateProperties, function ()
+        .property ("serviceRegistry", "object",
+        {
+            setter: function (v)
+            {
+                if (this.parent)
+                {
+                    this.parent.serviceRegistry = v;
+                }
+                else
+                {
+                    return v;
+                }
+            }
+            ,
+            getter: function (v)
+            {
+                if (this.parent)
+                {
+                   return this.parent.serviceRegistry;
+                }
+                else
+                {
+                    return v;
+                }
+            }
+        })
+        .method ("registerService", function (service)
+        {
+            this.serviceRegistry[service.constructor.name] = service;
+
+            return this;
+        })
+        .method ("lookupService", function (serviceType, optional)
+        {
+            serviceType = nit.lookupClass (serviceType, !optional);
+
+            var service = nit.find (this.serviceRegistry, function (s) { return s instanceof serviceType; });
+
+            if (!service && !optional)
+            {
+                this.throw ("error.service_not_registered", { type: serviceType.name });
+            }
+
+            return service;
+        })
+        .method ("delegateParentProperties", function ()
         {
             var self = this;
             var myProps = nit.propertyDescriptors (self, true);
-            var parent = self[Self.kParent];
 
-            nit.each (nit.propertyDescriptors (parent, true), function (p, name)
+            nit.each (nit.propertyDescriptors (self.parent, true), function (p, name)
             {
                 if (!~name.indexOf (nit.PPP) && !myProps[name])
                 {
-                    nit.Object.defineDelegate (self, name, Self.kParent + "." + nit.get.escape (name), p.configurable, false);
+                    nit.Object.defineDelegate (self, name, "parent." + nit.get.escape (name), p.configurable, false);
                 }
             });
 
             return self;
         })
-        .property (Self.kParent, Self.name,
+        .field ("parent", Self.name, "The parent context.",
         {
             onLink: function ()
             {
-                this[Self.kDelegateProperties] ();
+                this.delegateParentProperties ();
             }
         })
-        .getter (Self.kRoot, false, false, function ()
+        .getter ("root", false, false, function ()
         {
             var p = this;
 
-            while (p[Self.kParent])
+            while (p.parent)
             {
-                p = p[Self.kParent];
+                p = p.parent;
             }
 
             return p;

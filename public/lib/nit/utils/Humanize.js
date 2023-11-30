@@ -1,7 +1,7 @@
 module.exports = function (nit, Self)
 {
     return (Self = nit.defineClass ("nit.utils.Humanize"))
-        .m ("error.negative_duration", "The duration value (%{duration}) cannot be negative.")
+        .m ("error.invalid_duration_unit", "The duration unit '%{unit}' is invalid. (Input: %{input})")
         .constant ("DURATIONS",
         {
             year: 365 * 24 * 60 * 60 * 1000,
@@ -13,27 +13,71 @@ module.exports = function (nit, Self)
             second: 1000,
             millisecond: 1
         })
+        .constant ("DURAION_ALIASES",
+        {
+            year: "y",
+            month: ["m", "mon"],
+            week: "w",
+            day: "d",
+            hour: "h",
+            minute: ["min"],
+            second: ["s", "sec"],
+            millisecond: ["ms", "msec"]
+        })
         .constant ("SI_BYTE_UNITS", "B KB MB GB TB PB EB ZB YB".split (" "))
         .constant ("IEC_BYTE_UNITS", "B KiB MiB GiB TiB PiB EiB ZiB YiB".split (" "))
+        .staticMemo ("durationAliasMap", function ()
+        {
+            var map = {};
 
+            nit.each (Self.DURATIONS, function (v, k)
+            {
+                map[k] = v;
+                map[nit.pluralize (k)] = v;
+
+                nit.each (Self.DURAION_ALIASES, function (aliases, k)
+                {
+                    nit.each (aliases, function (a)
+                    {
+                        map[a] = map[k];
+                    });
+                });
+            });
+
+            return map;
+        })
+
+        .staticMethod ("parseDuration", function (str)
+        {
+            var ap = Self.durationAliasMap;
+            var duration = 0;
+
+            nit.trim (str).replace (/(\d+)\s*([a-z]+)/ig, function (match, v, unit)
+            {
+                if (!(unit in ap))
+                {
+                    Self.throw ("error.invalid_duration_unit", { unit: unit, input: str });
+                }
+
+                duration += v * ap[unit];
+            });
+
+            return duration;
+        })
         .staticMethod ("duration", function (ms, returnObject, roundTo)
         {
             var opts = nit.typedArgsToObj (arguments,
             {
                 ms: "integer",
                 returnObject: "boolean",
-                roundTo: ["string", "integer"]
+                roundTo: "string|integer"
             });
 
-            if (ms < 0)
-            {
-                this.throw ("error.negative_duration", { duration: ms });
-            }
-
+            var negative = ms < 0;
             var DURATIONS = Self.DURATIONS;
             var results = {};
 
-            ms = opts.ms;
+            ms = Math.abs (ms);
             roundTo = opts.roundTo;
 
             if (ms == 0)
@@ -99,7 +143,7 @@ module.exports = function (nit, Self)
 
             if (opts.returnObject)
             {
-                return results;
+                return nit.assign ({ negative: negative }, results);
             }
             else
             {
@@ -109,9 +153,9 @@ module.exports = function (nit, Self)
 
                 });
 
-                return results.length > 1
+                return (negative ? "-" : "") + (results.length > 1
                     ? results.slice (0, -1).join (", ") + " and " + results.pop ()
-                    : results.join (", ")
+                    : results.join (", "))
                 ;
             }
         })

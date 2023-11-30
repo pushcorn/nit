@@ -44,7 +44,7 @@ test.method ("nit.utils.Humanize", "duration", true)
         .commit ()
 
     .given (3 * Humanize.DURATIONS.day + 5 * Humanize.DURATIONS.hour + 24 * Humanize.DURATIONS.minute, true)
-        .returns ({ day: 3, hour: 5, minute: 24 })
+        .returns ({ day: 3, hour: 5, minute: 24, negative: false })
         .commit ()
 
     .given (0)
@@ -56,7 +56,7 @@ test.method ("nit.utils.Humanize", "duration", true)
         .commit ()
 
     .given (-300)
-        .throws ("error.negative_duration")
+        .returns ("-300 milliseconds")
         .commit ()
 ;
 
@@ -97,5 +97,29 @@ test.method ("nit.utils.Humanize", "bytes", true)
 
     .given (1350, 2)
         .returns ("1.35 KB")
+        .commit ()
+;
+
+
+test.method ("nit.utils.Humanize", "parseDuration", true)
+    .should ("parse %{args.0|format} to %{result} milliseconds")
+        .given ("2y")
+        .given ("2 y")
+        .given ("2 year")
+        .given ("2 years")
+        .returns (2 * 365 * 24 * 60 * 60 * 1000)
+        .commit ()
+
+    .reset ()
+        .given ("1d 3h 5min")
+        .given ("1d3h5min")
+        .returns (24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000 + 5 * 60 * 1000)
+        .commit ()
+
+    .should ("throw if the alias is invalid")
+        .given ("1d3h5mins")
+        .given ("2ys")
+        .given ("2 ys")
+        .throws ("error.invalid_duration_unit")
         .commit ()
 ;

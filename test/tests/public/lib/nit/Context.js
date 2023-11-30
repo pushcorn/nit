@@ -21,7 +21,67 @@ test.method ("nit.Context", "new", true)
 ;
 
 
-test.custom ("Method: nit.Context.nit_Context_delegateProperties ()")
+test.object ("nit.Context", true, "serviceRegistry")
+    .should ("return the parent's instance if available")
+        .up (s => s.parent = new s.class)
+        .after (s => s.instance.parent = s.parent)
+        .expecting ("the parent registery is the same as the child registery", s => s.instance.serviceRegistry == s.parent.serviceRegistry)
+        .expecting ("setting parent's registery is the same as setting child's registery", s =>
+        {
+            s.parent.serviceRegistry = { t: "p" };
+
+            return s.instance.serviceRegistry == s.parent.serviceRegistry;
+        })
+        .expecting ("setting child's registery is the same as setting parent's registery", s =>
+        {
+            s.instance.serviceRegistry = { t: "c" };
+
+            return s.instance.serviceRegistry == s.parent.serviceRegistry;
+        })
+        .commit ()
+;
+
+
+test.method ("nit.Context", "registerService")
+    .should ("register a service for the given scope type")
+        .up (s => s.Db = nit.defineClass ("test.Db"))
+        .up (s => s.parent = new s.class)
+        .before (s => s.object.parent = s.parent)
+        .before (s => s.args = new s.Db)
+        .returnsInstanceOf ("nit.Context")
+        .expecting ("the service is registered", s => s.object.lookupService ("test.Db") == s.args[0])
+        .commit ()
+;
+
+
+test.method ("nit.Context", "lookupService")
+    .should ("return the service for the given scope type")
+        .up (s => s.Db = nit.defineClass ("test.Db"))
+        .up (s => s.parent = new s.class)
+        .up (s => s.parent.registerService (new s.Db))
+        .before (s => s.object.parent = s.parent)
+        .given ("test.Db")
+        .returnsInstanceOf ("test.Db")
+        .commit ()
+
+    .should ("return undefiend if the service is not registered and optional is true")
+        .given ("test.Db", true)
+        .returns ()
+        .commit ()
+
+    .should ("throw if the service is not registered and optional is false")
+        .given ("test.Db")
+        .throws ("error.service_not_registered")
+        .commit ()
+
+    .should ("throw if the service type is invalid")
+        .given ("test.Db2")
+        .throws ("error.class_not_defined")
+        .commit ()
+;
+
+
+test.custom ("Method: nit.Context.delegateParentProperties ()")
     .should ("delegate the parent's custom properties")
         .task (s =>
         {
@@ -35,11 +95,11 @@ test.custom ("Method: nit.Context.nit_Context_delegateProperties ()")
                 {
                     this.data = data;
                 })
-                .new ({ nit_Context_parent: s.grandparent, a: 1, b: [], c: [1, 2] })
+                .new ({ parent: s.grandparent, a: 1, b: [], c: [1, 2] })
             ;
 
             s.child = nit.Context.defineSubclass ("test.ChildContext")
-                .new ({ nit_Context_parent: s.parent })
+                .new ({ parent: s.parent })
             ;
 
             s.child.a = 9;
@@ -56,6 +116,6 @@ test.custom ("Method: nit.Context.nit_Context_delegateProperties ()")
         .expectingPropertyToBe ("parent.data", undefined)
         .expectingPropertyToBe ("grandparent.x", "xx")
         .expectingPropertyToBe ("grandparent.y", ["yy"])
-        .expecting ("root is the grand parent", s => s.grandparent == s.child.nit_Context_root)
+        .expecting ("root is the grand parent", s => s.grandparent == s.child.root)
         .commit ()
 ;

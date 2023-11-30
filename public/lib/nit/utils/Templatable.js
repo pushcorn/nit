@@ -75,7 +75,7 @@ module.exports = function (nit, Self)
             var field = cls.getLastField ();
             var method = field.array ? nit.singularize (field.name) : field.name;
 
-            return cls.method ("$" + method, function (value)
+            return cls.method (nit.ucFirst (method), function (value)
             {
                 var self = this;
                 var fieldClass = field.class;

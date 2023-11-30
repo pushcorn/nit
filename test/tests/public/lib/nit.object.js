@@ -1597,3 +1597,81 @@ test ("nit.Object.postNsInvoke ()", () =>
 
     expect (called).toEqual ([A, B]);
 });
+
+
+test ("nit.Object.staticClassChainMethod ()", () =>
+{
+    let called = [];
+
+    nit.defineClass ("A")
+        .staticClassChainMethod ("doWork")
+        .staticClassChainMethod ("doWorkReverse", true)
+        .onDoWork (function ()
+        {
+            called.push ("A");
+            return nit.assign (nit.Queue (), { a: true });
+        })
+        .onDoWorkReverse (function ()
+        {
+            called.push ("A");
+        })
+    ;
+
+
+    const B = nit.defineClass ("B", "A")
+        .onDoWork (function ()
+        {
+            called.push ("B");
+        })
+        .onDoWorkReverse (function ()
+        {
+            called.push ("B");
+        })
+    ;
+
+    B.doWork ();
+    expect (called).toEqual (["B", "A"]);
+
+    B.doWorkReverse ();
+    expect (called).toEqual (["B", "A", "A", "B"]);
+});
+
+
+test ("nit.Object.classChainMethod ()", () =>
+{
+    let called = [];
+
+    nit.defineClass ("A")
+        .classChainMethod ("doWork")
+        .classChainMethod ("doWorkReverse", true)
+        .onDoWork (function ()
+        {
+            called.push ("A");
+            return nit.assign (nit.Queue (), { a: true });
+        })
+        .onDoWorkReverse (function ()
+        {
+            called.push ("A");
+        })
+    ;
+
+
+    const B = nit.defineClass ("B", "A")
+        .onDoWork (function ()
+        {
+            called.push ("B");
+        })
+        .onDoWorkReverse (function ()
+        {
+            called.push ("B");
+        })
+    ;
+
+    let b = new B;
+
+    b.doWork ();
+    expect (called).toEqual (["B", "A"]);
+
+    b.doWorkReverse ();
+    expect (called).toEqual (["B", "A", "A", "B"]);
+});

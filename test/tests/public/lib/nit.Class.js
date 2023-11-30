@@ -129,7 +129,7 @@ test ("nit.Class.registerPlugin", () =>
 });
 
 
-test ("nit.Class.registerPlugin - instance level", () =>
+test ("nit.Class.registerPlugin - instance plugin allowed", () =>
 {
     let usedBy;
     let checked = [];
@@ -146,7 +146,7 @@ test ("nit.Class.registerPlugin - instance level", () =>
     const RequestPath = Condition.defineSubclass ("test.RequestPath").field ("<val>");
     const RequestMethod = Condition.defineSubclass ("test.RequestMethod").field ("<val>");
     const A = nit.defineClass ("A")
-        .registerPlugin (Condition, true, { instance: true })
+        .registerPlugin (Condition, true, { instancePluginAllowed: true })
     ;
 
     let a = new A;
@@ -155,26 +155,22 @@ test ("nit.Class.registerPlugin - instance level", () =>
         .condition (new RequestMethod ("m1"))
         .condition (new RequestPath ("p2"))
         .condition (new RequestMethod ("m2"))
+        .condition.call (a, new RequestMethod ("m3"))
     ;
 
     expect (usedBy).toBe (A);
-    expect (A.prototype.conditions.length).toBe (2);
-    expect (A.getPlugins.call (a, "conditions").length).toBe (2);
+    expect (A.getPlugins ("conditions").length).toBe (2);
+    expect (a.conditions.length).toBe (1);
     expect (A.getPlugins.call (a, "conditions", true).length).toBe (2);
-    expect (A.getPlugins.call (a, "conditions", true)[0].val).toBe ("p2");
-    expect (A.getPlugins.call (a, "conditions", true)[1].val).toBe ("m2");
-
-    a.conditions.push (new RequestPath ("p3"));
-    a.conditions.push (new RequestMethod ("m3"));
-    expect (A.getPlugins.call (a, "conditions", true)[0].val).toBe ("p3");
-    expect (A.getPlugins.call (a, "conditions", true)[1].val).toBe ("m3");
+    expect (A.getPlugins.call (a, "conditions", true)[0].val).toBe ("m3");
+    expect (A.getPlugins.call (a, "conditions", true)[1].val).toBe ("p2");
 
     expect (A.lookupPlugin.call (a, RequestPath)).toBeUndefined ();
     expect (A.lookupPlugin.call (a, "test.UnknownPlugin")).toBeUndefined ();
-    expect (A.lookupPlugin.call (a, RequestPath, "conditions").val).toBe ("p3");
+    expect (A.lookupPlugin.call (a, RequestPath, "conditions").val).toBe ("p2");
 
     A.applyPlugins.call (a, "conditions", "check");
-    expect (checked).toEqual (["test.RequestPath", "p3", "test.RequestMethod", "m3"]);
+    expect (checked).toEqual (["test.RequestMethod", "m3", "test.RequestPath", "p2"]);
 });
 
 

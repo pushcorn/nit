@@ -48,3 +48,38 @@ test ("nit.invoke ()", async () =>
     expect (nit.invoke ([obj, "getVal2"])).toBeUndefined ();
     expect (nit.invoke (null, null, 100)).toBe (100);
 });
+
+
+test ("nit.invoke.safe ()", async () =>
+{
+    function onError (e)
+    {
+        onError.e = e;
+    }
+
+    expect (nit.invoke.safe (function () { throw new Error ("err"); }, null, onError)).toBeUndefined ();
+    expect (onError.e).toBeInstanceOf (Error);
+    expect (nit.invoke.safe (function () { return 1; })).toBe (1);
+    onError.e = null;
+    expect (await nit.invoke.safe (function () { return Promise.reject (new Error ("err")); }, null, onError)).toBeUndefined ();
+    expect (onError.e).toBeInstanceOf (Error);
+    expect (await nit.invoke.safe (function () { return Promise.resolve ("res"); })).toBe ("res");
+    expect (await nit.invoke.safe (async function () { await nit.sleep (10); return 5; })).toBe (5);
+});
+
+
+test ("nit.invoke.silent ()", async () =>
+{
+    expect (nit.invoke.silent (function () { throw new Error ("err"); })).toBeUndefined ();
+    expect (nit.invoke.silent (function () { return 1; })).toBeUndefined ();
+    expect (await nit.invoke.silent (function () { return Promise.reject (new Error ("err")); })).toBeUndefined ();
+    expect (await nit.invoke.silent (function () { return Promise.resolve ("res"); })).toBeUndefined ();
+    expect (await nit.invoke.silent (async function () { await nit.sleep (10); return 5; })).toBeUndefined ();
+});
+
+
+test ("nit.invoke.return ()", async () =>
+{
+    expect (() => nit.invoke.return (function () { throw new Error ("err"); }, 5)).toThrow ("err");
+    expect (nit.invoke.return (function () { return 1; }, null, 10)).toBe (10);
+});
