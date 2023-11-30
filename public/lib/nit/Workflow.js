@@ -3,6 +3,7 @@ module.exports = function (nit, Self, global)
     return (Self = nit.defineClass ("nit.Workflow"))
         .k ("context")
         .m ("error.subroutine_not_defined", "The subroutine '%{name}' was not defined.")
+        .m ("error.workflow_not_found", "The workflow '%{name}' was not found.")
         .use ("nit.WorkflowField")
         .plugin ("event-emitter", "complete")
         .categorize ("workflows")
@@ -30,6 +31,25 @@ module.exports = function (nit, Self, global)
         .defineMeta ("exprOpenTag", "string", "${")
         .defineMeta ("exprCloseTag", "string", "}")
 
+        .staticLifecycleMethod ("defineWorkflowClass", function (name, descriptor)
+        {
+            var cls = this;
+            var workflowClass = nit.invoke ([cls, cls.kDefineWorkflowClass], [name, descriptor]);
+
+            if (!workflowClass)
+            {
+                cls.throw ("error.workflow_not_found", { name: name });
+            }
+
+            return workflowClass;
+        })
+        .staticMethod ("lookup", function (workflow)
+        {
+            var cls = this;
+            var descriptor = nit.find (nit.listComponents ("workflows"), function (d) { return d.name == workflow || d.className == workflow; });
+
+            return descriptor && descriptor.class || cls.defineWorkflowClass (workflow, descriptor);
+        })
         .staticMethod ("config", function (config)
         {
             var cls = this;
@@ -263,10 +283,6 @@ module.exports = function (nit, Self, global)
                 .field ("error", "any", "The workflow error.")
                 .field ("canceled", "boolean", "Whether the workflow should be canceled.")
                 .property ("cancelReason", "any")
-                .getter ("root", false, false, function ()
-                {
-                    return this[Context.kRoot];
-                })
                 .memo ("$", false, false, function ()
                 {
                     return nit.get (global, this.constructor.globalSource);
@@ -320,19 +336,15 @@ module.exports = function (nit, Self, global)
                         parent.once ("cancel", self[Subcontext.kParentCancelListener]);
 
                         self.input = nit.coalesce (self.input, parent.output);
-                        self[Subcontext.kParent] = parent;
+                        self.delegateParentProperties ();
                     }
                     ,
                     onUnlink: function (parent)
                     {
-                        var self = this;
-
-                        parent.off ("cancel", self[Subcontext.kParentCancelListener]);
-
-                        self[Subcontext.kParent] = undefined;
+                        parent.off ("cancel", this[Subcontext.kParentCancelListener]);
                     }
                 })
-                .field ("owner", "nit.WorkflowStep|nit.Workflow.Subroutine", "The subcontext owner.")
+                .field ("owner", "any", "The subcontext owner.")
                 .getter ("workflow", "parent.workflow", false)
                 .getter ("options", "parent.options", false)
                 .getter ("$", false, false, function () { return this.parent.$; })

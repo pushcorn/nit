@@ -2,7 +2,7 @@ test.command ("commands.Task")
     .should ("run the specified task")
         .project ("project-a")
         .given ("nit:say-hello", "there")
-        .returns ("Hello there!")
+        .expectingPropertyToBe ("result.output", "Hello there!")
         .commit ()
 ;
 
@@ -16,8 +16,8 @@ test.method ("commands.Task.TaskSubcommand", "buildSubcommand", true)
 ;
 
 
-test.method ("commands.Task.TaskSubcommand", "execute")
-    .should ("create and execute the task")
+test.method ("commands.Task.TaskSubcommand", "run")
+    .should ("create and run the task")
         .project ("project-a", true)
         .up (s => s.class = nit.require ("nit.tasksubcommands.SayHello"))
         .up (s => s.createArgs = { input: "John Doe" })

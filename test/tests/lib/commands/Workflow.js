@@ -12,7 +12,7 @@ test.command ("commands.Workflow")
 
     .should ("be able to run an arbitrary workflow file")
         .given (nit.path.join (test.TEST_PROJECT_PATH, "resources/home/workflows/random.json"))
-        .returns (/^\d\.\d+$/)
+        .expectingPropertyToBe ("result.output", /^\d\.\d+$/)
         .commit ()
 ;
 

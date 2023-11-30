@@ -1,13 +1,5 @@
-beforeAll (async () =>
-{
-    nit.resetRequireCache ();
-
-    delete nit.CLASSES["plugins.Logger"];
-    delete nit.CLASSES["plugins.Logger.Logger"];
-    delete nit.CLASSES["plugins.Logger.Logger.Transforms"];
-
-    nit.requireAsset ("public/lib/plugins/Logger");
-});
+nit.resetRequireCache (/^plugins\.Logger/);
+nit.requireAsset ("public/lib/plugins/Logger");
 
 
 test.method ("plugins.Logger.Logger", "formatStack")

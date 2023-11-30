@@ -1,10 +1,7 @@
 /* eslint-disable  no-template-curly-in-string */
 
-
-nit.test.Strategy
-    .memo ("Workflow", () => nit.require ("nit.Workflow"))
-    .memo ("WorkflowStep", () => nit.require ("nit.WorkflowStep"))
-;
+nit.resetRequireCache (/^nit\.Workflow/);
+nit.requireAsset ("public/lib/nit/Workflow");
 
 
 test.method ("nit.Workflow", "isExpr", true)
@@ -41,14 +38,12 @@ test.method ("nit.Workflow", "config", true)
 
 test.method ("nit.Workflow", "isControl", true)
     .should ("return true if the argument is an instance of flow control object")
-        .given (nit.Workflow.CONTROLS.Break)
-        .given (new nit.Workflow.Break)
+        .up (s => s.args = nit.Workflow.CONTROLS.Break)
         .returns (true)
         .commit ()
 
     .should ("return false if the argument is NOT an instance of flow control object")
-        .given (nit.Workflow.Break)
-        .given ({})
+        .up (s => s.args = nit.Workflow.Break)
         .returns (false)
         .commit ()
 ;
@@ -160,7 +155,7 @@ test.method ("nit.Workflow.Context", "uncancel")
 
 test.method ("nit.Workflow.Subcontext", "new", true)
     .should ("create an instance of subcontext")
-        .given (new nit.Workflow.Context, { input: 3, custom: { a: 1 } })
+        .up (s => s.args = [new nit.Workflow.Context, { input: 3, custom: { a: 1 } }])
         .returnsInstanceOf ("nit.Workflow.Subcontext")
         .after (s => s.parent = s.result.parent)
         .after (s => s.result.parent = null)
@@ -181,7 +176,7 @@ test.method ("nit.Workflow.Subcontext", "new", true)
 
 test.method ("nit.Workflow.Subcontext", "defineRuntimeClass", true)
     .should ("define a runtime subcontext class")
-        .up (s => s.parent = s.Workflow.Context.new ({ data: { a: 1 } }))
+        .up (s => s.parent = nit.Workflow.Context.new ({ data: { a: 1 } }))
         .returnsInstanceOf (Function)
         .expectingPropertyToBe ("result.name", "nit.Workflow.Subcontext")
         .expecting ("Context.$ to return the global object", s => (s.subcontext = s.result (s.parent)).$ == global)
@@ -193,7 +188,7 @@ test.method ("nit.Workflow.Subcontext", "defineRuntimeClass", true)
 
 test.method ("nit.Workflow.Subcontext", "cancel")
     .should ("cancel current subcontext")
-        .up (s => s.parent = new s.Workflow.Context)
+        .up (s => s.parent = new nit.Workflow.Context)
         .up (s => s.parent.on ("cancel", () => s.parentCanceled = true))
         .up (s => s.createArgs = s.parent)
         .before (s => s.object.on ("cancel", function () { s.cancelCalled = true; }))
@@ -241,7 +236,7 @@ test.object ("nit.Workflow.Subroutine", true, "contextClass")
 
 test.method ("nit.Workflow.Subroutine", "run")
     .should ("run new parent context by default")
-        .up (s => s.AddOne = s.WorkflowStep.defineSubclass ("AddOne")
+        .up (s => s.AddOne = nit.WorkflowStep.defineSubclass ("AddOne")
             .onRun (ctx =>
             {
                 ctx.scope.id += 20;
@@ -249,7 +244,7 @@ test.method ("nit.Workflow.Subroutine", "run")
                 return ctx.value += 1;
             })
         )
-        .up (s => s.MultiplyByTwo = s.WorkflowStep.defineSubclass ("MultiplyByTwo")
+        .up (s => s.MultiplyByTwo = nit.WorkflowStep.defineSubclass ("MultiplyByTwo")
             .onRun (ctx => ctx.value *= 2)
         )
         .up (s => s.createArgs = ["my-sub", "AddOne", "MultiplyByTwo", { vars: { va: 10 } }])
@@ -262,7 +257,7 @@ test.method ("nit.Workflow.Subroutine", "run")
         .commit ()
 
     .should ("use provided subcontext")
-        .up (s => s.AddOne = s.WorkflowStep.defineSubclass ("AddOne")
+        .up (s => s.AddOne = nit.WorkflowStep.defineSubclass ("AddOne")
             .onRun (ctx =>
             {
                 ctx.scope.id += 20;
@@ -270,11 +265,11 @@ test.method ("nit.Workflow.Subroutine", "run")
                 return ctx.value += 1;
             })
         )
-        .up (s => s.MultiplyByTwo = s.WorkflowStep.defineSubclass ("MultiplyByTwo")
+        .up (s => s.MultiplyByTwo = nit.WorkflowStep.defineSubclass ("MultiplyByTwo")
             .onRun (ctx => ctx.value *= 2)
         )
         .up (s => s.createArgs = ["my-sub", "AddOne", "MultiplyByTwo"])
-        .up (s => s.workflow = new s.Workflow ("run subs", { globalSource: "nit" }))
+        .up (s => s.workflow = new nit.Workflow ("run subs", { globalSource: "nit" }))
         .up (s => s.parent = s.workflow.contextClass.new ({ workflow: s.workflow }))
         .up (s => s.args = nit.Workflow.Subcontext.new ({ parent: s.parent, value: 5, scope: { id: 99 } }))
         .returnsInstanceOf ("nit.Workflow.Subcontext")
@@ -363,10 +358,10 @@ test.object ("nit.Workflow", true, "subroutineMap")
 
 test.method ("nit.Workflow", "run")
     .should ("run with steps")
-        .up (s => s.AddOne = s.WorkflowStep.defineSubclass ("AddOne")
+        .up (s => s.AddOne = nit.WorkflowStep.defineSubclass ("AddOne")
             .onRun (ctx => ctx.value += 1)
         )
-        .up (s => s.MultiplyByTwo = s.WorkflowStep.defineSubclass ("MultiplyByTwo")
+        .up (s => s.MultiplyByTwo = nit.WorkflowStep.defineSubclass ("MultiplyByTwo")
             .onRun (ctx => ctx.value *= 2)
         )
         .up (s => s.createArgs = ["do math", "AddOne", "MultiplyByTwo", { vars: { vw: 100 } }])
@@ -377,16 +372,16 @@ test.method ("nit.Workflow", "run")
         .commit ()
 
     .should ("run the error handler if specified")
-        .up (s => s.AddOne = s.WorkflowStep.defineSubclass ("AddOne")
+        .up (s => s.AddOne = nit.WorkflowStep.defineSubclass ("AddOne")
             .onRun (() =>
             {
                 throw new Error ("can't add");
             })
         )
-        .up (s => s.MultiplyByTwo = s.WorkflowStep.defineSubclass ("MultiplyByTwo")
+        .up (s => s.MultiplyByTwo = nit.WorkflowStep.defineSubclass ("MultiplyByTwo")
             .onRun (ctx => ctx.value *= 2)
         )
-        .up (s => s.HandleError = s.WorkflowStep.defineSubclass ("HandleError")
+        .up (s => s.HandleError = nit.WorkflowStep.defineSubclass ("HandleError")
             .onRun (ctx =>
             {
                 nit.error.updateMessage (ctx.parent.error, "but caught the error");
@@ -404,7 +399,7 @@ test.method ("nit.Workflow", "run")
         .up (s => s.createArgs = ["do math", "AddOne", "MultiplyByTwo"])
         .given ({ value: 5 })
         .throws ("can't add")
-        .expectingPropertyToBeOfType ("error.nit\\.Workflow\\.context", "nit.Workflow.Subcontext")
+        .expectingPropertyToBeOfType ("error.nit\\.Workflow\\.context", "AddOne.Context")
         .commit ()
 
     .should ("suppress the output if silent is true")
@@ -417,14 +412,14 @@ test.method ("nit.Workflow", "run")
         .up (s => s.createArgs = ["do math", "AddOne", "MultiplyByTwo"])
         .before (s => s.args = s.object.contextClass.new ({ value: 5 }))
         .throws ("can't add")
-        .expectingPropertyToBeOfType ("error.nit\\.Workflow\\.context", "nit.Workflow.Subcontext")
+        .expectingPropertyToBeOfType ("error.nit\\.Workflow\\.context", "AddOne.Context")
         .commit ()
 
     .should ("handle the break step")
-        .up (s => s.AddOne = s.WorkflowStep.defineSubclass ("AddOne")
+        .up (s => s.AddOne = nit.WorkflowStep.defineSubclass ("AddOne")
             .onRun (ctx => ctx.value += 1)
         )
-        .up (s => s.MultiplyByTwo = s.WorkflowStep.defineSubclass ("MultiplyByTwo")
+        .up (s => s.MultiplyByTwo = nit.WorkflowStep.defineSubclass ("MultiplyByTwo")
             .onRun (ctx => ctx.value *= 2)
         )
         .up (s => s.createArgs = ["do math", "AddOne", "break", "MultiplyByTwo"])
@@ -442,5 +437,34 @@ test.method ("nit.Workflow", "run")
         .up (s => s.createArgs = ["do math", { steps: ["AddOne", { type: "return", value: 100 }, "MultiplyByTwo"] }])
         .given ({ value: 5 })
         .expectingPropertyToBe ("result.output", 100)
+        .commit ()
+;
+
+
+test.method ("nit.Workflow", "defineWorkflowClass", true)
+    .should ("throw if the hook method does not return a class")
+        .up (s => s.class = s.class.defineSubclass ("MyWorkflow"))
+        .throws ("error.workflow_not_found")
+        .commit ()
+
+    .should ("not throw if the hook returns a class")
+        .up (s => s.class = s.class.defineSubclass ("MyWorkflow")
+            .onDefineWorkflowClass (() => nit.defineClass ("WorkflowOne"))
+        )
+        .expectingPropertyToBe ("result.name", "WorkflowOne")
+        .commit ()
+;
+
+
+test.method ("nit.Workflow", "lookup", true)
+    .should ("throw if the named workflow is not found")
+        .given ("echo-test")
+        .throws ("error.workflow_not_found")
+        .commit ()
+
+    .should ("try to lookup the named workflow")
+        .up (() => nit.defineWorkflow ("test.workflows.MyFlow"))
+        .given ("test:my-flow")
+        .returnsInstanceOf (Function)
         .commit ()
 ;
