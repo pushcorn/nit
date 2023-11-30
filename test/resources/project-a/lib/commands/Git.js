@@ -11,7 +11,7 @@ module.exports = function (nit, Self)
                         .describe (Git.description)
                         .defineInput (Input =>
                         {
-                            Input.import (Git.fields);
+                            Input.importProperties (Git.fields);
                         })
                     ;
                 })

@@ -1,7 +1,7 @@
 test.plugin ("plugins.EventEmitter", "on")
     .should ("register an event listener")
-        .up (s => s.pluginArgs = ["start", "stop"])
-        .up (s => s.args = ["start", v => s.startArg = v])
+        .init (s => s.pluginArgs = ["start", "stop"])
+        .init (s => s.args = ["start", v => s.startArg = v])
         .after (({ self: s, host }) =>
         {
             host.on ("stop", v => s.stopArg = v);
@@ -16,12 +16,32 @@ test.plugin ("plugins.EventEmitter", "on")
 ;
 
 
+test.plugin ("plugins.EventEmitter", "on", true, { hostClass: "test.MyHost" })
+    .should ("register a listener plugin")
+        .init (s => s.pluginArgs = ["start"])
+        .init (s => s.args = ["start", () => s.pluginCalled = true])
+        .after (s => s.host = new s.hostClass)
+        .after (s => s.host.emit ("start"))
+        .after (s => s.plugin.addEvent (s.hostClass, "stop"))
+        .after (s => s.hostClass.on ("stop", () => s.stopCalled = true))
+        .after (s => s.host.emit ("stop"))
+        .after (s => s.plugin.prePost = true)
+        .after (s => s.plugin.addEvent (s.hostClass, "run"))
+        .after (s => s.hostClass.on ("run", () => s.runCalled = true))
+        .after (s => s.host.emit ("run"))
+        .expectingPropertyToBe ("pluginCalled", true)
+        .expectingPropertyToBe ("stopCalled", true)
+        .expectingPropertyToBe ("runCalled", true)
+        .commit ()
+;
+
+
 test.plugin ("plugins.EventEmitter", "off")
     .should ("unregister an event listener")
-        .up (s => s.onStop1 = function () { s.stop1 = true; })
-        .up (s => s.onStop2 = function () { s.stop2 = true; })
-        .up (s => s.pluginArgs = ["start", "stop"])
-        .up (s => s.args = ["stop", s.onStop1])
+        .init (s => s.onStop1 = function () { s.stop1 = true; })
+        .init (s => s.onStop2 = function () { s.stop2 = true; })
+        .init (s => s.pluginArgs = ["start", "stop"])
+        .init (s => s.args = ["stop", s.onStop1])
         .before (({ host, onStop1, onStop2 }) =>
         {
             host.on ("stop", onStop1);
@@ -35,10 +55,10 @@ test.plugin ("plugins.EventEmitter", "off")
         .commit ()
 
     .should ("unregister a one-time listener")
-        .up (s => s.pluginArgs = ["start"])
-        .up (s => s.started = 0)
-        .up (s => s.onStart = nit.assign (function () { s.started++; }, { id: 1234 }))
-        .up (s => s.args = ["start", s.onStart])
+        .init (s => s.pluginArgs = ["start"])
+        .init (s => s.started = 0)
+        .init (s => s.onStart = nit.assign (function () { s.started++; }, { id: 1234 }))
+        .init (s => s.args = ["start", s.onStart])
         .before (s => s.host.once ("start", s.onStart))
         .after (s => s.host.emit ("start"))
         .expectingPropertyToBe ("started", 0)
@@ -49,8 +69,8 @@ test.plugin ("plugins.EventEmitter", "off")
 
 test.plugin ("plugins.EventEmitter", "emit")
     .should ("invoke the event listeners")
-        .up (s => s.pluginArgs = ["stop"])
-        .up (s => s.onStop1 = async function (v) { await nit.sleep (10); s.stop1 = v; })
+        .init (s => s.pluginArgs = ["stop"])
+        .init (s => s.onStop1 = async function (v) { await nit.sleep (10); s.stop1 = v; })
         .given ("test.PluginHost.stop", 99)
         .before (s => s.host.on ("stop", s.onStop1))
         .expectingPropertyToBe ("stop1", 99)
@@ -60,8 +80,8 @@ test.plugin ("plugins.EventEmitter", "emit")
 
 test.plugin ("plugins.EventEmitter", "once")
     .should ("register a one-time listener")
-        .up (s => s.pluginArgs = ["click", { prePost: true, listenerName: "TestListener" }])
-        .up (s => s.args = ["click", function () { s.clicked = ~~s.clicked + 1; }])
+        .init (s => s.pluginArgs = ["click", { prePost: true, listenerName: "TestListener" }])
+        .init (s => s.args = ["click", function () { s.clicked = ~~s.clicked + 1; }])
         .before (s => s.Listener = nit.defineClass ("test.MyListener", "test.PluginHost.TestListener")
             .onPreClick (async (v) => { await nit.sleep (10); s.preClickValue = v; })
             .onPostClick (v => s.postClickValue = v)

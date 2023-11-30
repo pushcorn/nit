@@ -6,7 +6,7 @@ module.exports = function (nit, Self)
     return (Self = nit.definePlugin ("Server"))
         .m ("error.invalid_start_state", "The server cannot be started while it's being stopped.")
         .m ("error.invalid_stop_state", "The server cannot be stopped while it's being started.")
-        .staticMethod ("onUsePlugin", function (hostClass)
+        .onUsedBy (function (hostClass)
         {
             hostClass
                 .plugin ("lifecycle-component", "start", "stop")

@@ -2,7 +2,7 @@ module.exports = function (nit, Self)
 {
     return (Self = nit.definePlugin ("EventEmitter"))
         .k ("realListener")
-        .field ("<events...>", "string", "The event names.")
+        .field ("[events...]", "string", "The event names.")
         .field ("prePost", "boolean", "Add pre- and post- events.")
         .field ("listenerName", "string", "The listener's class name.", "Listener")
         .onConstruct (function ()
@@ -19,31 +19,31 @@ module.exports = function (nit, Self)
                 });
             }
         })
-        .staticMethod ("onUsePlugin", function (hostClass, plugin)
+        .onUsedBy (function (hostClass)
         {
-            var category = nit.categoryName (plugin.listenerName);
+            var plugin = this;
+            var listenerName = plugin.listenerName;
+            var pluginMethod = listenerName.toLowerCase ();
+            var category = nit.categoryName (listenerName);
+            var Listener;
 
             hostClass
-                .do (function ()
+                .defineInnerPlugin (listenerName, function (cls)
                 {
-                    plugin.events.forEach (function (event)
-                    {
-                        hostClass.k (event);
-                    });
+                    var listenerCategory = hostClass.name.split (".").slice (0, -1).concat (category).join (".").toLowerCase ();
+
+                    (Listener = cls).categorize (listenerCategory);
                 })
-                .defineInnerPlugin (plugin.listenerName, function (Listener)
+                .staticMethod ("on", function (event, listener)
                 {
-                    Listener
-                        .categorize (hostClass.name.split (".").slice (0, -1).concat (category).join (".").toLowerCase ())
-                        .do (function ()
-                        {
-                            plugin.events.forEach (function (event)
-                            {
-                                Listener.lifecycleMethod (event);
-                            });
-                        })
-                    ;
+                    var cls = this;
+                    var listenerCls = Listener.defineSubclass (listenerName, true);
+
+                    listenerCls["on" + nit.ucFirst (event)] (listener);
+
+                    return cls[pluginMethod] (new listenerCls);
                 })
+                .lifecycleMethod ("listenerError")
                 .defineInnerClass ("Listeners", function (Listeners)
                 {
                     Listeners
@@ -65,15 +65,6 @@ module.exports = function (nit, Self)
 
                             return k;
                         })
-                        .do (function ()
-                        {
-                            plugin.events.forEach (function (event)
-                            {
-                                var k = Listeners.normalizeEvent (event);
-
-                                Listeners.field (k + "...", "function");
-                            });
-                        })
                         .method ("get", function (event)
                         {
                             event = Listeners.validateEvent (event);
@@ -81,6 +72,13 @@ module.exports = function (nit, Self)
                             return this[event];
                         })
                     ;
+                })
+                .do (function ()
+                {
+                    plugin.events.forEach (function (event)
+                    {
+                        plugin.configureEvent (hostClass, event);
+                    });
                 })
                 .memo ("listeners", true, false, function ()
                 {
@@ -91,21 +89,23 @@ module.exports = function (nit, Self)
                     var self = this;
                     var cls = self.constructor;
                     var args = nit.array (arguments).slice (1);
-                    var queue = nit.Queue ()
-                        .push (function ()
+                    var queue = nit.Queue ();
+                    var onError = self.listenerError.bind (self);
+
+                    cls.getPlugins (category).forEach (function (plugin)
+                    {
+                        queue.push (function ()
                         {
-                            return cls.applyPlugins.apply (cls, [category, event].concat (args));
-                        })
-                    ;
+                            return nit.invoke.safe ([plugin, event], args, onError);
+                        });
+                    });
 
                     self.listeners.get (event).forEach (function (l)
                     {
-                        queue
-                            .push (function ()
-                            {
-                                return l.apply (self, args);
-                            })
-                        ;
+                        queue.push (function ()
+                        {
+                            return nit.invoke.safe ([self, l], args, onError);
+                        });
                     });
 
                     return queue.run (function () { return self; });
@@ -153,6 +153,36 @@ module.exports = function (nit, Self)
                     return self;
                 })
             ;
+        })
+        .method ("addEvent", function (hostClass, event)
+        {
+            var plugin = this;
+            var events = [event];
+
+            if (plugin.prePost)
+            {
+                var pce = nit.pascalCase (event);
+
+                events.push ("pre" + pce, "post" + pce);
+            }
+
+            events.forEach (function (event)
+            {
+                plugin.events.push (event);
+                plugin.configureEvent (hostClass, event);
+            });
+        })
+        .method ("configureEvent", function (hostClass, event)
+        {
+            var plugin = this;
+
+            hostClass.k (event);
+            hostClass[plugin.listenerName].lifecycleMethod (event);
+
+            var Listeners = hostClass.Listeners;
+            var k = Listeners.normalizeEvent (event);
+
+            Listeners.field (k + "...", "function");
         })
     ;
 };
