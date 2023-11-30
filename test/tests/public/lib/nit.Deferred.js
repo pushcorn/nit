@@ -59,4 +59,9 @@ test ("nit.Deferred", async () =>
 
     expect (await d.promise).toBe ("OK");
     expect (d.resolved).toBe (true);
+
+    //-------------------
+    d = nit.Deferred ();
+
+    expect (() => d.reject (new Error ("ERR"))).rejects.toThrow ("ERR");
 });

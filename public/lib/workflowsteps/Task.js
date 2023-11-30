@@ -1,7 +1,7 @@
 module.exports = function (nit)
 {
     return nit.defineWorkflowStep ("Task")
-        .field ("<name>", "string", "The task to execute.")
+        .field ("<name>", "string", "The task to run.")
         .field ("input", "any", "The task input.", "${input}", { exprAllowed: true }) // eslint-disable-line no-template-curly-in-string
         .onRun (function (ctx)
         {
@@ -13,7 +13,7 @@ module.exports = function (nit)
             return nit.Queue ()
                 .push (function ()
                 {
-                    return task.execute (taskCtx);
+                    return task.run (taskCtx);
                 })
                 .push (function ()
                 {

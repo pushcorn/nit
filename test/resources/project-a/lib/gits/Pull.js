@@ -7,7 +7,7 @@ module.exports = function (nit)
         .field ("repository", "string")
         .onRun (function ()
         {
-            return "pull completed";
+            return ["pull completed", this.repository].filter (nit.is.not.empty).join (" from ");
         })
     ;
 };

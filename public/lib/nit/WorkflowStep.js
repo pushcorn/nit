@@ -46,6 +46,15 @@ module.exports = function (nit, Self)
 
             return value;
         })
+        .defineInnerClass ("Context", "nit.Workflow.Subcontext")
+        .staticMethod ("defineContext", function (builder)
+        {
+            return this.defineInnerClass ("Context", this.superclass.Context.name, builder);
+        })
+        .onDefineSubclass (function (Subclass)
+        {
+            Subclass.defineContext ();
+        })
         .onPreConstruct (function ()
         {
             var self = this;
@@ -99,11 +108,12 @@ module.exports = function (nit, Self)
         })
         .lifecycleMethod ("run", true, function (ctx) // The hook method should return the output value.
         {
-            ctx = Self.Workflow.Subcontext.new (ctx instanceof Self.Workflow.Context ? { parent: ctx, input: ctx.output } : ctx);
-            ctx.output = nit.coalesce (ctx.output, ctx.input);
-
             var self = this;
             var cls = self.constructor;
+
+            ctx = cls.Context.new (ctx instanceof Self.Workflow.Context ? { parent: ctx, input: ctx.output } : ctx);
+            ctx.output = nit.coalesce (ctx.output, ctx.input);
+
             var step = ctx.owner = self.evaluate (ctx);
 
             nit.assign (ctx, nit.clone (self.vars));
