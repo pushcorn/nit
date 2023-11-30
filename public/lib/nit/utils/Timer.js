@@ -5,11 +5,18 @@ module.exports = function (nit, Self)
 
     return (Self = nit.defineClass ("nit.utils.Timer"))
         .constant ("MAX_TIMEOUT", 2147483647)
+        .constant ("STATUS_MAP", true,
+        {
+            stop: "stopped",
+            abort: "aborted",
+            cancel: "canceled"
+        })
         .m ("error.timer_aborted", "The timer was aborted.")
         .field ("<delay>", "integer", "The milliseconds to wait before invoking the callback.")
         .field ("[callback]", "function", "The function to call when the timer fires.")
         .field ("[args...]", "any", "The callback arguments.")
-        .property ("running", "boolean", { writer: writer })
+        .field ("status", "string", "The timer status.", "stopped", { writer: writer })
+            .constraint ("choice", "running", "canceled", "aborted", "stopped")
         .property ("result", "Promise", { writer: writer })
 
         .defineInnerClass ("Runner", function (Runner)
@@ -114,19 +121,20 @@ module.exports = function (nit, Self)
         {
             var self = this;
 
-            if (self.running)
+            if (self.status == "running")
             {
                 return self.result;
             }
 
-            self.running = writer.value (true);
+            self.status = writer.value ("running");
 
             var runner = new Self.Runner (self).start ();
+            var stoppedBy;
 
             self.result = writer.value (runner.deferred.promise
                 .finally (function ()
                 {
-                    self.running = writer.value (false);
+                    self.status = writer.value (Self.STATUS_MAP[stoppedBy]);
                 })
             );
 
@@ -134,8 +142,12 @@ module.exports = function (nit, Self)
             {
                 function method ()
                 {
-                    self.running = writer.value (false);
+                    if (stoppedBy)
+                    {
+                        return;
+                    }
 
+                    stoppedBy = m;
                     runner[m] ();
 
                     return Self.prototype[m].call (self);

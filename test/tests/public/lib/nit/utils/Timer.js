@@ -27,8 +27,10 @@ test.method ("nit.utils.Timer", "start")
             cb ();
         })
         .returns (5678)
+        .after (async (s) => s.cancelResult = await s.object.cancel ())
         .expectingPropertyToBe ("mocks.1.invocations.length", 4)
-        .expectingPropertyToBe ("object.running", false)
+        .expectingPropertyToBe ("object.status", "stopped")
+        .expectingPropertyToBe ("cancelResult", 5678)
         .commit ()
 
     .should ("return the result promise if the timer is still running")
