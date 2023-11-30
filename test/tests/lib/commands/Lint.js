@@ -9,19 +9,19 @@ test ("commands.Lint", async () =>
     let file = nit.new ("nit.File", dir.join ("lib/myscript.js"));
     file.write ("var a = 3");
 
-    expect (await Lint ().run ("--cwd", dir.path)).toMatch (/Missing semicolon/);
+    expect ((await Lint ().run ("--cwd", dir.path)).output).toMatch (/Missing semicolon/);
 
     nit.config ("nit.lint.EsLint.options.cwd", dir.path);
-    expect (await Lint ().run ()).toMatch (/Missing semicolon/);
+    expect ((await Lint ().run ()).output).toMatch (/Missing semicolon/);
 
     let rc = nit.new ("nit.File", dir.join (".eslintrc.json"));
     rc.write (nit.toJson ({ env: { node: true }, rules: { semi: "warn" } }));
 
     nit.config ("nit.lint.EsLint.options", {});
     process.chdir (dir.path);
-    expect (await Lint ().run ()).toMatch (/Missing semicolon/);
+    expect ((await Lint ().run ()).output).toMatch (/Missing semicolon/);
 
-    expect (await Lint ().run ("--cwd", ".")).toMatch (/Missing semicolon/);
+    expect ((await Lint ().run ("--cwd", ".")).output).toMatch (/Missing semicolon/);
 });
 
 
@@ -59,7 +59,7 @@ test ("commands.Lint - all or packages", async () =>
 
     testDirs = [];
     result = "err";
-        results = await Lint ().run ({ cwd: projectDir, all: true, packages: "package-b" });
+        results = (await Lint ().run ({ cwd: projectDir, all: true, packages: "package-b" })).output;
         expect (testDirs).toEqual (
         [
             projectDir,
