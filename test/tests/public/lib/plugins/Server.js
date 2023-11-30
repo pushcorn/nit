@@ -1,0 +1,56 @@
+test.plugin ("plugins.Server", "start")
+    .should ("start the server")
+        .expectingPropertyToBe ("host.state", "started")
+        .commit ()
+
+    .should ("return the start result if already starting")
+        .before (s => { s.host.start (); })
+        .after (s => s.last = s.host.start ())
+        .expectingPropertyToBe ("host.state", "started")
+        .expectingPropertyToBeOfType ("last", "test.PluginHost")
+        .commit ()
+
+    .should ("throw if the server is stopping")
+        .before (s => s.hostClass.onStop (() => (new nit.Deferred).promise))
+        .before (s => s.host.start ())
+        .before (s => { s.host.stop (); })
+        .throws ("error.invalid_start_state")
+        .commit ()
+
+    .should ("change to stopped if the server failed to start")
+        .before (s => s.hostClass.onStart (() => (s.def = new nit.Deferred).promise))
+        .before (s => setTimeout (() => s.def.reject ("START_ERR"), 5))
+        .throws ("START_ERR")
+        .expectingPropertyToBe ("host.state", "stopped")
+        .commit ()
+;
+
+
+test.plugin ("plugins.Server", "stop")
+    .should ("just return the stop result if already stopped")
+        .returns ()
+        .expectingPropertyToBe ("host.state", "stopped")
+        .commit ()
+
+    .should ("throw if the server is starting")
+        .before (s => s.hostClass.onStart (() => (new nit.Deferred).promise))
+        .before (s => { s.host.start (); })
+        .throws ("error.invalid_stop_state")
+        .commit ()
+
+    .should ("change to started if the server failed to stop")
+        .before (s => s.hostClass.onStop (() => (s.def = new nit.Deferred).promise))
+        .before (s => s.host.start ())
+        .before (s => setTimeout (() => s.def.reject ("STOP_ERR"), 5))
+        .throws ("STOP_ERR")
+        .expectingPropertyToBe ("host.state", "started")
+        .commit ()
+
+    .should ("set state to stopped if no error occurred")
+        .before (s => s.hostClass.onStop (() => (s.def = new nit.Deferred).promise))
+        .before (s => s.host.start ())
+        .before (s => setTimeout (() => s.def.resolve (), 5))
+        .returnsInstanceOf ("test.PluginHost")
+        .expectingPropertyToBe ("host.state", "stopped")
+        .commit ()
+;

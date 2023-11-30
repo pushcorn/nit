@@ -38,13 +38,14 @@ module.exports = function (nit, Self)
         })
         .onInitInvocationQueue (function (queue, comp, method, args)
         {
-            queue.after ("invokeHook", "checkResult", function (c)
+            queue.after (method + ".invokeHook", method + ".checkResult", function (c)
             {
                 if (!~method.toLowerCase ().indexOf ("cancel"))
                 {
                     var ctx = args[0];
 
                     ctx.result = nit.coalesce (c.result, ctx.result);
+                    c.result = undefined;
                 }
             });
         })

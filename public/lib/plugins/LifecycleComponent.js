@@ -29,15 +29,15 @@ module.exports = function (nit)
                     var cls = comp.constructor;
                     var kHook = cls["k" + nit.ucFirst (method)];
                     var queue = nit.Queue ()
-                        .push ("invokeHook", function ()
+                        .push (method + ".invokeHook", function ()
                         {
                             return nit.invoke ([comp, cls[kHook]], args);
                         })
-                        .push ("applyPlugins", function ()
+                        .push (method + ".applyPlugins", function ()
                         {
                             return cls.applyPlugins.apply (plugin.instancePlugin ? comp : cls, [pluginCategory, method, comp].concat (args));
                         })
-                        .push ("emitEvent", function ()
+                        .push (method + ".emitEvent", function ()
                         {
                             return nit.invoke.silent ([comp, "emit"], [method, comp].concat (args));
                         })
@@ -48,16 +48,17 @@ module.exports = function (nit)
                         var ucMethod = nit.ucFirst (method);
                         var preMethod = "pre" + ucMethod;
                         var postMethod = "post" + ucMethod;
+                        var preQueue = cls.createInvocationQueue (comp, preMethod, args);
+                        var postQueue = cls.createInvocationQueue (comp, postMethod, args);
 
                         queue
-                            .lpush (preMethod, function ()
-                            {
-                                return comp[preMethod].apply (comp, args);
-                            })
-                            .push (postMethod, function ()
-                            {
-                                return comp[postMethod].apply (comp, args);
-                            })
+                            .lpush (preQueue.tasks)
+                            .lpush ("pre", function () {})
+                        ;
+
+                        queue
+                            .push (postQueue.tasks)
+                            .push ("post", function () {})
                         ;
                     }
 
