@@ -1,8 +1,8 @@
 test.command ("commands.Task")
     .should ("run the specified task")
-        .project ("project-a")
+        .project ("project-a", true)
         .given ("nit:say-hello", "there")
-        .expectingPropertyToBe ("result.output", "Hello there!")
+        .expectingPropertyToBe ("result", "Hello there!")
         .commit ()
 ;
 

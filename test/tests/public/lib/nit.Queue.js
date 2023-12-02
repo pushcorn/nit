@@ -14,14 +14,6 @@ test ("nit.Queue", async () =>
         {
             ctx.seq = 2;
         })
-        .post (function (ctx)
-        {
-            ctx.postCalled = true;
-        })
-        .lpost (function (ctx)
-        {
-            ctx.lpostCalledBeforePost = ctx.postCalled === undefined;
-        })
     ;
 
     queue.pop ();
@@ -45,8 +37,6 @@ test ("nit.Queue", async () =>
             expect (ctx.seq).toBe (1);
             expect (ctx.asyncCalled).toBe (true);
             expect (ctx.result).toBe ("done");
-            expect (ctx.postCalled).toBe (true);
-            expect (ctx.lpostCalledBeforePost).toBe (true);
         })
     ;
 
@@ -195,14 +185,6 @@ test ("nit.Queue.failure ()", async () =>
     try
     {
         result = await q
-            .pre (function ()
-            {
-                ctx.preCalled = true;
-            })
-            .lpre (function ()
-            {
-                ctx.lpreCalledBeforePre = ctx.preCalled === undefined;
-            })
             .push (function ()
             {
                 outputs.push (1);
@@ -220,10 +202,6 @@ test ("nit.Queue.failure ()", async () =>
             .push (function ()
             {
                 ctx.notCalled = true;
-            })
-            .post (function ()
-            {
-                ctx.postNotCalled = true;
             })
             .failure (async function ()
             {
@@ -244,13 +222,8 @@ test ("nit.Queue.failure ()", async () =>
 
     expect (outputs).toEqual ([1, 2, 3, "err handled"]);
     expect (result).toBeUndefined ();
-    expect (ctx.lpreCalledBeforePre).toBe (true);
-    expect (ctx.preCalled).toBe (true);
     expect (ctx.notCalled).toBeUndefined ();
-    expect (ctx.postNotCalled).toBeUndefined ();
     expect (q.tasks.length).toBe (1);
-    expect (q.preTasks.length).toBe (0);
-    expect (q.postTasks.length).toBe (1);
     expect (uncaughtError).toBeInstanceOf (Error);
     expect (uncaughtError.message).toBe ("failed again");
 });
@@ -605,4 +578,106 @@ test ("nit.Queue.stopOn ()", () =>
     ;
 
     expect (signal.count).toBe (5);
+});
+
+
+test ("nit.Queue.before ()", () =>
+{
+    let called = [];
+
+    nit.Queue ()
+        .push ("run", () => called.push ("run"))
+        .before ("run", "run", () => called.push ("b1"))
+        .before ("run", "run", () => called.push ("b2"))
+        .before ("run", "run", () => called.push ("b3"))
+        .run ()
+    ;
+
+    expect (called).toEqual (["b3", "b2", "b1", "run"]);
+
+    called = [];
+
+    nit.Queue ()
+        .push ("run", () => called.push ("run"))
+        .before ("run", () => called.push ("b1"))
+        .before ("run", () => called.push ("b2"))
+        .before ("run", () => called.push ("b3"))
+        .run ()
+    ;
+
+    expect (called).toEqual (["b1", "b2", "b3", "run"]);
+
+    called = [];
+
+    nit.Queue ()
+        .push ("run", () => called.push ("run"))
+        .before ("run1", () => called.push ("b1"))
+        .run ()
+    ;
+
+    expect (called).toEqual (["b1", "run"]);
+});
+
+
+test ("nit.Queue.after ()", () =>
+{
+    let called = [];
+
+    nit.Queue ()
+        .push ("run", () => called.push ("run"))
+        .after ("run", "run", () => called.push ("b1"))
+        .after ("run", "run", () => called.push ("b2"))
+        .after ("run", "run", () => called.push ("b3"))
+        .run ()
+    ;
+
+    expect (called).toEqual (["run", "b1", "b2", "b3"]);
+
+    called = [];
+
+    nit.Queue ()
+        .push ("run", () => called.push ("run"))
+        .after ("run", () => called.push ("b1"))
+        .after ("run", () => called.push ("b2"))
+        .after ("run", () => called.push ("b3"))
+        .run ()
+    ;
+
+    expect (called).toEqual (["run", "b3", "b2", "b1"]);
+
+    called = [];
+
+    nit.Queue ()
+        .push ("run", () => called.push ("run"))
+        .after ("run1", () => called.push ("b1"))
+        .run ()
+    ;
+
+    expect (called).toEqual (["run", "b1"]);
+});
+
+
+test ("nit.Queue.replace ()", () =>
+{
+    let called = [];
+
+    nit.Queue ()
+        .push ("run", () => called.push ("run"))
+        .replace ("run", () => called.push ("b1"))
+        .after ("run", "run", () => called.push ("b2"))
+        .after ("run", "run", () => called.push ("b3"))
+        .run ()
+    ;
+
+    expect (called).toEqual (["b1", "b2", "b3"]);
+
+    called = [];
+
+    nit.Queue ()
+        .push ("run", () => called.push ("run"))
+        .replace ("run1", () => called.push ("b1"))
+        .run ()
+    ;
+
+    expect (called).toEqual (["run", "b1"]);
 });

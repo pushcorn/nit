@@ -363,6 +363,7 @@ test ("nit.Compgen.parseWords ()", async () =>
                 "invalid-cmd",
                 "no-args",
                 "positional-args",
+                "return-obj",
                 "single-arg",
                 "test-cmd",
                 "console",
@@ -405,7 +406,7 @@ test ("nit.Compgen.listCompletions ()", async () =>
     [
         {
             "args": ["nit task "],
-            "comps": ["SUBCOMMAND", "command", "workflow", "nit:do-something", "nit:say-hello"]
+            "comps": ["SUBCOMMAND", "nit:do-something", "nit:say-hello"]
         },
         {
             "args": ["nit task nit:do-something "],

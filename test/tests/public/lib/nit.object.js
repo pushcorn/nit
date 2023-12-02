@@ -816,6 +816,43 @@ test ("nit.Object.lifecycleMethod ()", () =>
 });
 
 
+test ("nit.Object.importProperties ()", () =>
+{
+    const A = nit.defineClass ("A")
+        .field ("fa", "string")
+        .field ("fb", "integer")
+    ;
+
+    const B = nit.defineClass ("B");
+
+    B.importProperties (A.fields);
+
+    expect (B.fields[0].name).toBe ("fa");
+    expect (B.fields[1].name).toBe ("fb");
+
+    B.importProperties ([{ spec: "fc", type: "object" }]);
+    expect (B.fields[2].name).toBe ("fc");
+
+    const C = nit.defineClass ("C")
+        .field ("fd", "string*")
+        .field ("fe", "integer?")
+    ;
+
+    B.importProperties (C.fields);
+    expect (B.fields[3].emptyAllowed).toBe (true);
+    expect (B.fields[4].nullable).toBe (true);
+
+    const D = nit.defineClass ("D")
+        .field ("ff", "string*")
+            .constraint ("choice", "a", "b")
+        .field ("fg", "integer?")
+    ;
+
+    B.importProperties (D.fields, "constraints");
+    expect (B.fields[5].constraints).toEqual ([]);
+});
+
+
 test ("nit.Object.toPojo ()", () =>
 {
     expect (nit.Object.toPojo (null)).toBeUndefined ();
@@ -1674,4 +1711,64 @@ test ("nit.Object.classChainMethod ()", () =>
 
     b.doWorkReverse ();
     expect (called).toEqual (["B", "A", "A", "B"]);
+});
+
+
+test ("nit.Object.staticTypedMethod ()", () =>
+{
+    const A = nit.defineClass ("A")
+        .staticTypedMethod ("addOne",
+            {
+                value: "integer", negate: "boolean"
+            },
+            function (value, negate)
+            {
+                return (value + 1) * (negate ? -1 : 1);
+            }
+        )
+        .typedMethod ("addTwo",
+            {
+                value: "integer", negate: "boolean"
+            },
+            function (value, negate)
+            {
+                return (value + 2) * (negate ? -1 : 1);
+            }
+        )
+    ;
+
+    expect (A.addOne (3, true)).toBe (-4);
+    expect (A.addOne (true, 3)).toBe (-4);
+
+    let a = new A;
+    expect (a.addTwo (3, true)).toBe (-5);
+    expect (a.addTwo (false, 3)).toBe (5);
+});
+
+
+test ("nit.Object.do ()", () =>
+{
+    let called = [];
+
+    nit.Object.do (2 > 1, function ()
+    {
+        called.push ("2 > 1");
+    });
+
+    nit.Object.do (2 < 1, function ()
+    {
+        called.push ("2 < 1");
+    });
+
+    nit.Object.do ("abcd", function ()
+    {
+        called.push ("abcd");
+    });
+
+    nit.Object.do ("Property", function ()
+    {
+        called.push ("Property");
+    });
+
+    expect (called).toEqual (["2 > 1", "abcd", "Property"]);
 });

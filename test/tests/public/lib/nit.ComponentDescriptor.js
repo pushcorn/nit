@@ -3,6 +3,8 @@ test ("nit.ComponentDescriptor.normalizeName ()", () =>
     expect (nit.ComponentDescriptor.normalizeName ("test:my-class")).toBe ("test:my-class");
     expect (nit.ComponentDescriptor.normalizeName ("test.constraints.MyClass")).toBe ("test:constraints:my-class");
     expect (nit.ComponentDescriptor.normalizeName ("testThis.constraints.MyClass")).toBe ("test-this:constraints:my-class");
+    expect (nit.ComponentDescriptor.normalizeName ("test.constraints.MyClass", "constraints")).toBe ("test:my-class");
+    expect (nit.ComponentDescriptor.normalizeName ("test.constraints.MyClass", "cons")).toBe ("test:constraints:my-class");
 });
 
 

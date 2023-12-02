@@ -16,6 +16,23 @@ test ("nit.READY", () =>
 });
 
 
+test ("nit.lookupClass ()", () =>
+{
+    expect (nit.lookupClass ("constraints.Choice")).toBeInstanceOf (Function);
+    expect (() => nit.lookupClass ("constraints.Choice2", true)).toThrow (/class.*not defined/i);
+});
+
+
+test ("nit.configureInitQueue ()", () =>
+{
+    let q;
+
+    nit.configureInitQueue (queue => q = queue);
+
+    expect (q).toBeInstanceOf (nit.Queue);
+});
+
+
 test ("nit sets up CJS env in browser env.", async () =>
 {
     jest.resetModules ();

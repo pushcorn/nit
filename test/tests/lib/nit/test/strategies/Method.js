@@ -23,18 +23,22 @@ test ("nit.test.strategies.Method", async () =>
     expect (st.test (3)).toBe (4);
 
     st = new nit.test.strategies.Method (A, "addTwo", true, { recreate: false });
+    await st.testInit ();
     await st.testUp ();
     expect (st.test (3)).toBe (5);
 
     st = new nit.test.strategies.Method ("A", "addTwo", true);
+    await st.testInit ();
     await st.testUp ();
     expect (st.test (3)).toBe (5);
 
     st = new nit.test.strategies.Method ("A", "addOne");
+    await st.testInit ();
     await st.testUp ();
     expect (st.test (5)).toBe (6);
     expect (st.object.called).toBe (1);
 
+    await st.testInit ();
     await st.testUp ();
     expect (st.test (5)).toBe (6);
     expect (st.object.called).toBe (1);

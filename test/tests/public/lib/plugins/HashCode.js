@@ -4,16 +4,16 @@ const Person = nit.defineClass ("Person")
 ;
 
 
-test.method ("plugins.HashCode", "onUsePlugin", true)
-    .should ("add the hashCode getter to the host class")
-        .given (Person, nit.new ("plugins.HashCode"))
-        .after (s => s.person = new Person ("John Doe", 55))
-        .expectingPropertyToBe ("person.hashCode", 1622029782)
+test.plugin ("plugins.HashCode", "toPojo")
+    .should ("return the value pojo")
+        .returns ({})
+        .expectingPropertyToBe ("host.hashCode", -986852799)
         .commit ()
+;
 
-    .can ("hash only the specifed fields")
-        .given (Person, nit.new ("plugins.HashCode", "age"))
-        .after (s => s.person = new Person ("John Doe", 56))
-        .expectingPropertyToBe ("person.hashCode", 1703114347)
+test.plugin ("plugins.HashCode", "toPojo", { pluginArgs: ["name"], hostClass: Person, hostArgs: ["John", 10] })
+    .should ("return the value pojo")
+        .returns ({ age: 10, name: "John" })
+        .expectingPropertyToBe ("host.hashCode", 956790341)
         .commit ()
 ;

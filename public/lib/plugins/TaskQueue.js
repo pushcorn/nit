@@ -14,17 +14,15 @@ module.exports = function (nit, Self)
                         .property ("owner", hostClass.name, { enumerable: false })
                     ;
                 })
-                .staticMethod ("defineTask", function (name, superclass, builder) // eslint-disable-line no-unused-vars
-                {
-                    var cfg = nit.typedArgsToObj (arguments,
+                .staticTypedMethod ("defineTask",
                     {
-                        name: "string",
-                        superclass: "string",
-                        builder: "function"
-                    });
-
-                    return this.defineInnerClass (cfg.name, cfg.superclass || this.Task.name, cfg.builder);
-                })
+                        name: "string", superclass: "string", builder: "function"
+                    },
+                    function (name, superclass, builder) // eslint-disable-line no-unused-vars
+                    {
+                        return this.defineInnerClass (name, superclass || this.Task.name, builder);
+                    }
+                )
                 .staticMethod ("defineTaskMethod", function (name, superclass, builder)
                 {
                     var clsName = nit.ucFirst (name) + "MethodTask";

@@ -14,7 +14,7 @@ module.exports = function (nit)
                 .option ("docIds...", "integer", "docIds option")
             ;
         })
-        .method ("run", function ()
+        .onRun (function ()
         {
             return "This is the test command.";
         })

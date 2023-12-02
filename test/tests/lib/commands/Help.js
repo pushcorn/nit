@@ -7,9 +7,9 @@ test ("commands.Help", async () =>
 
     expect (Help.help ().build ()).toMatch (/nit help \[command\]/);
 
-    expect (await Help ().run ()).toMatch (/nit help \[command\]/);
-    expect (await Help ().run ("console")).toMatch (/nit console/);
-    expect (await Help ().run ("git")).toMatch (/Execute a git command[\s\S]+pull/);
+    expect ((await Help ().run ()).output).toMatch (/nit help \[command\]/);
+    expect ((await Help ().run ("console")).output).toMatch (/nit console/);
+    expect ((await Help ().run ("git")).output).toMatch (/Execute a git command[\s\S]+pull/);
 
 
     const Completer = nit.lookupClass (Help.name + ".compgencompleters.Completer");

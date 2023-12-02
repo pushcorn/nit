@@ -5,7 +5,7 @@ test.command ("commands.Shell")
         {
             return { exitCode: 0, stdout: "OK" };
         })
-        .expectingPropertyToBe ("result.output", "OK")
+        .expectingPropertyToBe ("result", "OK")
         .commit ()
 
     .should ("throw if the command did not return successfully")

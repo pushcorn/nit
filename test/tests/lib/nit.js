@@ -10,10 +10,23 @@ test ("nit.resetRequireCache ()", async () =>
     await nit.sleep (5);
     nit.resetRequireCache ();
 
-    let d3 = nit.require (path).loadedAt;
+    let Work = nit.require (path);
+    let d3 = Work.loadedAt;
 
     expect (d1).toBe (d2);
     expect (d2).not.toBe (d3);
+    expect (nit.CLASSES.Work).toBe (Work);
+
+    nit.resetRequireCache (/^Work/);
+    expect (nit.CLASSES.Work).toBeUndefined ();
+
+    nit.require (path);
+    nit.resetRequireCache (n => n == "Work");
+    expect (nit.CLASSES.Work).toBeUndefined ();
+
+    nit.require (path);
+    nit.resetRequireCache ("Work");
+    expect (nit.CLASSES.Work).toBeUndefined ();
 });
 
 
@@ -658,6 +671,17 @@ test ("nit.runCommand", async () =>
         .run ()
     ;
 
+
+    await testRunCommand ("return-obj")
+        .lpush (function (ctx)
+        {
+            ctx.mock = test.mock (console, "log");
+        })
+        .run ((ctx) =>
+        {
+            expect (ctx.mock.invocations[0].args[0]).toEqual ({ value: 100 });
+        })
+    ;
 
     nit.require ("nit.Command");
 

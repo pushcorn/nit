@@ -50,6 +50,21 @@ test ("nit.invoke ()", async () =>
 });
 
 
+test ("nit.invoke.then ()", async () =>
+{
+    function cb (e, res)
+    {
+        cb.args = { e: e?.message, res };
+    }
+
+    nit.invoke.then (function () { throw new Error ("err"); }, null, cb);
+    expect (cb.args).toEqual ({ e: "err" });
+
+    nit.invoke.then (function () { return 1; }, null, cb);
+    expect (cb.args).toEqual ({ res: 1 });
+});
+
+
 test ("nit.invoke.safe ()", async () =>
 {
     function onError (e)

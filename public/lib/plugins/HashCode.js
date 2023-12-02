@@ -3,8 +3,10 @@ module.exports = function (nit, Self)
     return (Self = nit.definePlugin ("HashCode"))
         .use ("nit.utils.String")
         .field ("[fields...]", "string", "The fields to be hashed.")
-        .staticMethod ("onUsePlugin", function (hostClass, plugin)
+        .onUsedBy (function (hostClass)
         {
+            var plugin = this;
+
             hostClass
                 .getter ("hashCode", function ()
                 {

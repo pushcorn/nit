@@ -41,7 +41,7 @@ test.method ("workflowsteps.Workflow", "run")
         .commit ()
 
     .should ("run a workflow file")
-        .project ("project-a")
+        .project ("project-a", true)
         .up (s => s.createArgs = "nit:echo-test")
         .mock (nit, "log")
         .expectingPropertyToBe ("mocks.0.invocations.0.args.0", "test 1")

@@ -7,7 +7,7 @@ test.method ("workflowsteps.Log", "run")
     .should ("print a message to the console")
         .given ({ input: "hello" })
         .mock (nit, "log")
-        .returnsInstanceOf ("nit.Workflow.Subcontext")
+        .returnsInstanceOf ("workflowsteps.Log.Context")
         .expectingPropertyToBe ("mocks.0.invocations.0.args.0", "hello")
         .commit ()
 
@@ -15,7 +15,7 @@ test.method ("workflowsteps.Log", "run")
         .up (s => s.createArgs = ["The message: %{input}", "info"])
         .given ({ input: "hello" })
         .mock (nit, "log")
-        .returnsInstanceOf ("nit.Workflow.Subcontext")
+        .returnsInstanceOf ("workflowsteps.Log.Context")
         .expectingPropertyToBe ("mocks.0.invocations.0.args.0", "[INFO] The message: hello")
         .commit ()
 
@@ -23,7 +23,7 @@ test.method ("workflowsteps.Log", "run")
         .up (s => s.createArgs = ["The message: %{input}", "error"])
         .given ({ input: "hello" })
         .mock (nit, "log")
-        .returnsInstanceOf ("nit.Workflow.Subcontext")
+        .returnsInstanceOf ("workflowsteps.Log.Context")
         .expectingPropertyToBe ("mocks.0.invocations.0.args.0", "[ERROR] The message: hello")
         .commit ()
 
@@ -31,7 +31,7 @@ test.method ("workflowsteps.Log", "run")
         .up (s => s.createArgs = ["The message: %{input}", "error", true])
         .given ({ input: "hello" })
         .mock (nit, "log")
-        .returnsInstanceOf ("nit.Workflow.Subcontext")
+        .returnsInstanceOf ("workflowsteps.Log.Context")
         .expectingPropertyToBe ("mocks.0.invocations.0.args.0", /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \[ERROR\] The message: hello/)
         .commit ()
 
@@ -39,7 +39,7 @@ test.method ("workflowsteps.Log", "run")
         .up (s => s.createArgs = ["${input}", "error"])
         .given ({ input: { mesg: "hello" } })
         .mock (nit, "log")
-        .returnsInstanceOf ("nit.Workflow.Subcontext")
+        .returnsInstanceOf ("workflowsteps.Log.Context")
         .expectingPropertyToBe ("mocks.0.invocations.0.args.0", nit.trim.text`
             [ERROR] {
               "mesg": "hello"
@@ -51,7 +51,7 @@ test.method ("workflowsteps.Log", "run")
         .up (s => s.createArgs = ["${input}", "error"])
         .given ({ input: new nit.defineClass ("A").field ("<mesg>") ("hello") })
         .mock (nit, "log")
-        .returnsInstanceOf ("nit.Workflow.Subcontext")
+        .returnsInstanceOf ("workflowsteps.Log.Context")
         .expectingPropertyToBe ("mocks.0.invocations.0.args.0", nit.trim.text`
             [ERROR] {
               "mesg": "hello"

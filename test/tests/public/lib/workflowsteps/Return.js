@@ -4,7 +4,7 @@ nit.require ("nit.Workflow");
 test.method ("workflowsteps.Return", "run")
     .should ("return the return control")
         .up (s => s.createArgs = "no res")
-        .returnsInstanceOf ("nit.Workflow.Subcontext")
+        .returnsInstanceOf ("workflowsteps.Return.Context")
         .expectingPropertyToBeOfType ("result.output", "nit.Workflow.Return")
         .expectingPropertyToBe ("result.output.value", "no res")
         .commit ()

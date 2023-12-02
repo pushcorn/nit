@@ -42,6 +42,6 @@ test.method ("nit.utils.Notifier", "notify")
     .up (s => s.createArgs = 100)
     .before (s => { s.object.listen (); })
     .returnsInstanceOf ("nit.utils.Notifier")
-    .expectingPropertyToBe ("object.timer.running", false)
+    .expectingPropertyToBe ("object.timer.status", "canceled")
     .commit ()
 ;
