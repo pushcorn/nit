@@ -1259,7 +1259,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
-    nit.set = function (obj, dotPath, value)
+    nit.set = function (obj, dotPath, value, useDpv)
     {
         if (!(dotPath = nit.trim (dotPath)))
         {
@@ -1278,10 +1278,22 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                 if (!v || (typeof v != "object" && typeof v != "function"))
                 {
-                    v = obj[k] = {};
+                    if (useDpv)
+                    {
+                        nit.dpv (obj, k, v = {}, true);
+                    }
+                    else
+                    {
+                        obj[k] = v = {};
+                    }
                 }
 
                 nit.set (v, rest.replace (DOT_TOKEN_RE, "\\."), value);
+            }
+            else
+            if (useDpv)
+            {
+                nit.dpv (obj, k, value, true);
             }
             else
             {
@@ -3809,7 +3821,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var p = nit.kvSplit (ns, ".").shift ();
 
             nit.ns.init (p);
-            nit.set (nit.NS, ns, obj);
+            nit.set (nit.NS, ns, obj, true);
 
             return obj;
         }
@@ -4005,6 +4017,33 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             return nit.is.func (value) ? value (result) : value;
         });
+    };
+
+
+    nit.invoke.chain = function (chain, args, result)
+    {
+        var self = this;
+
+        chain = nit.array (chain);
+
+        function next ()
+        {
+            var ch = chain.shift ();
+
+            if (ch)
+            {
+                return nit.invoke.return ([self, ch], args, function (r)
+                {
+                    result = nit.coalesce (r, result);
+
+                    return next ();
+                });
+            }
+
+            return result;
+        }
+
+        return next ();
     };
 
 
@@ -5405,6 +5444,18 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     .k (name)
                     .staticMethod (hookMethod, function (hook)
                     {
+                        var cls = this;
+
+                        if (cls.hasOwnProperty (key))
+                        {
+                            var hooks = [cls[key], hook];
+
+                            hook = function ()
+                            {
+                                return nit.invoke.chain.call (this, hooks, arguments);
+                            };
+                        }
+
                         return this.staticMethod (key, hook);
                     })
                     .do (function ()
@@ -5709,31 +5760,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 method = method[1];
             }
 
-            var chain = cls.classChain.filter (function (cls) { return cls.hasOwnProperty (method); });
+            var methods = cls.classChain
+                .filter (function (cls) { return cls.hasOwnProperty (method); })
+                .map (function (cls) { return cls[method]; })
+            ;
 
             if (reverse)
             {
-                chain.reverse ();
+                methods.reverse ();
             }
 
-            function next ()
-            {
-                var cls = chain.shift ();
-
-                if (cls)
-                {
-                    return nit.invoke.return ([target, cls[method]], args, function (r)
-                    {
-                        result = nit.coalesce (r, result);
-
-                        return next ();
-                    });
-                }
-
-                return result;
-            }
-
-            return next ();
+            return nit.invoke.chain.call (target, methods, args, result);
         }
         ,
         memo: function (name, initializer, configurable, enumerable, validator)

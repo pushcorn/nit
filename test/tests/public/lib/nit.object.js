@@ -421,13 +421,23 @@ test ("nit.Object.staticLifecycleMethod ()", () =>
     C.onRun (() => 10);
 
     expect (C.run ()).toBe (10);
-    expect (C.hookCalled).toBeUndefined ();
+    expect (C.hookCalled).toBe (true);
 
     const D = nit.defineClass ("DS")
         .staticLifecycleMethod ("run")
     ;
 
     expect (D.run ()).toBe (D);
+
+    const E = nit.defineClass ("E")
+        .staticProperty ("called...", "integer")
+        .staticLifecycleMethod ("run")
+        .onRun (() => E.called.push (1))
+        .onRun (() => E.called.push (2))
+    ;
+
+    E.run ();
+    expect (E.called).toEqual ([1, 2]);
 });
 
 

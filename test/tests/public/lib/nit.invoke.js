@@ -98,3 +98,19 @@ test ("nit.invoke.return ()", async () =>
     expect (() => nit.invoke.return (function () { throw new Error ("err"); }, 5)).toThrow ("err");
     expect (nit.invoke.return (function () { return 1; }, null, 10)).toBe (10);
 });
+
+
+test ("nit.invoke.chain ()", async () =>
+{
+    function addOne (v) { return v + 1; }
+    function addTwo (v) { return v + 2; }
+
+    let a;
+    expect (nit.invoke.chain (a = [addOne, addTwo], 5)).toBe (7);
+    expect (a).toEqual ([addOne, addTwo]);
+
+    async function addOneAsync (v) { await nit.sleep (10); return v + 1; }
+    async function addTwoAsync (v) { await nit.sleep (20); return v + 3; }
+
+    expect (await nit.invoke.chain ([addOneAsync, addTwoAsync], 5)).toBe (8);
+});

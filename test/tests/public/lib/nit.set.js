@@ -15,4 +15,17 @@ test ("nit.set () set the value of an object at given path.", () =>
     expect (A.b.c).toBe (1);
 
     expect (nit.set ({ a: 5 }, "")).toEqual ({ a: 5 });
+
+    nit.dpg (A, "d", () => 3, true, false);
+    A.d = 9;
+    expect (A.d).toBe (3);
+
+    nit.set (A, "d", 9);
+    expect (A.d).toBe (3);
+
+    nit.set (A, "d", 9, true);
+    expect (A.d).toBe (9);
+
+    nit.set (A, "e.f", 9, true);
+    expect (A.e).toEqual ({ f: 9 });
 });
