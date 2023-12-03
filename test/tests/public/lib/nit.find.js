@@ -18,3 +18,20 @@ test ("nit.find () searches for a matching value in an array or object.", async 
 
     })).toBe ("less than 2");
 });
+
+
+test ("nit.find.result ()", async () =>
+{
+    let o = { a: 3, b: 2, c: 1 };
+
+    expect (await nit.find.result (o, async function (v)
+    {
+        await nit.sleep (10);
+
+        if (v <= 2)
+        {
+            return v * 2;
+        }
+
+    })).toBe (4);
+});

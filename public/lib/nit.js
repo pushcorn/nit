@@ -2612,38 +2612,39 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return [k, v];
         });
 
-        function checkResult (res, v)
-        {
-            return res ? (res instanceof nit.find.Result ? res.value : v) : next ();
-        }
-
         function next ()
         {
             var kv = kvs.shift ();
 
-            if (!kv)
-            {
-                return;
-            }
+            if (!kv) { return; }
 
             var k = kv[0];
             var v = kv[1];
-            var res = needle (v, k);
 
-            if (res instanceof Promise)
+            return nit.invoke.return (needle, [v, k], function (res)
             {
-                return res.then (function (res)
-                {
-                    return checkResult (res, v);
-                });
-            }
-            else
-            {
-                return checkResult (res, v);
-            }
+                return res ? (res instanceof nit.find.Result ? res.value : v) : next ();
+            });
         }
 
         return next ();
+    };
+
+
+    nit.find.result = function (o, needle, check)
+    {
+        check = check || nit.is.not.empty;
+
+        return nit.find (o, function (v, k)
+        {
+            return nit.invoke.return (needle, [v, k], function (res)
+            {
+                if (check (res))
+                {
+                    return nit.find.Result (res);
+                }
+            });
+        });
     };
 
 
