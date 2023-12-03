@@ -6,6 +6,10 @@ test ("nit.test.strategies.Plugin", async () =>
 
     const MyPlugin = nit.definePlugin ("MyPlugin")
         .field ("<base>", "integer")
+        .onRegisteredBy (function (hostClass)
+        {
+            hostClass.pluginRegistered = true;
+        })
         .onUsedBy (function (hostClass)
         {
             let plugin = this;
@@ -35,10 +39,17 @@ test ("nit.test.strategies.Plugin", async () =>
     await st.testUp ();
     expect (st.test (3)).toBe (6);
 
-    const MyHost = nit.defineClass ("test.MyHost");
+    let MyHost = nit.defineClass ("test.MyHost");
 
     st = new nit.test.strategies.Plugin (MyPlugin, "addTwo", { pluginArgs: 2, hostClass: MyHost });
     await st.testInit ();
     await st.testUp ();
     expect (st.test (3)).toBe (7);
+
+    MyHost = nit.defineClass ("test.MyHost");
+    st = new nit.test.strategies.Plugin (MyPlugin, "addTwo", { pluginArgs: 2, registerPlugin: true, hostClass: MyHost });
+    await st.testInit ();
+    await st.testUp ();
+    expect (st.test (3)).toBe (7);
+    expect (MyHost.pluginRegistered).toBe (true);
 });

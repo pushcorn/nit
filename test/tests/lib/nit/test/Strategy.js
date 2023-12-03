@@ -647,7 +647,7 @@ test ("nit.test.Strategy.mock ()", () =>
     ;
 
     let a = new A ("AAA");
-    let strategy = new PropertyStrategy (new A ("AAA"), "name")
+    let strategy = new PropertyStrategy (a, "name")
         .mock (a, "addOne", 3)
     ;
 
@@ -671,6 +671,9 @@ test ("nit.test.Strategy.mock ()", () =>
 
     strategy.returnsResultContaining ({ a: 1 });
     expect (strategy.resultValidator).toBeInstanceOf (PropertyStrategy.SubsetValidator);
+
+    strategy.returnsResultOfExpr ("object");
+    expect (strategy.resultValidator).toBeInstanceOf (PropertyStrategy.ValueValidator);
 
     strategy.throws (/test errr/);
     expect (strategy.resultValidator).toBeInstanceOf (PropertyStrategy.ErrorValidator);
@@ -820,10 +823,14 @@ test ("nit.test.Strategy.commit ()", async () =>
     let queue = _nit.Queue ();
 
     const Expect = _nit.defineClass ("Expect", "nit.test.Mock")
-      .method ("toBe", function () {})
+        .field ("result", "any")
+        .property ("expected", "any")
+        .property ("isEqual", "boolean")
+        .method ("toBe", function (expected)
+        {
+            return this.isEqual = (this.expected = expected) == this.result;
+        })
     ;
-
-    let expectImpl = new Expect;
 
     let describeMock = Mock (
     {
@@ -849,9 +856,9 @@ test ("nit.test.Strategy.commit ()", async () =>
     {
         object: global,
         method: "expect",
-        retval: function ()
+        retval: function (result)
         {
-            return expectImpl;
+            return new Expect ({ result });
         }
     }).apply ();
 
@@ -910,7 +917,7 @@ test ("nit.test.Strategy.commit ()", async () =>
     let status = {};
 
     let propertyStrategy = new PropertyStrategy (new A ("AAA"), "name", { description: "Test property." })
-        .should ("pass")
+        .should ("pass") // expect 0
             .given (1, 2, 3)
             .mock (nit, "noop")
             .before (nit.noop)
@@ -943,7 +950,7 @@ test ("nit.test.Strategy.commit ()", async () =>
             })
             .commit ()
 
-        .should ("pass 4")
+        .should ("pass 4")  // expect 1
             .application ("", test.pathForProject ("project-c"))
             .before (function ()
             {
@@ -952,7 +959,7 @@ test ("nit.test.Strategy.commit ()", async () =>
             .expectingPropertyToBe ("object.name", "AAA")
             .commit ()
 
-        .should ("pass 5")
+        .should ("pass 5")  // expect 2
             .chdir (test.pathForProject ("project-a"))
             .only ()
             .spy (A.prototype, "nameLength")
@@ -984,6 +991,14 @@ test ("nit.test.Strategy.commit ()", async () =>
                 status.spyCalled = this.spies[0].invocations.length;
             })
             .expectingPropertyToBe ("object.name", "AAA")
+            .commit ()
+
+        .should ("pass 6") // expect 3
+            .returnsResultOfExpr ("object.property")
+            .commit ()
+
+        .should ("pass 7") // expect 4
+            .returnsResultOfExpr ("object.name")
             .commit ()
     ;
 
@@ -1019,11 +1034,13 @@ test ("nit.test.Strategy.commit ()", async () =>
     expect (itMock.errors[1].code).toBe ("error.failed3");
     expect (itMock.errors[2].message).toBe ("error method!");
     expect (itMock.errors[3].message).toBe ("test error!");
-    expect (describeMock.invocations.length).toBe (6);
+    expect (describeMock.invocations.length).toBe (8);
     expect (describeOnlyMock.invocations.length).toBe (1);
-    expect (itMock.invocations.length).toBe (10);
-    expect (expectMock.invocations.length).toBe (4);
-    expect (expectMock.invocations[3].args[0]).toBe ("test error!");
+    expect (itMock.invocations.length).toBe (12);
+    expect (expectMock.invocations.length).toBe (6);
+    expect (expectMock.invocations[3].result.expected).toBeUndefined ();
+    expect (expectMock.invocations[4].result.isEqual).toBe (true);
+    expect (expectMock.invocations[5].args[0]).toBe ("test error!");
     expect (status.dirChangedForProject).toBe (true);
     expect (status.dirChangedForApp).toBe (true);
     expect (status.dirChanged).toBe (true);
@@ -1034,8 +1051,8 @@ test ("nit.test.Strategy.commit ()", async () =>
     expect (status.upCalled).toBe (true);
     expect (status.downCalled).toBe (true);
     expect (status.spyCalled).toBe (1);
-    expect (PropertyStrategy.upCalled).toBe (5);
-    expect (PropertyStrategy.downCalled).toBe (3);
+    expect (PropertyStrategy.upCalled).toBe (7);
+    expect (PropertyStrategy.downCalled).toBe (5);
     expect (propertyStrategy.preCommits.length).toBe (0);
     expect (propertyStrategy.postCommits.length).toBe (0);
 });
