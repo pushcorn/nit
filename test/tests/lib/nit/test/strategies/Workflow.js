@@ -7,9 +7,9 @@ test ("nit.test.strategies.Workflow", async () =>
     let st = new nit.test.strategies.Workflow ("nit:echo-test");
     let mock = test.mock (nit, "log", function () {}, 2);
 
-    await st.testUp ();
+    await st.testUp ({ input: { colorize: true  } });
 
-    expect ((await st.test ({ input: { colorize: true  } })).output).toBe ("test 2 true");
+    expect (await st.test ()).toBe ("test 2 true");
     expect (mock.invocations[0].args).toEqual (["test 1"]);
     expect (mock.invocations[1].args[0]).toMatch (/^\d{4}.*test 2 true/);
 
