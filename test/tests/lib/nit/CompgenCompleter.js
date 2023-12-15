@@ -194,7 +194,7 @@ test.method ("nit.CompgenCompleter", "generate", true)
                     .option ("opt5", "nit.Dir")
             )
         )
-        .up (s => s.args = nit.new ("nit.Compgen.Context",
+        .up (s => s.args = nit.assign (new nit.Compgen.Context,
         {
             commandClass: s.MyCmd,
             currentOption: s.MyCmd.Input.fieldMap.opt1,

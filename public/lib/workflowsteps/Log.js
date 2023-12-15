@@ -23,7 +23,7 @@ module.exports = function (nit)
 
             var message = self.message;
 
-            message = nit.is.obj (message) ? nit.toJson (nit.pojo (message), "  ") : message;
+            message = nit.is.obj (message) ? nit.toJson (nit.toPojo (message), "  ") : message;
 
             nit.log (nit.format (prefix + message, ctx));
         })

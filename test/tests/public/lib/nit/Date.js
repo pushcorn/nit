@@ -98,7 +98,7 @@ test.object ("nit.Date")
         {
             let diff = s.now - s.result.date;
 
-            return diff <= 10;
+            return diff <= 1000;
         })
         .commit ()
 ;

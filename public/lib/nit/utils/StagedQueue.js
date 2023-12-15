@@ -1,13 +1,13 @@
-module.exports = function (nit)
+module.exports = function (nit, Self)
 {
-    return nit.defineClass ("nit.utils.StagedQueue")
+    return (Self = nit.defineClass ("nit.utils.StagedQueue"))
         .staticProperty ("stages...", "function")
         .staticProperty ("untils...", "function")
+        .field ("[owner]", "object|function?")
         .field ("args...", "any")
-        .field ("owner", "any")
-        .field ("result", "any")
-        .field ("error", "any")
-        .field ("queue", "any")
+        .property ("result", "any")
+        .property ("error", "any")
+        .getter ("queue", function () { return this; })
         .do (function (cls)
         {
             ["init", "success", "failure", "complete"].forEach (function (method)
@@ -18,10 +18,11 @@ module.exports = function (nit)
                 {
                     var cls = queue.constructor;
 
-                    return cls.invokeClassChainMethod ([queue, hook], queue.args, true);
+                    return cls.invokeClassChainMethod ([queue, hook], [queue.owner].concat (queue.args), true);
                 });
             });
         })
+        .defineInnerClass ("Stop", "nit.Queue.Stop")
         .staticTypedMethod ("createStage",
             {
                 name: "string", task: "function"
@@ -30,7 +31,7 @@ module.exports = function (nit)
             {
                 function stage (queue)
                 {
-                    return task.apply (queue, queue.args);
+                    return task.apply (queue, [queue.owner].concat (queue.args));
                 }
 
                 nit.dpv (stage, "needle", function (s) { return s.name == name; });
@@ -64,6 +65,10 @@ module.exports = function (nit)
             cls.stages.push (cls.createStage (stage, task));
 
             return cls;
+        })
+        .staticMethod ("stage", function (stage, task)
+        {
+            return this.push (stage, task);
         })
         .staticTypedMethod ("before",
             {
@@ -116,9 +121,13 @@ module.exports = function (nit)
                 return cls;
             }
         )
-        .staticMethod ("run", function (args, owner)
+        .staticMethod ("run", function ()
         {
-            return this ({ args: args, owner: owner }).run ();
+            return this ({ args: arguments }).run ();
+        })
+        .method ("stop", function (next)
+        {
+            return new Self.Stop (next);
         })
         .method ("run", function ()
         {

@@ -25,27 +25,27 @@ test ("nit.test.strategies.Object", async () =>
     expect (st.description).toMatch ("Object: A");
     expect (st.class).toBe (A);
 
-    await st.testBefore ();
+    await st.testUp ();
     expect (obj = await st.test ()).not.toBe (a);
     expect (obj.nextId).toBe (2);
 
     st = new nit.test.strategies.Object ("A");
     expect (st.description).toMatch ("Object: A");
     expect (st.class).toBe (A);
-    await st.testBefore ();
+    await st.testUp ();
     expect (obj = await st.test ()).not.toBe (a);
     expect (obj.id).toBe (2);
 
     st = new nit.test.strategies.Object (a);
     expect (st.description).toMatch ("Object: A");
     expect (st.class).toBe (A);
-    await st.testBefore ();
+    await st.testUp ();
     expect (obj = await st.test ()).toBe (a);
     expect (obj.id).toBe (1);
 
     st = new nit.test.strategies.Object (a, false, "fa");
     expect (st.description).toMatch ("Property: A.fa");
     expect (st.class).toBe (A);
-    await st.testBefore ();
+    await st.testUp ();
     expect (obj = await st.test ()).toBe ("FA 1");
 });

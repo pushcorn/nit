@@ -114,6 +114,10 @@ test ("nit.test.Strategy.Project", () =>
     ]);
 
     nit.dpg (nit, "CWD", nit.HOME, true);
+
+    // root project from package dir
+    proj = new Project ("project-a", true, true);
+    expect (proj.root.path).toBe (nit.path.join (nit.HOME, "test/resources/project-a"));
 });
 
 

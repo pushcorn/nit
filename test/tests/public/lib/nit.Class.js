@@ -85,6 +85,24 @@ test ("nit.Class.registerPlugin ()", () =>
 });
 
 
+test ("nit.Class.registerPlugin - no replace", () =>
+{
+    const Tracker = nit.defineClass ("test.Tracker")
+        .defineMeta ("replace", "boolean", false)
+        .field ("<id>", "integer")
+    ;
+
+    const A = nit.defineClass ("A")
+        .registerPlugin (Tracker, true)
+        .tracker (new Tracker (1))
+        .tracker (new Tracker (2))
+    ;
+
+    expect (A.trackers.length).toBe (1);
+    expect (A.trackers[0].id).toBe (1);
+});
+
+
 test ("nit.Class.registerPlugin", () =>
 {
     let checked = [];

@@ -52,7 +52,7 @@ test.object ("nit.utils.Templatable", { property: "sql", recreate: false })
                 })
             ;
 
-            s.object = Select ()
+            s.instance = Select ()
                 .Table ("users")
                 .Join ("roles", "roles.id = users.role_id", "left")
                 .Page (3, 10)

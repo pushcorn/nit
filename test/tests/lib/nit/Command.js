@@ -48,7 +48,7 @@ test ("nit.Command.compgencompleters.Completer", async () =>
         })
     ;
 
-    let ctx = new nit.Compgen.Context ({ completionType: "type", currentOption: A.Input.fieldMap.cmd1 });
+    let ctx = nit.assign (new nit.Compgen.Context, { completionType: "type", currentOption: A.Input.fieldMap.cmd1 });
     expect (await comp.generate (ctx)).toEqual (expect.arrayContaining (["test", "lint"]));
 
     ctx.currentOption = A.Input.fieldMap.cmd2;

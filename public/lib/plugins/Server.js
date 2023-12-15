@@ -9,10 +9,7 @@ module.exports = function (nit, Self)
         .onUsedBy (function (hostClass)
         {
             hostClass
-                .do (!hostClass.lookupPlugin ("lifecycle-component"), function ()
-                {
-                    hostClass.plugin ("lifecycle-component", "start", "stop");
-                })
+                .plugin ("lifecycle-component", "start", "stop")
                 .property ("state", "string", "stopped",
                 {
                     writer: writer,
@@ -20,42 +17,42 @@ module.exports = function (nit, Self)
                 })
                 .property ("startResult", "Promise", { writer: writer, enumerable: false })
                 .property ("stopResult", "Promise", { writer: writer, enumerable: false })
-                .onConfigureQueueForStart (function (queue, self, args)
+                .configureComponentMethods ("start", function (Queue)
                 {
-                    queue
-                        .after ("preStart", "preStart.returnIfStarted", function ()
+                    Queue
+                        .after ("preStart", "preStart.returnIfStarted", function (server)
                         {
-                            if (self.state == "stopping")
+                            if (server.state == "stopping")
                             {
                                 Self.throw ("error.invalid_start_state");
                             }
 
-                            if (self.state == "starting" || self.state == "started")
+                            if (server.state == "starting" || server.state == "started")
                             {
-                                return nit.Queue.Stop (self.startResult);
+                                return this.stop (server.startResult);
                             }
                         })
-                        .replace ("start.invokeHook", function ()
+                        .replace ("start.invokeHook", function (server)
                         {
                             var def = new nit.Deferred;
-                            var cls = self.constructor;
+                            var cls = server.constructor;
 
-                            self.state = writer.value ("starting");
-                            self.startResult = writer.value (def.promise);
+                            server.state = writer.value ("starting");
+                            server.startResult = writer.value (def.promise);
 
-                            nit.invoke.then ([self, cls[cls.kStart]], args, function (e)
+                            nit.invoke.then ([server, cls[cls.kStart]], this.args, function (e)
                             {
                                 if (e)
                                 {
-                                    self.state = writer.value ("stopped");
+                                    server.state = writer.value ("stopped");
 
                                     def.reject (e);
                                 }
                                 else
                                 {
-                                    self.state = writer.value ("started");
+                                    server.state = writer.value ("started");
 
-                                    def.resolve (self);
+                                    def.resolve (server);
                                 }
                             });
 
@@ -63,42 +60,42 @@ module.exports = function (nit, Self)
                         })
                     ;
                 })
-                .onConfigureQueueForStop (function (queue, self, args)
+                .configureComponentMethods ("stop", function (Queue)
                 {
-                    queue
-                        .after ("preStop", "preStop.returnIfStopped", function ()
+                    Queue
+                        .after ("preStop", "preStop.returnIfStopped", function (server)
                         {
-                            if (self.state == "starting")
+                            if (server.state == "starting")
                             {
                                 Self.throw ("error.invalid_stop_state");
                             }
 
-                            if (self.state == "stopping" || self.state == "stopped")
+                            if (server.state == "stopping" || server.state == "stopped")
                             {
-                                return nit.Queue.Stop (self.stopResult);
+                                return this.stop (server.stopResult);
                             }
                         })
-                        .replace ("stop.invokeHook", function ()
+                        .replace ("stop.invokeHook", function (server)
                         {
                             var def = new nit.Deferred;
-                            var cls = self.constructor;
+                            var cls = server.constructor;
 
-                            self.state = writer.value ("stopping");
-                            self.stopResult = writer.value (def.promise);
+                            server.state = writer.value ("stopping");
+                            server.stopResult = writer.value (def.promise);
 
-                            nit.invoke.then ([self, cls[cls.kStop]], args, function (e)
+                            nit.invoke.then ([server, cls[cls.kStop]], this.args, function (e)
                             {
                                 if (e)
                                 {
-                                    self.state = writer.value ("started");
+                                    server.state = writer.value ("started");
 
                                     def.reject (e);
                                 }
                                 else
                                 {
-                                    self.state = writer.value ("stopped");
+                                    server.state = writer.value ("stopped");
 
-                                    def.resolve (self);
+                                    def.resolve (server);
                                 }
                             });
 

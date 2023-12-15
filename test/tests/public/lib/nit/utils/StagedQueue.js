@@ -1,6 +1,6 @@
 test.method ("nit.utils.StagedQueue", "createStage", true)
     .should ("turn a task into a stage function")
-        .given ("addOne", v => v + 1)
+        .given ("addOne", (_, v) => v + 1)
         .returnsInstanceOf ("function")
         .expectingPropertyToBeOfType ("result.needle", "function")
         .expectingMethodToReturnValue ("result", { args: [3] }, 4)
@@ -9,10 +9,20 @@ test.method ("nit.utils.StagedQueue", "createStage", true)
 ;
 
 
+test.method ("nit.utils.StagedQueue", "stop")
+    .should ("return an instance of nit.Queue.Stop")
+        .given (10)
+        .returnsInstanceOf (nit.Queue.Stop)
+        .expectingPropertyToBe ("result.constructor.name", "nit.utils.StagedQueue.Stop")
+        .expectingPropertyToBe ("result.next", 10)
+        .commit ()
+;
+
+
 test.method ("nit.utils.StagedQueue", "until", true)
     .should ("add a stop condition")
         .up (s => s.class = s.class.defineSubclass ("MyQueue"))
-        .given (ctx => ctx.result > 3)
+        .given ((_, ctx) => ctx.result > 3)
         .returnsResultOfExpr ("class")
         .expecting ("the condition returns true with value %{value}", s => s.class.untils[0] ({ args: [{ result: 4 }] }))
         .commit ()
@@ -38,6 +48,17 @@ test.method ("nit.utils.StagedQueue", "lpush", true)
 
 
 test.method ("nit.utils.StagedQueue", "push", true)
+    .should ("add a stage to the tail of the queue")
+        .up (s => s.class = s.class.defineSubclass ("MyQueue"))
+        .up (s => s.class.stages.push (() => true))
+        .given ("postInit", () => false)
+        .returnsResultOfExpr ("class")
+        .expectingPropertyToBe ("class.stages.1.name", "postInit")
+        .commit ()
+;
+
+
+test.method ("nit.utils.StagedQueue", "stage", true)
     .should ("add a stage to the tail of the queue")
         .up (s => s.class = s.class.defineSubclass ("MyQueue"))
         .up (s => s.class.stages.push (() => true))
@@ -157,13 +178,11 @@ test.method ("nit.utils.StagedQueue", "run", true)
 test.method ("nit.utils.StagedQueue", "run")
     .should ("run the queue")
         .up (s => s.class = s.class.defineSubclass ("MyQueue")
-            .onInit (function ()
+            .onInit (function (_, value)
             {
-                var q = this;
-
-                q.args = { value: q.args[0] };
+                this.args = { value };
             })
-            .until (function (ctx)
+            .until (function (_, ctx)
             {
                 return ctx.value > 103;
             })
@@ -171,21 +190,22 @@ test.method ("nit.utils.StagedQueue", "run")
             {
                 return 100;
             })
-            .before ("step1", "step0", function (ctx)
+            .before ("step1", "step0", function (_, ctx)
             {
                 return ctx.value += 2;
             })
-            .after ("step1", "step2", function (ctx)
+            .after ("step1", "step2", function (_, ctx)
             {
                 return ctx.value += 5;
             })
-            .after ("step2", "step3", function (ctx)
+            .after ("step2", "step3", function (_, ctx)
             {
                 return ctx.value += 8;
             })
         )
         .up (s => s.createArgs = { args: 99 })
         .returns (106)
+        .expectingPropertyToBeOfType ("object.queue", "MyQueue")
         .commit ()
 
     .reset ()

@@ -8,5 +8,5 @@ test ("nit.test.strategies.Task", async () =>
 
     await st.testUp ("there");
 
-    expect ((await st.test ()).result).toBe ("Hello there!");
+    expect (await st.test ()).toBe ("Hello there!");
 });

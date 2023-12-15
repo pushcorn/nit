@@ -1,8 +1,8 @@
-module.exports = function (nit)
+module.exports = function (nit, Self)
 {
-    var kConfigureQueueFor = "configureQueueFor";
-
-    return nit.definePlugin ("LifecycleComponent")
+    return (Self = nit.definePlugin ("LifecycleComponent"))
+        .use ("nit.utils.StagedQueue")
+        .m ("error.component_method_not_defined", "The component method '%{method}' was not defined.")
         .field ("[methods...]", "string", "The component method to be added.")
         .field ("prePost", "boolean", "Define pre- and post- methods.", true)
         .field ("wrapped", "boolean", "Wrap the main method with the pre- and post- methods.", true)
@@ -15,7 +15,8 @@ module.exports = function (nit)
             var prePost = plugin.prePost;
             var pluginCategory = nit.pluralize (pluginName).toLowerCase ();
             var ns = nit.kvSplit (hostClass.name, ".", true)[0];
-            var pluginClass = nit.defineClass ([ns, pluginName].filter (nit.is.not.empty).join ("."))
+            var pluginClass = nit.definePlugin ([ns, pluginName].filter (nit.is.not.empty).join ("."))
+                .defineCaster ("component")
                 .categorize ([ns, pluginCategory].filter (nit.is.not.empty).join ("."))
             ;
 
@@ -23,60 +24,100 @@ module.exports = function (nit)
                 .constant ("Plugin", pluginClass)
                 .registerPlugin (pluginClass, { instancePluginAllowed: plugin.instancePluginAllowed })
                 .plugin ("event-emitter", { prePost: plugin.prePost, listenerName: sn + "Listener" })
+                .plugin ("staged-method")
                 .plugin ("logger")
-                .staticClassChainMethod ("initInvocationQueue", true)
-                .staticMethod ("createInvocationQueue", function (comp, method, args, wrapped)
+                .staticMethod ("addMainStagesToComponentMethodQueue", function (method, Queue)
                 {
-                    var cls = comp.constructor;
-                    var kHook = cls["k" + nit.ucFirst (method)];
-                    var queue = nit.Queue ()
-                        .push (method + ".invokeHook", function ()
+                    Queue
+                        .stage (method + ".invokeHook", function (comp)
                         {
-                            return nit.invoke ([comp, cls[kHook]], args);
+                            var cls = comp.constructor;
+                            var kHook = cls["k" + nit.ucFirst (method)];
+
+                            return nit.invoke ([comp, cls[kHook]], this.args);
                         })
-                        .push (method + ".applyPlugins", function ()
+                        .stage (method + ".applyPlugins", function (comp)
                         {
-                            return cls.applyPlugins.apply (plugin.instancePluginAllowed ? comp : cls, [pluginCategory, method, comp].concat (args));
+                            var cls = comp.constructor;
+
+                            return nit.invoke.return ([plugin.instancePluginAllowed ? comp : cls, cls.applyPlugins], [pluginCategory, method, comp].concat (this.args));
                         })
-                        .push (method + ".emitEvent", function ()
+                        .stage (method + ".emitEvent", function (comp)
                         {
-                            return nit.invoke.silent ([comp, "emit"], [method, comp].concat (args));
+                            return nit.invoke.silent ([comp, "emit"], [method, comp].concat (this.args));
                         })
                     ;
+                })
+                .staticMethod ("buildComponentMethodQueue", function (Queue, method, wrapped)
+                {
+                    var cls = this;
+                    var ucMethod = nit.ucFirst (method);
+                    var preMethod = "pre" + ucMethod;
+                    var postMethod = "post" + ucMethod;
 
                     if (wrapped && prePost)
                     {
-                        var ucMethod = nit.ucFirst (method);
-                        var preMethod = "pre" + ucMethod;
-                        var postMethod = "post" + ucMethod;
-                        var preQueue = cls.createInvocationQueue (comp, preMethod, args);
-                        var postQueue = cls.createInvocationQueue (comp, postMethod, args);
+                        Queue.stage (preMethod, function () {});
 
-                        queue
-                            .lpush (preQueue.tasks)
-                            .lpush (preMethod, function () {})
-                        ;
-
-                        queue
-                            .push (postQueue.tasks)
-                            .push (postMethod, function () {})
+                        cls
+                            .lifecycleMethod (preMethod)
+                            .addMainStagesToComponentMethodQueue (preMethod, Queue)
                         ;
                     }
 
-                    cls.initInvocationQueue (queue, comp, method, args);
-                    cls[kConfigureQueueFor + nit.ucFirst (method)] (queue, comp, args);
+                    cls.addMainStagesToComponentMethodQueue (method, Queue);
 
-                    return queue;
+                    if (wrapped && prePost)
+                    {
+                        cls
+                            .lifecycleMethod (postMethod)
+                            .addMainStagesToComponentMethodQueue (postMethod, Queue)
+                        ;
+
+                        Queue.stage (postMethod, function () {});
+                    }
                 })
-                .staticMethod ("invokeComponentMethod", function (comp, method, args)
-                {
-                    return this.createInvocationQueue (comp, method, args).run ();
-                })
+                .staticTypedMethod ("configureComponentMethods",
+                    {
+                        methods: "string|array", prePost: "boolean", configurator: "function"
+                    }
+                    ,
+                    function (methods, prePost, configurator /* (Queue, method, mainMethod) */)
+                    {
+                        var cls = this;
+
+                        nit.each (methods, function (method)
+                        {
+                            var ucMethod = nit.ucFirst (method);
+                            var ms = [method];
+
+                            if (prePost)
+                            {
+                                ms.unshift ("pre" + ucMethod);
+                                ms.push ("post" + ucMethod);
+                            }
+
+                            ms.forEach (function (m)
+                            {
+                                var Queue = cls[nit.ucFirst (m)+ "Queue"] || cls[ucMethod + "Queue"];
+
+                                if (!Queue)
+                                {
+                                    Self.throw ("error.component_method_not_defined", { method: method });
+                                }
+
+                                nit.invoke ([cls, configurator], [Queue, m, method]);
+                            });
+                        });
+
+                        return cls;
+                    }
+                )
                 .staticTypedMethod ("componentMethod",
                     {
-                        method: "string", impl: "function", wrapped: "boolean"
+                        method: "string", wrapped: "boolean"
                     },
-                    function (method, impl, wrapped)
+                    function (method, wrapped)
                     {
                         var cls = this;
                         var eventEmitter = cls.lookupPlugin ("event-emitter");
@@ -100,31 +141,20 @@ module.exports = function (nit)
                                     ;
                                 }
 
-                                (prePost ? [method, preMethod, postMethod] : [method]).forEach (function (method)
-                                {
-                                    cls.staticClassChainMethod (kConfigureQueueFor + nit.ucFirst (method), true);
-                                });
-
-                                if (prePost)
+                                if (prePost && !wrapped)
                                 {
                                     [preMethod, postMethod].forEach (function (method)
                                     {
-                                        cls.lifecycleMethod (method, function ()
+                                        cls.stagedMethod (method, function (Queue)
                                         {
-                                            var comp = this;
-
-                                            return comp.constructor.invokeComponentMethod (comp, method, nit.array (arguments));
+                                            cls.buildComponentMethodQueue (Queue, method);
                                         });
                                     });
                                 }
                             })
-                            .lifecycleMethod (method, function ()
+                            .stagedMethod (method, function (Queue)
                             {
-                                var args = nit.array (arguments);
-                                var comp = this;
-                                var queue = comp.constructor.createInvocationQueue (comp, method, args, wrapped);
-
-                                return impl ? impl.call (comp, queue, args) : queue.run ();
+                                cls.buildComponentMethodQueue (Queue, method, wrapped);
                             })
                         ;
                     }

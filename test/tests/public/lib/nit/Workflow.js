@@ -171,6 +171,15 @@ test.method ("nit.Workflow.Subcontext", "new", true)
         .expectingPropertyToBe ("result.custom",{ a: 1 })
         .expectingPropertyToBeOfType ("result.parent", "nit.Workflow.Context")
         .commit ()
+
+    .should ("use parent's output as input")
+        .given ({ custom: { a: 1 } })
+        .after (s => s.result.parent = new nit.Workflow.Context ({ input: 20 }))
+        .returnsInstanceOf ("nit.Workflow.Subcontext")
+        .expectingPropertyToBe ("result.input", 20)
+        .expectingPropertyToBe ("result.custom",{ a: 1 })
+        .expectingPropertyToBeOfType ("result.parent", "nit.Workflow.Context")
+        .commit ()
 ;
 
 
@@ -466,5 +475,15 @@ test.method ("nit.Workflow", "lookup", true)
         .up (() => nit.defineWorkflow ("test.workflows.MyFlow"))
         .given ("test:my-flow")
         .returnsInstanceOf (Function)
+        .commit ()
+;
+
+
+test.method ("nit", "runWorkflow", true)
+    .should ("run the specified workflow")
+        .project ("project-a", true)
+        .given ("nit:log-message")
+        .mock (nit, "log")
+        .expectingPropertyToBe ("mocks.0.invocations.0.args.0", "aloha")
         .commit ()
 ;

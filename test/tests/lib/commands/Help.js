@@ -14,7 +14,7 @@ test ("commands.Help", async () =>
 
     const Completer = nit.lookupClass (Help.name + ".compgencompleters.Completer");
 
-    let ctx = new nit.Compgen.Context (
+    let ctx = nit.assign (new nit.Compgen.Context,
     {
         completionType: "option",
         commandClass: Help,

@@ -7,6 +7,17 @@ module.exports = function (nit, Self, global)
         .use ("nit.WorkflowField")
         .plugin ("event-emitter", "complete")
         .categorize ("workflows")
+        .do (function ()
+        {
+            nit.runWorkflow = function ()
+            {
+                var args = nit.array (arguments);
+                var name = args.shift ();
+                var workflowClass = Self.lookup (name);
+
+                return nit.invoke.return ([new workflowClass, "run"], args, function (c) { return c.output; });
+            };
+        })
         .defineInnerClass ("Break")
         .defineInnerClass ("Continue")
         .defineInnerClass ("Return", function (Return)
@@ -334,9 +345,12 @@ module.exports = function (nit, Self, global)
                         var self = this;
 
                         parent.once ("cancel", self[Subcontext.kParentCancelListener]);
-
-                        self.input = nit.coalesce (self.input, parent.output);
                         self.delegateParentProperties ();
+
+                        if (!self[Self.kConstructing])
+                        {
+                            self.input = nit.coalesce (self.input, parent.output);
+                        }
                     }
                     ,
                     onUnlink: function (parent)

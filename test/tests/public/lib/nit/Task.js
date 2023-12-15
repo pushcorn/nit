@@ -266,3 +266,12 @@ test.method ("nit.Task", "cancel")
         .expectingPropertyToBe ("cancelCount", 1)
         .commit ()
 ;
+
+
+test.method ("nit", "runTask", true)
+    .should ("run the specified task")
+        .project ("project-a", true)
+        .given ("nit:say-hello", "Me")
+        .returns ("Hello Me!")
+        .commit ()
+;

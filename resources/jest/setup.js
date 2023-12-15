@@ -62,6 +62,12 @@ test.pathForProject = function (name)
 };
 
 
+test.pathForRootProject = function (name)
+{
+    return nit.path.isAbsolute (name) ? name : nit.path.join (test.HOME, "test/resources", name);
+};
+
+
 test.reloadNit = async function (projectPath)
 {
     jest.resetModules ();

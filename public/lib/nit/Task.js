@@ -2,13 +2,23 @@ module.exports = function (nit, Self)
 {
     var writer = new nit.Object.Property.Writer;
 
-
     return (Self = nit.defineClass ("nit.Task"))
         .k ("context")
         .categorize ("tasks")
         .defineMeta ("description", "string", "Task description unavailable.")
         .plugin ("lifecycle-component", "run", "catch", "finally", "cancel")
         .property ("canceled", "boolean", { enumerable: false, writer: writer })
+        .do (function ()
+        {
+            nit.runTask = function ()
+            {
+                var args = nit.array (arguments);
+                var name = args.shift ();
+                var taskClass = nit.lookupComponent (name, "tasks", Self.name);
+
+                return nit.invoke.return ([nit.new (taskClass, args), "run"], [], function (c) { return c.result; });
+            };
+        })
         .defineInnerClass ("Context", "nit.Context", function (Context)
         {
             Context
@@ -36,19 +46,6 @@ module.exports = function (nit, Self)
         {
             return this.defineInnerClass ("Context", this.superclass.Context.name, builder);
         })
-        .onInitInvocationQueue (function (queue, comp, method, args)
-        {
-            queue.after (method + ".invokeHook", method + ".checkResult", function (c)
-            {
-                if (!~method.toLowerCase ().indexOf ("cancel"))
-                {
-                    var ctx = args[0];
-
-                    ctx.result = nit.coalesce (c.result, ctx.result);
-                    c.result = undefined;
-                }
-            });
-        })
         .onDefineSubclass (function (Subclass)
         {
             Subclass.defineContext ();
@@ -57,55 +54,68 @@ module.exports = function (nit, Self)
         {
             this.error (error);
         })
-        .onConfigureQueueForCancel (function (queue, task, args)
+        .configureComponentMethods (["run", "catch", "finally"], true, function (Queue, method)
         {
-            var canceled = task.canceled;
+            Queue.after (method + ".invokeHook", method + ".checkResult", function (task, ctx)
+            {
+                ctx.result = nit.coalesce (this.result, ctx.result);
+                this.result = undefined;
+            });
+        })
+        .configureComponentMethods ("cancel", function (Queue)
+        {
+            Queue
+                .onInit (function (task)
+                {
+                    var canceled = task.canceled;
 
-            task.canceled = writer.value (true);
-            args.splice (0, args.length, task);
+                    task.canceled = writer.value (true);
 
-            queue
-                .stopOn (function () { return canceled; })
-                .complete (function () { return task; })
+                    this.args = task;
+                    this.canceled = canceled;
+                })
+                .until (function () { return this.canceled; })
+                .onComplete (function (task) { return task; })
             ;
         })
-        .onConfigureQueueForRun (function (queue, task, args)
+        .configureComponentMethods ("run", function (Queue)
         {
-            var cls = task.constructor;
-            var ctx = args[0];
-
-            ctx = ctx instanceof Self.Context ? ctx : cls.Context.new (ctx);
-            ctx.task = task;
-            args.splice (0, args.length, ctx);
-
-            queue
-                .stopOn (function () { return task.canceled; })
-                .failure (function (c)
+            Queue
+                .onInit (function (task)
                 {
-                    ctx.error = c.error;
-                    c.error = undefined;
+                    var cls = task.constructor;
+                    var ctx = this.args[0];
+
+                    ctx = ctx instanceof Self.Context ? ctx : cls.Context.new (ctx);
+                    ctx.task = task;
+
+                    this.args = ctx;
+                })
+                .until (function (task) { return task.canceled; })
+                .onFailure (function (task, ctx)
+                {
+                    ctx.error = this.error;
+                    this.error = undefined;
 
                     return task.catch (ctx);
                 })
-                .complete (function (c)
+                .onComplete (function (task, ctx)
                 {
-                    ctx.error = c.error;
+                    ctx.error = this.error;
 
-                    return nit.Queue ()
-                        .push (task.finally.bind (task, ctx))
-                        .complete (function (c)
+                    return nit.invoke.then ([task, "finally"], ctx, function (error)
+                    {
+                        ctx.error = nit.coalesce (error, ctx.error);
+
+                        if (ctx.error)
                         {
-                            ctx.error = nit.coalesce (c.error, ctx.error);
+                            nit.dpv (ctx.error, Self.kContext, ctx, true, false);
 
-                            if (ctx.error)
-                            {
-                                nit.dpv (ctx.error, Self.kContext, ctx, true, false);
-                            }
+                            throw ctx.error;
+                        }
 
-                            return ctx;
-                        })
-                        .run ()
-                    ;
+                        return ctx;
+                    });
                 })
             ;
         })

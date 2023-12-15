@@ -51,54 +51,25 @@ test.plugin ("plugins.LifecycleComponent", "componentMethod", true, { pluginArgs
 ;
 
 
-test.plugin ("plugins.LifecycleComponent", "componentMethod", true, { hostClass: "MyClass" })
-    .should ("used the implement function if provided")
-        .up (s => s.called = [])
-        .up (s => s.args =
-        [
-            "start",
-            function (queue, [ctx])
-            {
-                s.called.push ("impl");
-                ctx.callArgs.push ("impl");
-            }
-        ])
-        .after (s => s.pluginClass = s.hostClass.Plugin.defineSubclass ("MyPlugin")
-            .onPreStart ((o, { callArgs }) => callArgs.push ("preStartPlugin") && s.called.push ("preStartPlugin"))
-            .onPostStart ((o, { callArgs }) => callArgs.push ("postStartPlugin") && s.called.push ("postStartPlugin"))
-            .onStart ((o, { callArgs }) => callArgs.push ("startPlugin") && s.called.push ("startPlugin"))
-        )
-        .after (s => s.obj = new s.hostClass)
-        .after (s => s.obj.on ("preStart", (o, { callArgs }) => callArgs.push ("preStartListener") && s.called.push ("preStartListener")))
-        .after (s => s.obj.on ("postStart", (o, { callArgs }) => callArgs.push ("postStartListener") && s.called.push ("postStartListener")))
-        .after (s => s.obj.on ("start", (o, { callArgs }) => callArgs.push ("startListener") && s.called.push ("startListener")))
-        .after (s => s.callArgs = [])
-        .after (s => s.obj.start ({ callArgs: s.callArgs }))
-        .expectingPropertyToBe ("called", ["impl"])
-        .expectingPropertyToBe ("callArgs", ["impl"])
-        .commit ()
-;
-
-
 test.plugin ("plugins.LifecycleComponent", "run", { hostClass: "MyTask", pluginArgs: "run" })
-    .should ("invoke configureQueueForRun ()")
+    .should ("invoke hook method")
         .up (s => s.configured = [])
-        .up (s => s.hostClass.onConfigureQueueForRun (function () { s.configured.push ("MyTask"); }))
+        .up (s => s.hostClass.onRun (function () { s.configured.push ("MyTask"); }))
         .up (s => s.hostClass = s.hostClass.defineSubclass ("ChildTask"))
-        .up (s => s.hostClass.onConfigureQueueForRun (function () { s.configured.push ("ChildTask"); }))
-        .expectingPropertyToBe ("configured", ["MyTask", "ChildTask"])
+        .up (s => s.hostClass.onRun (function () { s.configured.push ("ChildTask"); }))
+        .expectingPropertyToBe ("configured", ["ChildTask"])
         .commit ()
 ;
 
 
 test.plugin ("plugins.LifecycleComponent", "run", { hostClass: "Unwrapped", pluginArgs: ["run", {  wrapped: false }] })
-    .should ("invoke configureQueueForRun ()")
+    .should ("invoke the hook method")
         .up (s => s.configured = [])
-        .up (s => s.hostClass.onConfigureQueueForRun (function () { s.configured.push ("MyTask"); }))
+        .up (s => s.hostClass.onRun (function () { s.configured.push ("MyTask"); }))
         .up (s => s.hostClass = s.hostClass.defineSubclass ("ChildTask"))
-        .up (s => s.hostClass.onConfigureQueueForRun (function () { s.configured.push ("ChildTask"); }))
+        .up (s => s.hostClass.onRun (function () { s.configured.push ("ChildTask"); }))
         .up (s => s.hostClass.on ("preRun", () => s.preRunCalled = true))
-        .expectingPropertyToBe ("configured", ["MyTask", "ChildTask"])
+        .expectingPropertyToBe ("configured", ["ChildTask"])
         .expectingPropertyToBe ("preRunCalled", undefined)
         .expectingMethodToReturnValue ("host.preRun")
         .expectingPropertyToBe ("preRunCalled", true)
@@ -129,5 +100,25 @@ test.plugin ("plugins.LifecycleComponent", "componentMethod", true, { pluginArgs
         .expectingPropertyToBe ("host.preStart", undefined)
         .expectingPropertyToBe ("host.postStart", undefined)
         .expectingPropertyToBeOfType ("host.start", "function")
+        .commit ()
+;
+
+
+test.plugin ("plugins.LifecycleComponent", "configureComponentMethods", true, { pluginArgs: "init" })
+    .should ("call the configurator with the method queue and method name")
+        .up (s => s.calledMethods = [])
+        .up (s => s.args = ["init", true, (Queue, method) => s.calledMethods.push (method)])
+        .expectingPropertyToBe ("calledMethods", ["preInit", "init", "postInit"])
+        .commit ()
+
+    .reset ()
+        .up (s => s.calledMethods = [])
+        .up (s => s.args = ["init", (Queue, method) => s.calledMethods.push (method)])
+        .expectingPropertyToBe ("calledMethods", ["init"])
+        .commit ()
+
+    .should ("throw if the component method was not defined")
+        .up (s => s.args = "start")
+        .throws ("error.component_method_not_defined")
         .commit ()
 ;

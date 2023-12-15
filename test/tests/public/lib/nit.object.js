@@ -434,10 +434,11 @@ test ("nit.Object.staticLifecycleMethod ()", () =>
         .staticLifecycleMethod ("run")
         .onRun (() => E.called.push (1))
         .onRun (() => E.called.push (2))
+        .onRun ("before", () => E.called.push (3))
     ;
 
     E.run ();
-    expect (E.called).toEqual ([1, 2]);
+    expect (E.called).toEqual ([3, 1, 2]);
 });
 
 
@@ -1203,10 +1204,12 @@ test ("nit.Object.buildParam ()", async () =>
     nit.User.property ("patterns...", "string", "*");
 
     let field = nit.find (nit.User.getProperties (), "name", "orgIds");
-    let user = new nit.User;
+    let user = Object.create (nit.User.prototype);
 
     expect (nit.Object.buildParam (user, field, {})).toEqual ([]);
+    user = Object.create (nit.User.prototype);
     expect (nit.Object.buildParam (user, field, { orgIds: [3, 4] })).toEqual ([3, 4]);
+    user = Object.create (nit.User.prototype);
     expect (nit.Object.buildParam (user, field, { orgIds: 3 })).toEqual ([3]);
 
     field = nit.find (nit.User.getProperties (), "name", "patterns");
@@ -1227,6 +1230,7 @@ test ("nit.Object.buildParam ()", async () =>
     });
 
     nit.config ("nit.User.info", { "": { remoteData: "someurl" } });
+    user = Object.create (nit.User.prototype);
     expect (await nit.Object.buildParam (user, field, {})).toBe ("lastLogin: 2022-01-01");
 
 
