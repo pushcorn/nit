@@ -1,15 +1,15 @@
 module.exports = function (nit)
 {
-    return nit.definePlugin ("StagedMethod")
+    return nit.definePlugin ("MethodQueue")
         .onUsedBy (function (hostClass)
         {
             hostClass
-                .staticMethod ("defineStagedMethod", function (isStatic, name, builder)
+                .staticMethod ("defineMethodQueue", function (isStatic, name, builder)
                 {
                     var cls = this;
                     var queueName = nit.ucFirst (name) + "Queue";
 
-                    cls.defineInnerClass (queueName, "nit.utils.StagedQueue", function (qc)
+                    cls.defineInnerClass (queueName, "nit.OrderedQueue", function (qc)
                     {
                         nit.invoke ([cls, builder], qc);
                     });
@@ -21,22 +21,23 @@ module.exports = function (nit)
                         return cls[queueName] (this, { args: arguments }).run ();
                     });
                 })
-                .staticMethod ("staticStagedMethod", function (name, builder)
+                .staticMethod ("staticMethodQueue", function (name, builder)
                 {
-                    return this.defineStagedMethod (true, name, builder);
+                    return this.defineMethodQueue (true, name, builder);
                 })
-                .staticMethod ("stagedMethod", function (name, builder)
+                .staticMethod ("methodQueue", function (name, builder)
                 {
-                    return this.defineStagedMethod (false, name, builder);
+                    return this.defineMethodQueue (false, name, builder);
                 })
-                .staticMethod ("extendStagedMethodQueue", function (name, builder)
+                .staticMethod ("subclassMethodQueue", function (name, builder)
                 {
                     var cls = this;
-                    var superclass = cls[name];
+                    var queueName = nit.ucFirst (name) + "Queue";
+                    var superclass = cls[queueName];
 
-                    return cls.defineInnerClass (name, superclass.name, function (subclass)
+                    return cls.defineInnerClass (queueName, superclass.name, function (subclass)
                     {
-                        subclass.stages = superclass.stages;
+                        subclass.tasks = superclass.tasks;
                         subclass.untils = superclass.untils;
 
                         nit.invoke (builder, subclass);

@@ -1,10 +1,10 @@
-test.plugin ("plugins.StagedMethod", "stagedMethod", true)
-    .should ("create a staged method")
+test.plugin ("plugins.MethodQueue", "methodQueue", true)
+    .should ("create a method queue")
         .given ("init")
         .returnsResultOfExpr ("hostClass")
         .up (s => s.initCount = 0)
         .after (s => s.hostClass.InitQueue
-            .stage ("invokeHook", function ()
+            .step ("invokeHook", function ()
             {
                 let q = this;
                 let cls = q.owner.constructor;
@@ -31,13 +31,13 @@ test.plugin ("plugins.StagedMethod", "stagedMethod", true)
 ;
 
 
-test.plugin ("plugins.StagedMethod", "staticStagedMethod", true)
-    .should ("create a staged method")
+test.plugin ("plugins.MethodQueue", "staticMethodQueue", true)
+    .should ("create a method queue")
         .given ("init")
         .returnsResultOfExpr ("hostClass")
         .up (s => s.initCount = 0)
         .after (s => s.hostClass.InitQueue
-            .stage ("invokeHook", function ()
+            .step ("invokeHook", function ()
             {
                 let q = this;
                 let cls = q.owner;
@@ -63,17 +63,17 @@ test.plugin ("plugins.StagedMethod", "staticStagedMethod", true)
 ;
 
 
-test.plugin ("plugins.StagedMethod", "extendStagedMethodQueue", true)
+test.plugin ("plugins.MethodQueue", "subclassMethodQueue", true)
     .should ("create a subclass of parent's method queue")
-        .up (s => s.hostClass.stagedMethod ("init", Queue =>
+        .up (s => s.hostClass.methodQueue ("init", Queue =>
         {
             Queue.push ("init1");
         }))
         .up (s => s.hostClass = s.hostClass.defineSubclass ("MyHost"))
-        .given ("InitQueue")
+        .given ("init")
         .returnsResultOfExpr ("hostClass")
         .expectingPropertyToBe ("hostClass.name", "MyHost")
         .expectingPropertyToBe ("hostClass.InitQueue.classChain.length", 5)
-        .expectingPropertyToBe ("hostClass.InitQueue.stages.length", 1)
+        .expectingPropertyToBe ("hostClass.InitQueue.tasks.length", 1)
         .commit ()
 ;

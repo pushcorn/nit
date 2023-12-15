@@ -4183,63 +4183,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 })
             ;
 
-            Queue.Stage = nit.do (nit.registerClass (nit.createFunction ("nit.Queue.Stage",
-                function (obj, args)
-                {
-                    obj.name = args[0];
-                })),
-                function (Stop)
-                {
-                    nit.dpvs (Stop.prototype,
-                    {
-                        name: ""
-
-                    }, true, false);
-                })
-            ;
-
-            var kStage = Queue.kStage = "nit.Queue.stage";
-
-            function checkStage (tasks)
-            {
-                tasks = nit.array (tasks, true);
-
-                if (tasks.length > 1 && nit.is.str (tasks[0]))
-                {
-                    var stage = tasks.shift ();
-
-                    tasks.forEach (function (t) { Queue.stage (stage, t); });
-                }
-
-                return tasks;
-            }
-
-
-            function needle (t)
-            {
-                return !(t instanceof Queue.Stage);
-            }
-
-
             Queue.STOP = new Queue.Stop;
 
             Queue.push = function (target, tasks)
             {
-                target.push.apply (target, checkStage (tasks));
+                target.push.apply (target, nit.array (tasks, true));
             };
-
 
             Queue.lpush = function (target, tasks)
             {
-                target.unshift.apply (target, checkStage (tasks));
+                target.unshift.apply (target, nit.array (tasks, true));
             };
-
-
-            Queue.stage = function (stage, task)
-            {
-                return nit.dpv (task, kStage, stage);
-            };
-
 
             nit.dpvs (Queue.prototype,
             {
@@ -4249,16 +4203,18 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 onSuccess: undefined,
                 onFailure: undefined,
                 onComplete: undefined,
-                stages: function ()
+                getNextTask: function (tasks)
                 {
-                    var self = this;
+                    var len, next;
 
-                    nit.array (arguments).forEach (function (name)
+                    do
                     {
-                        self.tasks.push (Queue.stage (name, new Queue.Stage (name)));
-                    });
+                        len = tasks.length;
+                        next = tasks.shift ();
+                    }
+                    while (next === undefined && len != tasks.length);
 
-                    return self;
+                    return next;
                 }
                 ,
                 push: function (tasks) // eslint-disable-line no-unused-vars
@@ -4283,51 +4239,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 lpop: function ()
                 {
                     return this.tasks.shift ();
-                }
-                ,
-                before: function (stage, anotherStage, task) // or (stage, task)
-                {
-                    var self = this;
-                    var tasks = self.tasks;
-
-                    task = arguments.length == 3 ? Queue.stage (anotherStage, task) : anotherStage;
-
-                    if (!nit.insertBefore (tasks, task, function (t) { return t[kStage] == stage; }))
-                    {
-                        tasks.unshift (task);
-                    }
-
-                    return self;
-                }
-                ,
-                after: function (stage, anotherStage, task)
-                {
-                    var self = this;
-                    var tasks = self.tasks;
-
-                    task = arguments.length == 3 ? Queue.stage (anotherStage, task) : anotherStage;
-
-                    if (!nit.insertAfter (tasks, task, function (t) { return t[kStage] == stage; }))
-                    {
-                        tasks.push (task);
-                    }
-
-                    return self;
-                }
-                ,
-                replace: function (stage, task)
-                {
-                    var self = this;
-                    var tasks = self.tasks;
-
-                    task = Queue.stage (stage, task);
-
-                    if (!nit.arrayReplace (tasks, task, function (t) { return t[kStage] == stage; }))
-                    {
-                        tasks.push (task);
-                    }
-
-                    return self;
                 }
                 ,
                 stopOn: function (condition)
@@ -4403,17 +4314,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     var finalizingError;
                     var currentTasks = self.tasks;
 
-
                     function nextTask ()
                     {
-                        var len, next;
-
-                        do
-                        {
-                            len = currentTasks.length;
-                            next = nit.arrayRemove (currentTasks, needle, true);
-                        }
-                        while (next === undefined && len != currentTasks.length);
+                        var next = self.getNextTask (currentTasks);
 
                         if (next === undefined)
                         {
@@ -4422,7 +4325,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                         return next;
                     }
-
 
                     function finalize (error)
                     {
@@ -4480,7 +4382,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             return run ();
                         }
                     }
-
 
                     function run ()
                     {
@@ -7639,6 +7540,237 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    var nit_OrderedQueue = nit.defineClass ("nit.OrderedQueue")
+        .staticProperty ("tasks...", "function|nit.OrderedQueue.Name")
+        .staticProperty ("untils...", "function")
+        .field ("[owner]", "object|function?")
+        .field ("args...", "any")
+        .property ("tasks...", "function|nit.OrderedQueue.Name")
+        .property ("untils...", "function")
+        .property ("onSuccess", "function")
+        .property ("onFailure", "function")
+        .property ("onComplete", "function")
+        .property ("result", "any")
+        .property ("error", "any")
+        .getter ("queue", function () { return this; })
+        .do (function (cls)
+        {
+            ["init", "success", "failure", "complete"].forEach (function (method)
+            {
+                var hook = cls.name + "." + method;
+
+                cls.staticLifecycleMethod (method, function (queue)
+                {
+                    var cls = queue.constructor;
+
+                    return cls.invokeClassChainMethod ([queue, hook], [queue.owner].concat (queue.args), true);
+                });
+            });
+        })
+        .defineInnerClass ("Name")
+        .staticTypedMethod ("createStep",
+            {
+                name: "string", task: "function"
+            },
+            function (name, task)
+            {
+                var cls = this;
+                var step;
+
+                if (task)
+                {
+                    step = function (queue)
+                    {
+                        return task.apply (queue, [queue.owner].concat (queue.args));
+                    };
+                }
+                else
+                {
+                    step = new cls.Name;
+                }
+
+                nit.dpv (step, "name", nit.trim (name), false, true);
+
+                return step;
+            }
+        )
+        .staticMethod ("needle", function (task)
+        {
+            return !(task instanceof nit_OrderedQueue.Name);
+        })
+        .staticMethod ("getNextTask", function (tasks)
+        {
+            var len, next;
+            var cls = this;
+
+            do
+            {
+                len = tasks.length;
+                next = nit.arrayRemove (tasks, cls.needle, true);
+            }
+            while (next === undefined && len != tasks.length);
+
+            return next;
+        })
+        .staticMethod ("until", function (condition)
+        {
+            var self = this;
+            var cls = nit.getClass (self);
+            var value = condition;
+
+            condition = nit.is.func (value) ? value : function () { return this.result === value; };
+
+            self.untils.push (cls.createStep (condition));
+
+            return self;
+        })
+        .staticMethod ("lpush", function (name, task)
+        {
+            var self = this;
+            var cls = nit.getClass (self);
+
+            self.tasks.unshift (cls.createStep (name, task));
+
+            return self;
+        })
+        .staticMethod ("push", function (name, task)
+        {
+            var self = this;
+            var cls = nit.getClass (self);
+
+            self.tasks.push (cls.createStep (name, task));
+
+            return self;
+        })
+        .staticMethod ("steps", function ()
+        {
+            var self = this;
+            var cls = nit.getClass (self);
+
+            nit.each (arguments, function (name) { cls.step.call (self, name); });
+
+            return self;
+        })
+        .staticMethod ("step", function (name, task)
+        {
+            return this.push (name, task);
+        })
+        .staticTypedMethod ("before",
+            {
+                target: "string", name: "string", task: "function"
+            },
+            function (target, name, task)
+            {
+                var self = this;
+                var cls = nit.getClass (self);
+                var st = cls.createStep (name || target, task);
+
+                if (!nit.insertBefore (self.tasks, st, function (s) { return s.name == target; }))
+                {
+                    self.tasks.unshift (st);
+                }
+
+                return self;
+            }
+        )
+        .staticTypedMethod ("after",
+            {
+                target: "string", name: "string", task: "function"
+            },
+            function (target, name, task)
+            {
+                var self = this;
+                var cls = nit.getClass (self);
+                var st = cls.createStep (name || target, task);
+
+                if (!nit.insertAfter (self.tasks, st, function (s) { return s.name == target; }))
+                {
+                    self.tasks.push (st);
+                }
+
+                return self;
+            }
+        )
+        .staticTypedMethod ("replace",
+            {
+                target: "string", task: "function"
+            },
+            function (target, task)
+            {
+                var self = this;
+                var cls = nit.getClass (self);
+                var st = cls.createStep (target, task);
+
+                if (!nit.arrayReplace (self.tasks, st, function (s) { return s.name == target; }))
+                {
+                    self.tasks.push (st);
+                }
+
+                return self;
+            }
+        )
+        .staticMethod ("run", function ()
+        {
+            return this ({ args: arguments }).run ();
+        })
+        .do (function (cls)
+        {
+            ["until", "lpush", "push", "steps", "step", "before", "after", "replace"].forEach (function (method)
+            {
+                cls.method (method, function ()
+                {
+                    return this.constructor[method].apply (this, arguments);
+                });
+            });
+        })
+        .method ("stop", function (next)
+        {
+            return new nit.Queue.Stop (next);
+        })
+        .method ("success", function (onSuccess)
+        {
+            this.onSuccess = onSuccess;
+
+            return this;
+        })
+        .method ("failure", function (onFailure)
+        {
+            this.onFailure = onFailure;
+
+            return this;
+        })
+        .method ("complete", function (onComplete)
+        {
+            this.onComplete = onComplete;
+
+            return this;
+        })
+        .method ("run", function ()
+        {
+            var queue = this;
+            var cls = queue.constructor;
+            var nq = nit.Queue ();
+
+            nq.stopOns = queue.untils;
+            nq.tasks = queue.tasks;
+            nq.getNextTask = cls.getNextTask.bind (cls);
+
+            queue.untils.unshift.apply (queue, cls.untils);
+            queue.tasks.unshift.apply (queue, cls.tasks);
+
+            if (cls[cls.kInit]) { nq.lpush (cls.init); }
+            if (cls[cls.kSuccess]) { nq.success (cls.success); }
+            if (cls[cls.kFailure]) { nq.failure (cls.failure); }
+            if (cls[cls.kComplete]) { nq.complete (cls.complete); }
+            if (queue.onSuccess) { nq.success (queue.onSuccess); }
+            if (queue.onFailure) { nq.failure (queue.onFailure); }
+            if (queue.onComplete) { nq.complete (queue.onComplete); }
+
+            return nq.run (queue);
+        })
+    ;
+
+
     nit.defineClass ("nit.Plugin")
         .categorize ("plugins")
         .defineMeta ("unique", "boolean", true)
@@ -8316,8 +8448,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     // --------------------------------------------
-    var INIT_QUEUE = nit.Queue ()
-        .stages ("preInit", "init", "postInit")
+    var INIT_QUEUE = nit.OrderedQueue ()
+        .steps ("preInit", "init", "postInit")
         .after ("init", function () { return nit.app.init (); })
         .complete (function ()
         {
@@ -8347,14 +8479,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         ,
         preInit: function (task)
         {
-            INIT_QUEUE.after ("preInit", "preInit", wrapInitTask (task));
+            INIT_QUEUE.after ("preInit", wrapInitTask (task));
 
             return nit;
         }
         ,
         postInit: function (task)
         {
-            INIT_QUEUE.after ("postInit", "postInit", wrapInitTask (task));
+            INIT_QUEUE.after ("postInit", wrapInitTask (task));
 
             return nit;
         }
@@ -8363,7 +8495,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             if (task)
             {
-                INIT_QUEUE.after ("init", "init", wrapInitTask (task));
+                INIT_QUEUE.after ("init", wrapInitTask (task));
 
                 return nit;
             }

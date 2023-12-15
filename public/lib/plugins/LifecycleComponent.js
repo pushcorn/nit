@@ -1,7 +1,6 @@
 module.exports = function (nit, Self)
 {
     return (Self = nit.definePlugin ("LifecycleComponent"))
-        .use ("nit.utils.StagedQueue")
         .m ("error.component_method_not_defined", "The component method '%{method}' was not defined.")
         .field ("[methods...]", "string", "The component method to be added.")
         .field ("prePost", "boolean", "Define pre- and post- methods.", true)
@@ -24,25 +23,25 @@ module.exports = function (nit, Self)
                 .constant ("Plugin", pluginClass)
                 .registerPlugin (pluginClass, { instancePluginAllowed: plugin.instancePluginAllowed })
                 .plugin ("event-emitter", { prePost: plugin.prePost, listenerName: sn + "Listener" })
-                .plugin ("staged-method")
+                .plugin ("method-queue")
                 .plugin ("logger")
-                .staticMethod ("addMainStagesToComponentMethodQueue", function (method, Queue)
+                .staticMethod ("addMainStepsToComponentMethodQueue", function (method, Queue)
                 {
                     Queue
-                        .stage (method + ".invokeHook", function (comp)
+                        .step (method + ".invokeHook", function (comp)
                         {
                             var cls = comp.constructor;
                             var kHook = cls["k" + nit.ucFirst (method)];
 
                             return nit.invoke ([comp, cls[kHook]], this.args);
                         })
-                        .stage (method + ".applyPlugins", function (comp)
+                        .step (method + ".applyPlugins", function (comp)
                         {
                             var cls = comp.constructor;
 
                             return nit.invoke.return ([plugin.instancePluginAllowed ? comp : cls, cls.applyPlugins], [pluginCategory, method, comp].concat (this.args));
                         })
-                        .stage (method + ".emitEvent", function (comp)
+                        .step (method + ".emitEvent", function (comp)
                         {
                             return nit.invoke.silent ([comp, "emit"], [method, comp].concat (this.args));
                         })
@@ -57,24 +56,24 @@ module.exports = function (nit, Self)
 
                     if (wrapped && prePost)
                     {
-                        Queue.stage (preMethod, function () {});
+                        Queue.step (preMethod, function () {});
 
                         cls
                             .lifecycleMethod (preMethod)
-                            .addMainStagesToComponentMethodQueue (preMethod, Queue)
+                            .addMainStepsToComponentMethodQueue (preMethod, Queue)
                         ;
                     }
 
-                    cls.addMainStagesToComponentMethodQueue (method, Queue);
+                    cls.addMainStepsToComponentMethodQueue (method, Queue);
 
                     if (wrapped && prePost)
                     {
                         cls
                             .lifecycleMethod (postMethod)
-                            .addMainStagesToComponentMethodQueue (postMethod, Queue)
+                            .addMainStepsToComponentMethodQueue (postMethod, Queue)
                         ;
 
-                        Queue.stage (postMethod, function () {});
+                        Queue.step (postMethod, function () {});
                     }
                 })
                 .staticTypedMethod ("configureComponentMethods",
@@ -145,14 +144,14 @@ module.exports = function (nit, Self)
                                 {
                                     [preMethod, postMethod].forEach (function (method)
                                     {
-                                        cls.stagedMethod (method, function (Queue)
+                                        cls.methodQueue (method, function (Queue)
                                         {
                                             cls.buildComponentMethodQueue (Queue, method);
                                         });
                                     });
                                 }
                             })
-                            .stagedMethod (method, function (Queue)
+                            .methodQueue (method, function (Queue)
                             {
                                 cls.buildComponentMethodQueue (Queue, method, wrapped);
                             })

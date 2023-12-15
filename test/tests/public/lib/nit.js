@@ -29,7 +29,7 @@ test ("nit.configureInitQueue ()", () =>
 
     nit.configureInitQueue (queue => q = queue);
 
-    expect (q).toBeInstanceOf (nit.Queue);
+    expect (q).toBeInstanceOf (nit.OrderedQueue);
 });
 
 
