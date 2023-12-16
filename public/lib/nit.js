@@ -7541,11 +7541,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     var nit_OrderedQueue = nit.defineClass ("nit.OrderedQueue")
-        .staticProperty ("tasks...", "function|nit.OrderedQueue.Name")
+        .staticProperty ("tasks...", "function|nit.OrderedQueue.Anchor")
         .staticProperty ("untils...", "function")
         .field ("[owner]", "object|function?")
         .field ("args...", "any")
-        .property ("tasks...", "function|nit.OrderedQueue.Name")
+        .property ("tasks...", "function|nit.OrderedQueue.Anchor")
         .property ("untils...", "function")
         .property ("onSuccess", "function")
         .property ("onFailure", "function")
@@ -7567,7 +7567,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 });
             });
         })
-        .defineInnerClass ("Name")
+        .defineInnerClass ("Anchor")
         .staticTypedMethod ("createStep",
             {
                 name: "string", task: "function"
@@ -7586,7 +7586,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 }
                 else
                 {
-                    step = new cls.Name;
+                    step = new cls.Anchor;
                 }
 
                 nit.dpv (step, "name", nit.trim (name), false, true);
@@ -7596,7 +7596,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         )
         .staticMethod ("needle", function (task)
         {
-            return !(task instanceof nit_OrderedQueue.Name);
+            return !(task instanceof nit_OrderedQueue.Anchor);
         })
         .staticMethod ("getNextTask", function (tasks)
         {
@@ -7642,7 +7642,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             return self;
         })
-        .staticMethod ("steps", function ()
+        .staticMethod ("anchors", function ()
         {
             var self = this;
             var cls = nit.getClass (self);
@@ -7715,7 +7715,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         })
         .do (function (cls)
         {
-            ["until", "lpush", "push", "steps", "step", "before", "after", "replace"].forEach (function (method)
+            ["until", "lpush", "push", "anchors", "step", "before", "after", "replace"].forEach (function (method)
             {
                 cls.method (method, function ()
                 {
@@ -8449,7 +8449,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     // --------------------------------------------
     var INIT_QUEUE = nit.OrderedQueue ()
-        .steps ("preInit", "init", "postInit")
+        .anchors ("preInit", "init", "postInit")
         .after ("init", function () { return nit.app.init (); })
         .complete (function ()
         {

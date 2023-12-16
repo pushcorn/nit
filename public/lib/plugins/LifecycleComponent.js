@@ -56,7 +56,7 @@ module.exports = function (nit, Self)
 
                     if (wrapped && prePost)
                     {
-                        Queue.step (preMethod, function () {});
+                        Queue.anchors (preMethod);
 
                         cls
                             .lifecycleMethod (preMethod)
@@ -64,6 +64,7 @@ module.exports = function (nit, Self)
                         ;
                     }
 
+                    Queue.anchors (method);
                     cls.addMainStepsToComponentMethodQueue (method, Queue);
 
                     if (wrapped && prePost)
@@ -73,7 +74,7 @@ module.exports = function (nit, Self)
                             .addMainStepsToComponentMethodQueue (postMethod, Queue)
                         ;
 
-                        Queue.step (postMethod, function () {});
+                        Queue.anchors (postMethod);
                     }
                 })
                 .staticTypedMethod ("configureComponentMethods",
