@@ -4981,6 +4981,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     getter: cfg.getter,
                     caster: caster,
                     backref: cfg.backref,
+                    deferred: cfg.deferred,
                     onLink: cfg.onLink,
                     onUnlink: cfg.onUnlink,
                     primitive: !(parser instanceof nit.Object.ClassTypeParser),
@@ -5048,6 +5049,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 getter: undefined,
                 setter: undefined,
                 backref: undefined,
+                deferred: false,
                 onLink: undefined,
                 onUnlink: undefined,
                 caster: undefined,
@@ -6367,11 +6369,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             return v === undefined ? "<undefined>" : nit.serialize (v, indent);
         })
-        .staticLifecycleMethod ("preBuildConstructorParams", function (obj, params, args)
+        .staticLifecycleMethod ("beginConstruction", function (obj, params, args)
         {
             var cls = this;
 
-            return cls.invokeClassChainMethod ([obj, cls.kPreBuildConstructorParams], [params, args]);
+            return cls.invokeClassChainMethod ([obj, cls.kBeginConstruction], [params, args]);
+        })
+        .staticLifecycleMethod ("endConstruction", function (obj, args)
+        {
+            var cls = this;
+
+            return cls.invokeClassChainMethod ([obj, cls.kEndConstruction], args);
         })
         .staticLifecycleMethod ("preConstruct", function (obj, args)
         {
@@ -6436,17 +6444,19 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         ))
         .staticMethod ("buildParam", function (obj, prop, params)
         {
-            if (obj[prop.privProp] !== undefined)
+            var cls = this;
+            var n = prop.name;
+            var isParamUndef = params[n] === undefined;
+
+            if (obj[cls.kConstructing] && prop.deferred && !isParamUndef)
             {
                 return;
             }
 
-            var cls = this;
-            var n = prop.name;
             var configKey = obj.constructor.name;
             var defvals = cls[cls.kDefvals];
 
-            if (params[n] === undefined)
+            if (isParamUndef)
             {
                 var defval = n in defvals ? defvals[n] : prop.defval;
 
@@ -6604,15 +6614,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             var cls = this;
             var params = {};
 
-            nit.dpv (obj, cls.kConstructing, true, true, false);
-
             return nit.Queue ()
                 .push (function ()
                 {
-                    return cls.preBuildConstructorParams (obj, params, args);
+                    return cls.beginConstruction (obj, params, args);
                 })
                 .push (function ()
                 {
+                    nit.dpv (obj, cls.kConstructing, true, true, false);
+
                     return cls.buildConstructorParams (obj, args.concat (params));
                 })
                 .push (function (ctx)
@@ -6632,11 +6642,35 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 {
                     return cls.postConstruct (obj, args);
                 })
-                .push (function ()
+                .push (function (c)
                 {
                     delete obj[cls.kRawConstructorParams];
                     delete obj[cls.kConstructing];
 
+                    var deferred = [];
+
+                    cls.properties.forEach (function (p)
+                    {
+                        if (p.deferred && params[p.name] !== undefined)
+                        {
+                            deferred.push (function ()
+                            {
+                                return cls.buildParam (obj, p, params);
+                            });
+                        }
+                    });
+
+                    if (deferred.length)
+                    {
+                        c.queue.lpush (deferred);
+                    }
+                })
+                .push (function ()
+                {
+                    return cls.endConstruction (obj, args);
+                })
+                .push (function ()
+                {
                     return obj;
                 })
             ;
@@ -7199,6 +7233,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .property ("getter", "function")
         .property ("setter", "function")
         .property ("backref", "string")
+        .property ("deferred", "boolean")
         .property ("onLink", "function")
         .property ("onUnlink", "function")
         .property ("caster", "function|string")

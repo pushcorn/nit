@@ -1291,15 +1291,20 @@ test ("nit.Object.constructObject ()", async () =>
 {
     let preConstructCalled = false;
     let postConstructCalled = false;
-    let preBuildConstructorParams = false;
-    let User = nit.User;
+    let beginConstruction = false;
+    let endConstruction = false;
+    let names = [];
+    let User = nit.defineClass ("User")
+        .field ("firstname")
+        .field ("lastname", { deferred: true })
+    ;
 
     nit.CONFIG = {};
 
     User
-        .onPreBuildConstructorParams (function ()
+        .onBeginConstruction (function ()
         {
-            preBuildConstructorParams = true;
+            beginConstruction = true;
         })
         .onPreConstruct (function ()
         {
@@ -1307,14 +1312,22 @@ test ("nit.Object.constructObject ()", async () =>
         })
         .onPostConstruct (function ()
         {
+            names.push (this.firstname, this.lastname);
             postConstructCalled = true;
+        })
+        .onEndConstruction (function ()
+        {
+            names.push (this.firstname, this.lastname);
+            endConstructionCalled = true;
         })
     ;
 
-    let user = await new User; // eslint-disable-line no-unused-vars
-    expect (preBuildConstructorParams).toBe (true);
+    let user = await new User ({ firstname: "John", lastname: "Doe" }); // eslint-disable-line no-unused-vars
+    expect (beginConstruction).toBe (true);
     expect (preConstructCalled).toBe (true);
     expect (postConstructCalled).toBe (true);
+    expect (endConstructionCalled).toBe (true);
+    expect (names).toEqual (["John", "", "John", "Doe"]);
 });
 
 

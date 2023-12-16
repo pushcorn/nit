@@ -340,6 +340,7 @@ module.exports = function (nit, Self, global)
                 })
                 .field ("[parent]", Self.Context.name, "The parent context.",
                 {
+                    deferred: true,
                     onLink: function (parent)
                     {
                         var self = this;
@@ -347,10 +348,7 @@ module.exports = function (nit, Self, global)
                         parent.once ("cancel", self[Subcontext.kParentCancelListener]);
                         self.delegateParentProperties ();
 
-                        if (!self[Self.kConstructing])
-                        {
-                            self.input = nit.coalesce (self.input, parent.output);
-                        }
+                        self.input = nit.coalesce (self.input, parent.output);
                     }
                     ,
                     onUnlink: function (parent)
