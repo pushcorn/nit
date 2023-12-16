@@ -1292,7 +1292,7 @@ test ("nit.Object.constructObject ()", async () =>
     let preConstructCalled = false;
     let postConstructCalled = false;
     let beginConstruction = false;
-    let endConstruction = false;
+    let endConstructionCalled = false;
     let names = [];
     let User = nit.defineClass ("User")
         .field ("firstname")
