@@ -122,3 +122,12 @@ test.plugin ("plugins.LifecycleComponent", "configureComponentMethods", true, { 
         .throws ("error.component_method_not_defined")
         .commit ()
 ;
+
+
+test.plugin ("plugins.LifecycleComponent", "configureComponentMethod", true, { pluginArgs: "init" })
+    .should ("call the configurator with the method queue and method name")
+        .up (s => s.calledMethods = [])
+        .up (s => s.args = ["init", true, (Queue, method) => s.calledMethods.push (method)])
+        .expectingPropertyToBe ("calledMethods", ["preInit", "init", "postInit"])
+        .commit ()
+;

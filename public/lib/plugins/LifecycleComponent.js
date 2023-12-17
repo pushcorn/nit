@@ -6,11 +6,12 @@ module.exports = function (nit, Self)
         .field ("prePost", "boolean", "Define pre- and post- methods.", true)
         .field ("wrapped", "boolean", "Wrap the main method with the pre- and post- methods.", true)
         .field ("instancePluginAllowed", "boolean", "Allow instance level plugins.")
+        .field ("pluginName", "string", "The plugin name.")
         .onUsedBy (function (hostClass)
         {
             var plugin = this;
             var sn = hostClass.simpleName;
-            var pluginName = sn + "Plugin";
+            var pluginName = plugin.pluginName || sn + "Plugin";
             var prePost = plugin.prePost;
             var pluginCategory = nit.pluralize (pluginName).toLowerCase ();
             var ns = nit.kvSplit (hostClass.name, ".", true)[0];
@@ -59,7 +60,7 @@ module.exports = function (nit, Self)
                         Queue.anchors (preMethod);
 
                         cls
-                            .lifecycleMethod (preMethod)
+                            .staticLifecycleMethod (preMethod)
                             .addMainStepsToComponentMethodQueue (preMethod, Queue)
                         ;
                     }
@@ -70,12 +71,16 @@ module.exports = function (nit, Self)
                     if (wrapped && prePost)
                     {
                         cls
-                            .lifecycleMethod (postMethod)
+                            .staticLifecycleMethod (postMethod)
                             .addMainStepsToComponentMethodQueue (postMethod, Queue)
                         ;
 
                         Queue.anchors (postMethod);
                     }
+                })
+                .staticMethod ("configureComponentMethod", function ()
+                {
+                    return this.configureComponentMethods.apply (this, arguments);
                 })
                 .staticTypedMethod ("configureComponentMethods",
                     {

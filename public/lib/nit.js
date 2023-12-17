@@ -5410,27 +5410,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             cls[hookMethod] (hook);
                         }
 
-                        if (isStatic)
+                        cls[isStatic ? "staticMethod" : "method"] (name, function ()
                         {
-                            cls.staticMethod (name, function ()
-                            {
-                                var cls = this;
-                                var method = impl || cls[key];
+                            var self = this;
+                            var cls = nit.getClass (self);
+                            var method = impl || cls[key];
 
-                                return method ? method.apply (cls, arguments) : cls;
-                            });
-                        }
-                        else
-                        {
-                            cls.method (name, function ()
-                            {
-                                var self = this;
-                                var cls = self.constructor;
-                                var method = impl || cls[key];
-
-                                return method ? method.apply (self, arguments) : self;
-                            });
-                        }
+                            return method ? method.apply (self, arguments) : self;
+                        });
                     })
                 ;
             }
