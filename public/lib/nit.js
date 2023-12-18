@@ -7592,9 +7592,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .defineInnerClass ("Anchor")
         .staticTypedMethod ("createStep",
             {
-                name: "string", task: "function"
+                name: "string", silent: "boolean", task: "function"
             },
-            function (name, task)
+            function (name, silent, task)
             {
                 var cls = this;
                 var step;
@@ -7603,7 +7603,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 {
                     step = function (queue)
                     {
-                        return task.apply (queue, [queue.owner].concat (queue.args));
+                        return (silent ? nit.invoke.silent : nit.invoke) ([queue, task], [queue.owner].concat (queue.args));
                     };
                 }
                 else
@@ -7646,21 +7646,21 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             return self;
         })
-        .staticMethod ("lpush", function (name, task)
+        .staticMethod ("lpush", function (name, silent, task)
         {
             var self = this;
             var cls = nit.getClass (self);
 
-            self.tasks.unshift (cls.createStep (name, task));
+            self.tasks.unshift (cls.createStep (name, silent, task));
 
             return self;
         })
-        .staticMethod ("push", function (name, task)
+        .staticMethod ("push", function (name, silent, task)
         {
             var self = this;
             var cls = nit.getClass (self);
 
-            self.tasks.push (cls.createStep (name, task));
+            self.tasks.push (cls.createStep (name, silent, task));
 
             return self;
         })
@@ -7679,13 +7679,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         })
         .staticTypedMethod ("before",
             {
-                target: "string", name: "string", task: "function"
+                target: "string", name: "string", silent: "boolean", task: "function"
             },
-            function (target, name, task)
+            function (target, name, silent, task)
             {
                 var self = this;
                 var cls = nit.getClass (self);
-                var st = cls.createStep (name || target, task);
+                var st = cls.createStep (name || target, silent, task);
 
                 if (!nit.insertBefore (self.tasks, st, function (s) { return s.name == target; }))
                 {
@@ -7697,13 +7697,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         )
         .staticTypedMethod ("after",
             {
-                target: "string", name: "string", task: "function"
+                target: "string", name: "string", silent: "boolean", task: "function"
             },
-            function (target, name, task)
+            function (target, name, silent, task)
             {
                 var self = this;
                 var cls = nit.getClass (self);
-                var st = cls.createStep (name || target, task);
+                var st = cls.createStep (name || target, silent, task);
 
                 if (!nit.insertAfter (self.tasks, st, function (s) { return s.name == target; }))
                 {
@@ -7715,13 +7715,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         )
         .staticTypedMethod ("replace",
             {
-                target: "string", task: "function"
+                target: "string", silent: "boolean", task: "function"
             },
-            function (target, task)
+            function (target, silent, task)
             {
                 var self = this;
                 var cls = nit.getClass (self);
-                var st = cls.createStep (target, task);
+                var st = cls.createStep (target, silent, task);
 
                 if (!nit.arrayReplace (self.tasks, st, function (s) { return s.name == target; }))
                 {
