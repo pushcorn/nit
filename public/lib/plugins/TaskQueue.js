@@ -25,7 +25,7 @@ module.exports = function (nit, Self)
                 )
                 .staticMethod ("defineTaskMethod", function (name, superclass, builder)
                 {
-                    var clsName = nit.ucFirst (name) + "MethodTask";
+                    var clsName = nit.ucFirst (name) + "Task";
 
                     return this
                         .defineTask (clsName, superclass, builder)
@@ -44,7 +44,7 @@ module.exports = function (nit, Self)
                 })
                 .staticMethod ("defineQueuedTaskMethod", function (name, superclass, builder)
                 {
-                    var clsName = nit.ucFirst (name) + "MethodTask";
+                    var clsName = nit.ucFirst (name) + "Task";
 
                     return this
                         .defineTask (clsName, superclass, builder)

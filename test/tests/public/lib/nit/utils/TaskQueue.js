@@ -43,6 +43,7 @@ test.method ("nit.utils.TaskQueue", "enqueue")
             ;
         })
         .after (s => s.object.stop (true))
+        .expectingPropertyToBe ("object.stats", { pending: 0, queued: 0 })
         .expectingPropertyToBe ("taskIds", [1, 0, 2, 4])
         .expectingPropertyToBe ("mocks.0.invocations.length", 1)
         .expectingPropertyToBe ("mocks.0.invocations.0.args.0", /TASK_ERR/)
@@ -142,5 +143,20 @@ test.method ("nit.utils.TaskQueue", "stop")
         .expectingPropertyToBe ("taskIds", [1, 0])
         .expectingMethodToThrow ("object.enqueue", null, "error.queue_not_started")
         .expectingMethodToReturnValueOfType ("object.stop", null, "nit.utils.TaskQueue")
+        .commit ()
+;
+
+
+test.method ("nit.utils.TaskQueue", "waitUntilIdle", { createArgs: { autoStart: true } })
+    .should ("resolve the returned promise when the the queue becomes idle")
+        .up (s => { s.def = new nit.Deferred; })
+        .up (s => s.Sleep = nit.defineTask ("test.tasks.Sleep")
+            .onRun (() => s.def.promise)
+        )
+        .before (s => s.object.enqueue (new s.Sleep))
+        .before (s => s.object.once ("idle", () => s.idleCalled = true))
+        .before (s => setTimeout (() => s.def.resolve (), 10))
+        .returnsResultOfExpr ("object")
+        .expectingPropertyToBe ("idleCalled", true)
         .commit ()
 ;

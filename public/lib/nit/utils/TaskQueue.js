@@ -15,6 +15,25 @@ module.exports = function (nit, Self)
         .property ("queuedTasks...", Self.Entry.name)
         .property ("pendingTasks", "object")
 
+        .do (function ()
+        {
+            Self.lookupPlugin ("event-emitter").addEvent (Self, "idle");
+        })
+        .defineInnerClass ("Stats", function (Stats)
+        {
+            Stats
+                .field ("pending", "integer")
+                .field ("queued", "integer")
+            ;
+        })
+        .getter ("stats", function ()
+        {
+            return new Self.Stats (
+            {
+                pending: nit.keys (this.pendingTasks).length,
+                queued: this.queuedTasks.length
+            });
+        })
         .typedMethod ("enqueue",
             {
                 task: "nit.Task", priority: "integer", replace: "boolean"
@@ -101,8 +120,22 @@ module.exports = function (nit, Self)
 
                 self.next ();
             }
+            else
+            if (nit.is.empty.nested ([self.pendingTasks, self.queuedTasks]))
+            {
+                self.emit ("idle");
+            }
 
             return self;
+        })
+        .method ("waitUntilIdle", function ()
+        {
+            var self = this;
+            var def = new nit.Deferred;
+
+            self.once ("idle", function () { def.resolve (self); });
+
+            return def.promise;
         })
         .onStart (function ()
         {

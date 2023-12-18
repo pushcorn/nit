@@ -2723,7 +2723,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                 tid = setTimeout (cb.apply.bind (cb, this, ARRAY (arguments)), delay);
 
-            }, "name", cb.name);
+            }, "name", cb.name, true, false);
         }
     );
 
@@ -7611,7 +7611,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     step = new cls.Anchor;
                 }
 
-                nit.dpv (step, "name", nit.trim (name), false, true);
+                nit.dpv (step, "name", nit.trim (name), true, !task);
 
                 return step;
             }

@@ -55,6 +55,8 @@ module.exports = function (nit, Self)
                     var preMethod = "pre" + ucMethod;
                     var postMethod = "post" + ucMethod;
 
+                    Queue.anchors ("preAll");
+
                     if (wrapped && prePost)
                     {
                         Queue.anchors (preMethod);
@@ -70,13 +72,15 @@ module.exports = function (nit, Self)
 
                     if (wrapped && prePost)
                     {
+                        Queue.anchors (postMethod);
+
                         cls
                             .staticLifecycleMethod (postMethod)
                             .addMainStepsToComponentMethodQueue (postMethod, Queue)
                         ;
-
-                        Queue.anchors (postMethod);
                     }
+
+                    Queue.anchors ("postAll");
                 })
                 .staticMethod ("configureComponentMethod", function ()
                 {
