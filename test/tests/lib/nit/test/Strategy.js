@@ -314,7 +314,12 @@ test ("nit.test.Strategy.Spy", () =>
     ;
 
     let a = new A;
-    let spy = new nit.test.Strategy.Spy (a, "addOne");
+    let cbCalled = 0;
+    let spy = new nit.test.Strategy.Spy (a, "addOne", function ()
+    {
+        cbCalled++;
+    });
+
     let st = {};
     spy.apply (st);
     expect (spy.applied).toBe (true);
@@ -322,6 +327,7 @@ test ("nit.test.Strategy.Spy", () =>
     expect (a.addOne ()).toBe (1);
     expect (a.addOne (100)).toBe (101);
     expect (spy.invocations.length).toBe (2);
+    expect (cbCalled).toBe (2);
     spy.restore ();
     expect (a.addOne (99)).toBe (100);
 
@@ -961,6 +967,7 @@ test ("nit.test.Strategy.commit ()", async () =>
                 status.dirChangedForApp = process.cwd () == this.app.root.path;
             })
             .expectingPropertyToBe ("object.name", "AAA")
+            .expectingPropertyToBeOfType ("object.name", "string")
             .commit ()
 
         .should ("pass 5")  // expect 2
@@ -1040,11 +1047,12 @@ test ("nit.test.Strategy.commit ()", async () =>
     expect (itMock.errors[3].message).toBe ("test error!");
     expect (describeMock.invocations.length).toBe (8);
     expect (describeOnlyMock.invocations.length).toBe (1);
-    expect (itMock.invocations.length).toBe (12);
-    expect (expectMock.invocations.length).toBe (6);
-    expect (expectMock.invocations[3].result.expected).toBeUndefined ();
-    expect (expectMock.invocations[4].result.isEqual).toBe (true);
-    expect (expectMock.invocations[5].args[0]).toBe ("test error!");
+    expect (itMock.invocations.length).toBe (13);
+    expect (expectMock.invocations.length).toBe (7);
+    expect (expectMock.invocations[3].result.expected).toBe ("AAA");
+    expect (expectMock.invocations[4].result.expected).toBeUndefined ();
+    expect (expectMock.invocations[5].result.isEqual).toBe (true);
+    expect (expectMock.invocations[6].args[0]).toBe ("test error!");
     expect (status.dirChangedForProject).toBe (true);
     expect (status.dirChangedForApp).toBe (true);
     expect (status.dirChanged).toBe (true);
