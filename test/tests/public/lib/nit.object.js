@@ -1799,3 +1799,49 @@ test ("nit.Object.do ()", () =>
 
     expect (called).toEqual (["2 > 1", "abcd", "Property"]);
 });
+
+
+test ("nit.Object.ConfigTypeParser ()", () =>
+{
+    const A = nit.defineClass ("A")
+        .field ("fa", "integer")
+    ;
+
+    let a = new A ({ fa: 100 });
+
+    expect ((new nit.Object.ConfigTypeParser).supports ()).toBe (false);
+    expect ((new nit.Object.ConfigTypeParser).supports ("string")).toBe (false);
+    expect ((new nit.Object.ConfigTypeParser).supports ("config")).toBe (true);
+
+    expect ((new nit.Object.ConfigTypeParser).cast ("config")).toBeUndefined ();
+    expect ((new nit.Object.ConfigTypeParser).cast ({ a: 3 })).toEqual ({ a: 3 });
+    expect ((new nit.Object.ConfigTypeParser).cast (a)).toEqual ({ fa: 100 });
+    expect ((new nit.Object.ConfigTypeParser).cast (10)).toBeUndefined ();
+    expect ((new nit.Object.ConfigTypeParser).cast ("package.json")).toEqual (expect.objectContaining ({ bin: "./bin/nit" }));
+});
+
+
+test ("nit.Object.ConfigTypeParser ()", () =>
+{
+    jest.resetModules ();
+    delete global.nit;
+    const nit = require (test.PUBLIC_NIT_PATH);
+
+    const A = nit.defineClass ("A")
+        .field ("fa", "integer")
+    ;
+
+    let a = new A ({ fa: 100 });
+
+    expect ((new nit.Object.ConfigTypeParser).supports ()).toBe (false);
+    expect ((new nit.Object.ConfigTypeParser).supports ("string")).toBe (false);
+    expect ((new nit.Object.ConfigTypeParser).supports ("config")).toBe (true);
+
+    expect ((new nit.Object.ConfigTypeParser).cast ("config")).toBeUndefined ();
+    expect ((new nit.Object.ConfigTypeParser).cast ({ a: 3 })).toEqual ({ a: 3 });
+    expect ((new nit.Object.ConfigTypeParser).cast (a)).toEqual ({ fa: 100 });
+    expect ((new nit.Object.ConfigTypeParser).cast (10)).toBeUndefined ();
+});
+
+
+

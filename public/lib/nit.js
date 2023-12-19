@@ -6014,6 +6014,29 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 }
             });
         })
+        .defineInnerClass ("ConfigTypeParser", "nit.Object.ITypeParser", function (ConfigTypeParser)
+        {
+            nit.assign (ConfigTypeParser.prototype,
+            {
+                supports: function (type)
+                {
+                    return type == "config";
+                }
+                ,
+                cast: function (config)
+                {
+                    if (nit.is.str (config))
+                    {
+                        return nit.config (config);
+                    }
+                    else
+                    if (nit.is.obj (config))
+                    {
+                        return nit.toPojo (config);
+                    }
+                }
+            });
+        })
         .do (function (Object)
         {
             Object
@@ -6026,6 +6049,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 .registerTypeParser (new Object.PrimitiveTypeParser ("function", undefined, function (v) { return typeof v == "function" ? v : undefined; }))
                 .registerTypeParser (new Object.PrimitiveTypeParser ("date", undefined, function (v) { var d = new Date (v); return isNaN (d) ? undefined : d; }))
                 .registerTypeParser (new Object.PrimitiveTypeParser ("any", undefined, function (v) { return v; }))
+                .registerTypeParser (new Object.ConfigTypeParser ())
                 .registerTypeParser (new Object.ClassTypeParser (), 200)
                 .registerTypeParser (new Object.MixedTypeParser (), 50)
             ;
