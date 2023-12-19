@@ -437,7 +437,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         if (cls.constructObject)
         {
-            obj = cls.constructObject (obj, nit.array (args)) || obj;
+            args = nit.array (args);
+
+            if (nit.is.arr (args[0]))
+            {
+                args = args.shift ().concat (args);
+            }
+
+            obj = cls.constructObject (obj, args) || obj;
         }
 
         return obj;

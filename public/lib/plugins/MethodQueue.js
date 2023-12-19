@@ -14,6 +14,11 @@ module.exports = function (nit)
                         nit.invoke ([cls, builder], qc);
                     });
 
+                    hostClass.onDefineSubclass (function (subclass)
+                    {
+                        subclass.subclassMethodQueue (name);
+                    });
+
                     return cls[isStatic ? "staticLifecycleMethod" : "lifecycleMethod"] (name, function ()
                     {
                         var cls = isStatic ? this : this.constructor;
@@ -33,14 +38,14 @@ module.exports = function (nit)
                 {
                     var cls = this;
                     var queueName = nit.ucFirst (name) + "Queue";
-                    var superclass = cls[queueName];
+                    var queueSuperclass = cls.superclass[queueName];
 
-                    return cls.defineInnerClass (queueName, superclass.name, function (subclass)
+                    return cls.defineInnerClass (queueName, queueSuperclass.name, function (queueSubclas)
                     {
-                        subclass.tasks = superclass.tasks;
-                        subclass.untils = superclass.untils;
+                        queueSubclas.tasks = queueSuperclass.tasks;
+                        queueSubclas.untils = queueSuperclass.untils;
 
-                        nit.invoke (builder, subclass);
+                        nit.invoke (builder, queueSubclas);
                     });
                 })
             ;
