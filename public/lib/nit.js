@@ -3803,7 +3803,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         if ((cause = ctx.cause))
         {
-            error.stack += "\n\n" + nit.indent ("Caused by " + cause.stack, "  ");
+            error.stack += "\n" + nit.indent ("- Caused by " + cause.stack, "    ");
         }
 
         return nit.dpv (nit.dpv (error, "context", ctx), "code", code, false, true);
@@ -4757,7 +4757,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             };
 
 
-            Property.set = function (prop, owner, v, writer)
+            Property.set = function (prop, owner, v, writer, ctx)
             {
                 if (writer !== true)
                 {
@@ -4834,7 +4834,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     && !nit.is.promise (v)
                     && (!nit.is.empty (v) || prop.required))
                 {
-                    return prop.validate (owner, v);
+                    return prop.validate (owner, v, ctx);
                 }
             };
 
@@ -4901,14 +4901,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             };
 
 
-            Property.validate = function (prop, owner, value) // validate constraints
+            Property.validate = function (prop, owner, value, ctx) // validate constraints
             {
                 var vals = nit.is.arr (value) ? value : [value];
                 var q = nit.Queue ();
 
                 nit.each (vals, function (value)
                 {
-                    var ctx = prop.createValidationContext (owner, value);
+                    ctx = ctx || prop.createValidationContext (owner, value);
 
                     q.push (nit.each (prop.constraints, function (cons)
                     {
@@ -4999,7 +4999,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     order: cfg.order,
                     constraints: nit.array (cfg.constraints),
                     get: function () { return get (prop, this); },
-                    set: function (v) { return set (prop, this, v, writer); }
+                    set: function (v, ctx) { return set (prop, this, v, writer, ctx); }
                 });
 
                 nit.dpv (prop.get, "setDescriptor", function (p)
@@ -5098,9 +5098,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     return { value: value, owner: owner, property: this };
                 }
                 ,
-                validate: function (owner, value)
+                validate: function (owner, value, ctx)
                 {
-                    return Property.validate (this, owner, value);
+                    return Property.validate (this, owner, value, ctx);
                 }
             });
 
@@ -7039,7 +7039,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return nit.Queue ()
                 .push (function ()
                 {
-                    return !constraint.conditionFn || constraint.conditionFn (nit.assign ({ nit: nit, this: ctx }, ctx.toPojo (true)));
+                    return !constraint.conditionFn || !!constraint.conditionFn (nit.assign ({ nit: nit, this: ctx }, ctx.toPojo (true)));
                 })
                 .push (function (q)
                 {
@@ -7047,7 +7047,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                     delete q.result;
 
-                    return skip ? nit.Queue.STOP : validate.call (cls, ctx);
+                    return skip ? nit.Queue.STOP : validate.call (constraint, ctx);
                 })
                 .push (function (q)
                 {
@@ -7310,9 +7310,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             return new nit.Constraint.ValidationContext ({ value: value, owner: owner, property: this });
         })
-        .method ("validate", function (owner, value)
+        .method ("validate", function (owner, value, ctx)
         {
-            return nit.Object.Property.validate (this, owner, value);
+            return nit.Object.Property.validate (this, owner, value, ctx);
         })
     ;
 
@@ -8154,13 +8154,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     var __set = field.set;
                     var privProp = field.privProp;
 
-                    field.set = function (v)
+                    field.set = function (v, ctx)
                     {
                         var owner = this;
 
                         if (owner[nit.Model.kUnlocked])
                         {
-                            return __set.call (owner, v);
+                            return __set.call (owner, v, ctx);
                         }
                         else
                         {
@@ -8188,10 +8188,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 {
                     return owner[nit.Model.kUnlocked] && !owner[nit.Model.kNoValidation];
                 })
-                .method ("createValidationContext", function (owner, value)
-                {
-                    return new owner.constructor.ValidationContext ({ value: value, entity: owner, field: this });
-                })
             ;
         })
         .defineInnerClass ("Violation", function (Violation)
@@ -8215,8 +8211,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 .property ("entities...", "nit.Model") // validated entities
                 .property ("keyPath...", "string") // the key path to the property
 
-                .getter ("property", function () { return this.field; })
-                .getter ("owner", function () { return this.entity; })
+                .delegate ("property", "field")
+                .delegate ("owner", "entity")
 
                 .method ("shouldValidate", function (entity)
                 {
@@ -8351,16 +8347,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         ctx.value = entity[field.name];
                         ctx.field = field;
 
-                        return nit.Queue ()
-                            .push (function ()
+                        return nit.invoke.then ([entity, field.set], [ctx.value, ctx], function (error)
+                        {
+                            if (error)
                             {
-                                return field.set.call (entity, ctx.value);
-                            })
-                            .failure (function (qc)
-                            {
-                                ctx.addViolation (qc.error, field);
-                            })
-                        ;
+                                ctx.addViolation (error, field);
+                            }
+                        });
                     };
                 }))
                 .push (function ()

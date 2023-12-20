@@ -455,3 +455,15 @@ test ("nit.Object.Property - local class", () =>
     expect (ctx.input.firstname).toBe ("");
     expect (ctx.input.lastname).toBe ("");
 });
+
+
+test ("nit.Object.Property - nullable array property", () =>
+{
+    const A  = nit.defineClass ("A")
+        .field ("vs...", "integer?")
+    ;
+
+    let a = new A;
+
+    expect (a.vs).toBeUndefined ();
+});

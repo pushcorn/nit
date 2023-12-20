@@ -534,6 +534,12 @@ test ("nit.Command.run ()", async () =>
     expect ((await Test ().run ()).output).toBe (undefined);
 
     Test
+        .defineInput (Input =>
+        {
+            Input
+                .option ("va", "integer")
+            ;
+        })
         .onRun (function (ctx)
         {
             ctx.key = "value";
@@ -549,6 +555,12 @@ test ("nit.Command.run ()", async () =>
     await Test ().run (ctx);
     expect (ctx.key).toBe ("value");
 
+    ctx = await Test ().run ({ va: 10 });
+    expect (ctx.input.va).toBe (10);
+
+    ctx = Test.Context.forInput ({ va: 11 });
+    await Test ().run (ctx);
+    expect (ctx.input.va).toBe (11);
 
     const TestOutput = nit.defineClass ("TestOutput")
         .field ("val", "integer")
@@ -644,7 +656,7 @@ test ("nit.Command.defineContext ()", async () =>
     expect ((await Add ().run (3, 4)).output).toBe (7);
 
     let ctx = new Add.Context;
-    expect (ctx.input).toBeInstanceOf (Add.Input);
+    expect (ctx.input).toBeUndefined ();
 
     ctx = Add.Context.forInput (7, 8);
     expect (ctx).toBeInstanceOf (Add.Context);

@@ -39,4 +39,34 @@ test ("nit.Constraint", () =>
     expect (() => cons.validate (ctx)).toThrow (/greater than! 10/i);
     ctx.value = 5;
     expect (cons.validate (ctx)).toBe (true);
+
+    let ErrCons = nit.defineConstraint ("test.constraints.ErrConstraint")
+        .onValidate (function ()
+        {
+            throw new Error ("ERR_CONS");
+        })
+    ;
+
+    expect (() => ErrCons ().validate (ctx)).toThrow ("ERR_CONS");
+
+    let ec = new ErrCons ({ condition: "value > 100" });
+    expect (ec.validate (ctx)).toBeUndefined ();
+
+    expect (ec.nameMatches ("test:err-constraint")).toBe (true);
+    expect (ec.nameMatches ("test.constraints.ErrConstraint")).toBe (true);
+    expect (ec.nameMatches ("ErrConstraint")).toBe (true);
+
+    let ec2 = new ErrCons ({ name: "my-ec" });
+    expect (ec2.nameMatches ("my-ec")).toBe (true);
+    expect (ec2.nameMatches ("test:err-constraint")).toBe (true);
+});
+
+
+test ("nit.Constraint.lookup", () =>
+{
+    expect (nit.Constraint.lookup ("max")).toBe (nit.NS.constraints.Max);
+    expect (() => nit.Constraint.lookup ("test:max")).toThrow (/constraint.*not defined/);
+
+    test.mock (nit, "lookupComponent", () => nit.throw ("LOOKUP_ERR"));
+    expect (() => nit.Constraint.lookup ("test:max")).toThrow ("LOOKUP_ERR");
 });

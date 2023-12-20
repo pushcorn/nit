@@ -26,6 +26,7 @@ module.exports = function (nit, Self)
         })
         .property ("serviceRegistry", "object",
         {
+            enumerable: false,
             setter: function (v)
             {
                 if (this.parent)
