@@ -54,6 +54,20 @@ test.method ("nit.Context", "registerService")
 ;
 
 
+test.method ("nit.Context", "registerServiceProvider")
+    .should ("register a service provider")
+        .up (s => s.Db = nit.defineClass ("test.Db"))
+        .up (s => s.parent = new s.class)
+        .before (s => s.object.parent = s.parent)
+        .before (s => s.args = ["test.Db", () => s.created = new s.Db])
+        .returnsInstanceOf ("nit.Context")
+        .expectingPropertyToBe ("created", undefined)
+        .expectingMethodToReturnValueOfType ("object.lookupService", "test.Db", "test.Db")
+        .expectingPropertyToBeOfType ("created", "test.Db")
+        .commit ()
+;
+
+
 test.method ("nit.Context", "lookupService")
     .should ("return the service for the given scope type")
         .up (s => s.Db = nit.defineClass ("test.Db"))
@@ -64,7 +78,7 @@ test.method ("nit.Context", "lookupService")
         .returnsInstanceOf ("test.Db")
         .commit ()
 
-    .should ("return undefiend if the service is not registered and optional is true")
+    .should ("return undefined if the service is not registered and optional is true")
         .given ("test.Db", true)
         .returns ()
         .commit ()
