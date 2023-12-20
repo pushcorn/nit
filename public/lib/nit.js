@@ -1764,7 +1764,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return function (v) { return !!nit.trim (v).match (test); };
         }
         else
-        if (nit.is.obj (test))
+        if (nit.is.pojo (test))
         {
             var ks = nit.keys (test);
 
