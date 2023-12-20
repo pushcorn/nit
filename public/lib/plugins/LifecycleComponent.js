@@ -54,11 +54,15 @@ module.exports = function (nit, Self)
                             var chain = cls.classChain
                                 .filter (function (cls) { return cls.Plugin; })
                                 .reverse ()
-                                .map (function (sc)
+                                .map (function (cls) { return cls.Plugin.CATEGORY; })
+                            ;
+
+                            chain = nit.arrayUnique (chain)
+                                .map (function (category)
                                 {
                                     return function ()
                                     {
-                                        return nit.invoke.return ([plugin.instancePluginAllowed ? comp : cls, cls.applyPlugins], [sc.Plugin.CATEGORY, method, comp].concat (q.args));
+                                        return nit.invoke.return ([plugin.instancePluginAllowed ? comp : cls, cls.applyPlugins], [category, method, comp].concat (q.args));
                                     };
                                 })
                             ;

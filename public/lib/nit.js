@@ -1764,6 +1764,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return function (v) { return !!nit.trim (v).match (test); };
         }
         else
+        if (nit.is.obj (test))
+        {
+            var ks = nit.keys (test);
+
+            return function (v) { return nit.is.equal (test, nit.pick (v, ks)); };
+        }
+        else
         {
             return function (v) { return v === test; };
         }
@@ -3975,16 +3982,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             if (result instanceof Promise)
             {
-                return result
-                    .then (function (result)
-                    {
-                        return cb (undefined, result);
-                    })
-                    .catch (function (e)
-                    {
-                        return cb (e);
-                    })
-                ;
+                return result.then (
+                    function (result) { return cb (undefined, result); },
+                    function (e) { return cb (e); }
+                );
             }
             else
             {

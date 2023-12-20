@@ -25,14 +25,14 @@ test.object ("nit.Context", true, "serviceRegistry")
     .should ("return the parent's instance if available")
         .up (s => s.parent = new s.class)
         .after (s => s.instance.parent = s.parent)
-        .expecting ("the parent registery is the same as the child registery", s => s.instance.serviceRegistry == s.parent.serviceRegistry)
-        .expecting ("setting parent's registery is the same as setting child's registery", s =>
+        .expecting ("the parent registry is the same as the child registry", s => s.instance.serviceRegistry == s.parent.serviceRegistry)
+        .expecting ("setting parent's registry is the same as setting child's registry", s =>
         {
             s.parent.serviceRegistry = { t: "p" };
 
             return s.instance.serviceRegistry == s.parent.serviceRegistry;
         })
-        .expecting ("setting child's registery is the same as setting parent's registery", s =>
+        .expecting ("setting child's registry is the same as setting parent's registry", s =>
         {
             s.instance.serviceRegistry = { t: "c" };
 
@@ -42,8 +42,30 @@ test.object ("nit.Context", true, "serviceRegistry")
 ;
 
 
+test.object ("nit.Context", true, "objectRegistry")
+    .should ("return the parent's instance if available")
+        .up (s => s.parent = new s.class)
+        .after (s => s.instance.parent = s.parent)
+        .expecting ("the parent registry is the same as the child registry", s => s.instance.objectRegistry == s.parent.objectRegistry)
+        .expecting ("setting parent's registry is the same as setting child's registry", s =>
+        {
+            s.parent.objectRegistry = { t: "p" };
+
+            return s.instance.objectRegistry == s.parent.objectRegistry;
+        })
+        .expecting ("setting child's registry is the same as setting parent's registry", s =>
+        {
+            s.instance.objectRegistry = { t: "c" };
+
+            return s.instance.objectRegistry == s.parent.objectRegistry;
+        })
+        .commit ()
+;
+
+
+
 test.method ("nit.Context", "registerService")
-    .should ("register a service for the given scope type")
+    .should ("register a service")
         .up (s => s.Db = nit.defineClass ("test.Db"))
         .up (s => s.parent = new s.class)
         .before (s => s.object.parent = s.parent)
@@ -69,7 +91,7 @@ test.method ("nit.Context", "registerServiceProvider")
 
 
 test.method ("nit.Context", "lookupService")
-    .should ("return the service for the given scope type")
+    .should ("lookup a service of the specified type")
         .up (s => s.Db = nit.defineClass ("test.Db"))
         .up (s => s.parent = new s.class)
         .up (s => s.parent.registerService (new s.Db))
@@ -131,5 +153,36 @@ test.custom ("Method: nit.Context.delegateParentProperties ()")
         .expectingPropertyToBe ("grandparent.x", "xx")
         .expectingPropertyToBe ("grandparent.y", ["yy"])
         .expecting ("root is the grand parent", s => s.grandparent == s.child.root)
+        .commit ()
+;
+
+
+test.method ("nit.Context", "registerObject")
+    .should ("register an object")
+        .up (s => s.Obj = nit.defineClass ("test.Obj"))
+        .up (s => s.parent = new s.class)
+        .before (s => s.object.parent = s.parent)
+        .before (s => s.args = new s.Obj)
+        .returnsResultOfExpr ("object")
+        .expecting ("the object is registered", s => s.object.objectRegistry["test.Obj"][0] == s.args[0])
+        .commit ()
+;
+
+
+test.method ("nit.Context", "lookupObject")
+    .should ("return an object of the specified type")
+        .up (s => s.Obj = nit.defineClass ("test.Obj")
+            .field ("<id>", "integer")
+        )
+        .up (s => s.parent = new s.class)
+        .before (s => s.object.parent = s.parent)
+        .before (s => s.object.registerObject (new s.Obj (3)))
+        .before (s => s.object.registerObject (new s.Obj (5)))
+        .before (s => s.object.registerObject (new s.Obj (7)))
+        .before (s => s.args = "test.Obj")
+        .returnsInstanceOf ("test.Obj")
+        .expectingPropertyToBe ("result.id", 3)
+        .expectingMethodToReturnValue ("object.lookupObject", ["test.Obj", { id: 7 }], s => s.object.objectRegistry["test.Obj"][2])
+        .expecting ("the context and its parent's objectRegistry are the same", s => s.object.objectRegistry == s.object.parent.objectRegistry)
         .commit ()
 ;

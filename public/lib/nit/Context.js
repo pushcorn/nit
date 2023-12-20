@@ -24,6 +24,33 @@ module.exports = function (nit, Self)
 
             return nit.assign (nit.new (cls, pargs.concat (opts)), data);
         })
+        .property ("objectRegistry", "object",
+        {
+            enumerable: false,
+            setter: function (v)
+            {
+                if (this.parent)
+                {
+                    this.parent.objectRegistry = v;
+                }
+                else
+                {
+                    return v;
+                }
+            }
+            ,
+            getter: function (v)
+            {
+                if (this.parent)
+                {
+                   return this.parent.objectRegistry;
+                }
+                else
+                {
+                    return v;
+                }
+            }
+        })
         .property ("serviceRegistry", "object",
         {
             enumerable: false,
@@ -80,6 +107,40 @@ module.exports = function (nit, Self)
             }
 
             return service;
+        })
+        .method ("getObjectRegistryEntries", function (type)
+        {
+            var reg = this.objectRegistry;
+
+            if (!reg[type])
+            {
+                reg[type] = [];
+            }
+
+            return reg[type];
+        })
+        .method ("registerObject", function (object)
+        {
+            var self = this;
+            var reg = self.getObjectRegistryEntries (object.constructor.name);
+
+            reg.push (object);
+
+            return self;
+        })
+        .method ("lookupObject", function (objectType, filter)
+        {
+            var self = this;
+            var reg = self.getObjectRegistryEntries (objectType);
+
+            if (filter)
+            {
+                return nit.find (reg, nit.needle (filter));
+            }
+            else
+            {
+                return reg[0];
+            }
         })
         .method ("delegateParentProperties", function ()
         {
