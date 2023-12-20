@@ -10,22 +10,33 @@ module.exports = function (nit, Self)
         .onUsedBy (function (hostClass)
         {
             var plugin = this;
-            var sn = hostClass.simpleName;
-            var pluginName = plugin.pluginName || sn + "Plugin";
             var prePost = plugin.prePost;
-            var pluginCategory = nit.pluralize (pluginName).toLowerCase ();
-            var ns = nit.kvSplit (hostClass.name, ".", true)[0];
-            var pluginClass = nit.definePlugin ([ns, pluginName].filter (nit.is.not.empty).join ("."))
-                .defineCaster ("component")
-                .categorize ([ns, pluginCategory].filter (nit.is.not.empty).join ("."))
-            ;
+            var sn = hostClass.simpleName;
 
             hostClass
-                .constant ("Plugin", pluginClass)
-                .registerPlugin (pluginClass, { instancePluginAllowed: plugin.instancePluginAllowed })
                 .plugin ("event-emitter", { prePost: plugin.prePost, listenerName: sn + "Listener" })
                 .plugin ("method-queue")
                 .plugin ("logger")
+                .staticMethod ("defineComponentPlugin", function ()
+                {
+                    var cls = this;
+                    var sc = cls.superclass;
+                    var sn = cls.simpleName;
+                    var pluginName = plugin.pluginName || sn + "Plugin";
+                    var pluginCategory = nit.pluralize (pluginName).toLowerCase ();
+                    var ns = nit.kvSplit (cls.name, ".", true)[0];
+                    var pluginClass = nit.definePlugin ([ns, pluginName].filter (nit.is.not.empty).join ("."), sc.Plugin && sc.Plugin.name)
+                        .defineCaster ("component")
+                        .constant ("CATEGORY", pluginCategory)
+                        .categorize ([ns, pluginCategory].filter (nit.is.not.empty).join ("."))
+                    ;
+
+                    return cls
+                        .constant ("Plugin", pluginClass)
+                        .registerPlugin (pluginClass, { instancePluginAllowed: plugin.instancePluginAllowed })
+                    ;
+                })
+                .defineComponentPlugin ()
                 .staticMethod ("addMainStepsToComponentMethodQueue", function (method, Queue)
                 {
                     Queue
@@ -38,9 +49,21 @@ module.exports = function (nit, Self)
                         })
                         .step (method + ".applyPlugins", function (comp)
                         {
+                            var q = this;
                             var cls = comp.constructor;
+                            var chain = cls.classChain
+                                .filter (function (cls) { return cls.Plugin; })
+                                .reverse ()
+                                .map (function (sc)
+                                {
+                                    return function ()
+                                    {
+                                        return nit.invoke.return ([plugin.instancePluginAllowed ? comp : cls, cls.applyPlugins], [sc.Plugin.CATEGORY, method, comp].concat (q.args));
+                                    };
+                                })
+                            ;
 
-                            return nit.invoke.return ([plugin.instancePluginAllowed ? comp : cls, cls.applyPlugins], [pluginCategory, method, comp].concat (this.args));
+                            return nit.invoke.chain (chain);
                         })
                         .step (method + ".emitEvent", function (comp)
                         {
@@ -140,11 +163,11 @@ module.exports = function (nit, Self)
                         return cls
                             .do (function ()
                             {
-                                pluginClass.lifecycleMethod (method);
+                                cls.Plugin.lifecycleMethod (method);
 
                                 if (prePost)
                                 {
-                                    pluginClass
+                                    cls.Plugin
                                         .lifecycleMethod (preMethod)
                                         .lifecycleMethod (postMethod)
                                     ;

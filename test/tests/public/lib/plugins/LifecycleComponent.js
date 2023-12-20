@@ -51,13 +51,27 @@ test.plugin ("plugins.LifecycleComponent", "componentMethod", true, { pluginArgs
 ;
 
 
-test.plugin ("plugins.LifecycleComponent", "run", { hostClass: "MyTask", pluginArgs: "run" })
+test.plugin ("plugins.LifecycleComponent", "run", { hostClass: "test.MyTask", pluginArgs: "run" })
     .should ("invoke hook method")
         .up (s => s.configured = [])
         .up (s => s.hostClass.onRun (function () { s.configured.push ("MyTask"); }))
-        .up (s => s.hostClass = s.hostClass.defineSubclass ("ChildTask"))
+        .up (s => s.myPlugin = test.defineMyTaskPlugin ("MyPlugin")
+            .onRun (() => s.configured.push ("MyPlugin"))
+        )
+        .up (s => s.hostClass.mytaskplugin ("test:my-plugin"))
+
+        .up (s => s.hostClass = s.hostClass.defineSubclass ("test.ChildTask")
+            .defineComponentPlugin ()
+        )
+        .up (s => s.childPlugin = test.defineChildTaskPlugin ("ChildPlugin")
+            .onRun (() => s.configured.push ("ChildPlugin"))
+        )
         .up (s => s.hostClass.onRun (function () { s.configured.push ("ChildTask"); }))
-        .expectingPropertyToBe ("configured", ["ChildTask"])
+        .up (s => s.hostClass.childtaskplugin ("test:child-plugin"))
+
+        .expectingPropertyToBe ("configured", ["ChildTask", "MyPlugin", "ChildPlugin"])
+        .expectingPropertyToBe ("hostClass.Plugin.name", "test.ChildTaskPlugin")
+        .expectingPropertyToBe ("hostClass.Plugin.CATEGORY", "childtaskplugins")
         .commit ()
 ;
 

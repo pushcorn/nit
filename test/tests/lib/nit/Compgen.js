@@ -383,7 +383,7 @@ test ("nit.Compgen.parseWords ()", async () =>
 
 test ("nit.Compgen.listCompletions ()", async () =>
 {
-    function testListCompletions (opts)
+    function testListCompletions (opts, i) // eslint-disable-line no-unused-vars
     {
         return testCompgen (...opts.args)
             .push (({ compgen }) => compgen.parseWords ())
@@ -574,9 +574,9 @@ test ("nit.Compgen.listCompletions ()", async () =>
         }
     ];
 
-    // tests = [tests[2]]; // single
+    // tests = [tests[17]]; // single
 
-    await nit.parallel (tests.map (t => function () { return testListCompletions (t); }));
+    await nit.parallel (tests.map ((t, i) => function () { return testListCompletions (t, i); }));
 });
 
 

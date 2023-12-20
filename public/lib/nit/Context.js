@@ -53,9 +53,14 @@ module.exports = function (nit, Self)
         })
         .method ("registerServiceProvider", function (service, provider)
         {
-            nit.memoize.dpg (this.serviceRegistry, service, true, true, provider);
+            var self = this;
 
-            return this;
+            nit.memoize.dpg (self.serviceRegistry, service, true, true, function ()
+            {
+                return provider (self);
+            });
+
+            return self;
         })
         .method ("registerService", function (service)
         {
