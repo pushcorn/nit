@@ -1167,9 +1167,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     {
         var cls;
 
-        if (!(nit.is.func (cls = name)
-            || nit.is.func (cls = nit.CLASSES[name])
-            || nit.is.func (cls = global[name]))
+        if (name
+            && !(nit.is.func (cls = name)
+                || nit.is.func (cls = nit.CLASSES[name])
+                || nit.is.func (cls = global[name]))
             && (cls = nit.loadClass (name)))
         {
             cls = nit.configureClass (cls);
