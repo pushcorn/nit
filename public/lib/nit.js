@@ -4037,6 +4037,22 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    nit.invoke.after = function (func, args, after)
+    {
+        return nit.invoke.then.call (this, func, args, function (e, result)
+        {
+            result = nit.coalesce (after (e, result), result);
+
+            if (e)
+            {
+                throw e;
+            }
+
+            return result;
+        });
+    };
+
+
     nit.invoke.chain = function (chain, args, result)
     {
         var self = this;

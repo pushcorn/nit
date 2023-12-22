@@ -20,6 +20,21 @@ module.exports = function (nit, Self)
 
                     return this;
                 })
+                .staticMethod ("handleGlobalLogging", function (hostClass)
+                {
+                    nit.log.logger = function ()
+                    {
+                        nit.invoke ([hostClass.logger, "log"], [hostClass, "LOG"].concat (nit.array (arguments)));
+                    };
+
+                    nit.log.LEVELS.forEach (function (level)
+                    {
+                        nit.log[level] = nit.log[level[0]] = function ()
+                        {
+                            nit.invoke ([hostClass.logger, level], [hostClass].concat (nit.array (arguments)));
+                        };
+                    });
+                })
                 .transform ("nit", nit)
                 .onDefineSubclass (function (Subclass)
                 {
@@ -142,6 +157,11 @@ module.exports = function (nit, Self)
                     {
                         Logger.meta (k, v);
                     });
+
+                    if (plugin.global)
+                    {
+                        Logger.handleGlobalLogging (hostClass);
+                    }
                 })
                 .staticProperty ("logger", Self.Logger.name, function (prop, owner)
                 {
@@ -149,14 +169,6 @@ module.exports = function (nit, Self)
                 })
                 .do (function ()
                 {
-                    if (plugin.global)
-                    {
-                        nit.log.logger = function ()
-                        {
-                            nit.invoke ([hostClass.logger, "log"], [hostClass, "LOG"].concat (nit.array (arguments)));
-                        };
-                    }
-
                     nit.log.LEVELS.forEach (function (level)
                     {
                         hostClass.method (level, function (message) // eslint-disable-line no-unused-vars
@@ -166,14 +178,6 @@ module.exports = function (nit, Self)
 
                             logger[level].apply (logger, [host].concat (nit.array (arguments)));
                         });
-
-                        if (plugin.global)
-                        {
-                            nit.log[level] = nit.log[level[0]] = function ()
-                            {
-                                nit.invoke ([hostClass.logger, level], [hostClass].concat (nit.array (arguments)));
-                            };
-                        }
                     });
                 })
             ;

@@ -89,26 +89,22 @@ module.exports = function (nit, Self)
                     var self = this;
                     var cls = self.constructor;
                     var args = nit.array (arguments).slice (1);
-                    var queue = nit.Queue ();
                     var onError = cls.suppressedEmitterError.bind (self);
-
-                    cls.getPlugins (category).forEach (function (plugin)
+                    var listeners = cls.getPlugins (category, false, true).map (function (plugin)
                     {
-                        queue.push (function ()
-                        {
-                            return nit.invoke.safe ([plugin, event], args, onError);
-                        });
+                        return { t: plugin, m: event };
                     });
 
                     self.listeners.get (event).forEach (function (l)
                     {
-                        queue.push (function ()
-                        {
-                            return nit.invoke.safe ([self, l], args, onError);
-                        });
+                        listeners.push ({ t: self, m: l });
                     });
 
-                    return queue.run (function () { return self; });
+                    return nit.invoke.each (listeners, function (l)
+                    {
+                        return nit.invoke.safe ([l.t, l.m], args, onError);
+
+                    }, self);
                 })
                 .method ("on", function (event, listener)
                 {
@@ -127,17 +123,10 @@ module.exports = function (nit, Self)
                         var args = arguments;
                         var s = this;
 
-                        return nit.Queue ()
-                            .push (function ()
-                            {
-                                return listener.apply (s, args);
-                            })
-                            .push (function ()
-                            {
-                                self.off (event, once);
-                            })
-                            .run ()
-                        ;
+                        return nit.invoke.after ([s, listener], args, function ()
+                        {
+                            self.off (event, once);
+                        });
                     }
 
                     self.listeners.get (event).push (nit.dpv (once, Self.kRealListener, listener));

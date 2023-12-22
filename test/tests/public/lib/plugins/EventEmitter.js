@@ -2,16 +2,31 @@ test.plugin ("plugins.EventEmitter", "on")
     .should ("register an event listener")
         .init (s => s.pluginArgs = ["start", "stop"])
         .init (s => s.args = ["start", v => s.startArg = v])
+        .up (s => s.called = [])
         .after (({ self: s, host }) =>
         {
-            host.on ("stop", v => s.stopArg = v);
+            s.hostClass.on ("stop", () => s.called.push ("cs1"));
+            s.hostClass.on ("stop", () => s.called.push ("cs2"));
+
+            host.on ("stop", v =>
+            {
+                s.called.push ("is1");
+                s.stopArg = v;
+
+                nit.throw ("is1 ERR");
+            });
+
+            host.on ("stop", () => s.called.push ("is2"));
 
             host.emit ("start", 5);
             host.emit ("stop", 7);
         })
+        .mock (nit.log, "e")
         .expectingPropertyToBe ("startArg", 5)
         .expectingPropertyToBe ("stopArg", 7)
         .expectingMethodToThrow ("host.on", "dispatch", /not supported/)
+        .expectingPropertyToBe ("called", ["cs1", "cs2", "is1", "is2"])
+        .expectingPropertyToBe ("mocks.0.invocations.0.args.0", /is1 ERR/)
         .commit ()
 ;
 

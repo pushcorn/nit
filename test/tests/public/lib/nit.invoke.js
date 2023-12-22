@@ -126,3 +126,30 @@ test ("nit.invoke.each ()", async () =>
 
     expect (await nit.invoke.each ([5, 6], addOneAsync)).toBe (7);
 });
+
+
+test ("nit.invoke.after ()", async () =>
+{
+    function addOne (v) { return v + 1; }
+
+    function after ()
+    {
+        return 9;
+    }
+
+    expect (nit.invoke.after (addOne, 3, after)).toBe (9);
+
+    async function addOneAsync (v) { await nit.sleep (10); return v + 1; }
+    async function addOneAsyncErr () { await nit.sleep (10); nit.throw ("ERR"); }
+
+    expect (await nit.invoke.after (addOneAsync, 6, after)).toBe (9);
+    expect (await nit.invoke.after (addOneAsync, 6, nit.noop)).toBe (7);
+
+    function afterErr ()
+    {
+        afterErr.called = true;
+    }
+
+    await expect (nit.invoke.after (addOneAsyncErr, 6, afterErr)).rejects.toThrow ("ERR");
+    expect (afterErr.called).toBe (true);
+});
