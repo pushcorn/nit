@@ -1,8 +1,6 @@
 test.object ("nit.Task")
     .should ("represent a runnable task")
         .expectingPropertyToBeOfType ("result.run", Function)
-        .expectingPropertyToBeOfType ("result.catch", Function)
-        .expectingPropertyToBeOfType ("result.finally", Function)
         .commit ()
 ;
 
@@ -25,33 +23,27 @@ test.method ("nit.Task", "describe", true)
 
 test.method ("nit.Task", "run")
     .should ("run the task")
+        .up (s => s.called = [])
         .up (s => s.class = nit.defineTask ("MyTask")
             .onPreRun (function ()
             {
-                s.class.preRunCalled = true;
+                s.called.push ("preRun");
             })
             .onPostRun (function ()
             {
-                s.class.postRunCalled = true;
-            })
-            .onRun (function ()
-            {
-                s.class.runCalled = true;
-
-                return { a: 1 };
-            })
-            .onPreFinally (function ()
-            {
-                s.class.preFinallyCalled = true;
+                s.called.push ("postRun");
 
                 return { a: 3 };
             })
+            .onRun (function ()
+            {
+                s.called.push ("run");
+
+                return { a: 1 };
+            })
         )
         .returnsInstanceOf ("tasks.MyTask.Context")
-        .expectingPropertyToBe ("class.preRunCalled", true)
-        .expectingPropertyToBe ("class.postRunCalled", true)
-        .expectingPropertyToBe ("class.runCalled", true)
-        .expectingPropertyToBe ("class.preFinallyCalled", true)
+        .expectingPropertyToBe ("called", ["preRun", "run", "postRun"])
         .expectingPropertyToBe ("result.result", { a: 3 })
         .commit ()
 
@@ -71,11 +63,14 @@ test.method ("nit.Task", "run")
 
                 return { a: 1 };
             })
-            .onPreFinally (function ()
+            .configureComponentMethod ("run", Queue =>
             {
-                s.class.preFinallyCalled = true;
+                Queue.onComplete ((task, ctx) =>
+                {
+                    s.class.onCompleteCalled = true;
 
-                return { a: 3 };
+                    ctx.result = { a: 3 };
+                });
             })
         )
         .up (s => s.args = s.class.Context.new ({ c: true }))
@@ -83,8 +78,9 @@ test.method ("nit.Task", "run")
         .expectingPropertyToBe ("class.preRunCalled", true)
         .expectingPropertyToBe ("class.postRunCalled", true)
         .expectingPropertyToBe ("class.runCalled", true)
-        .expectingPropertyToBe ("class.preFinallyCalled", true)
+        .expectingPropertyToBe ("class.onCompleteCalled", true)
         .expectingPropertyToBe ("result.c", true)
+        .expectingPropertyToBe ("result.result", { a: 3 })
         .commit ()
 
     .should ("rethrow the exception by default")
@@ -103,46 +99,52 @@ test.method ("nit.Task", "run")
 
                 return { a: 1 };
             })
-            .onPreFinally (function ()
+            .configureComponentMethod ("run", Queue =>
             {
-                s.class.preFinallyCalled = true;
+                Queue.onComplete ((task, ctx) =>
+                {
+                    s.class.onCompleteCalled = true;
 
-                return { a: 3 };
+                    ctx.result = { a: 3 };
+                });
             })
         )
         .throws ("POST_RUN_ERROR")
         .expectingPropertyToBe ("class.preRunCalled", true)
         .expectingPropertyToBe ("class.runCalled", true)
-        .expectingPropertyToBe ("class.preFinallyCalled", true)
+        .expectingPropertyToBe ("class.onCompleteCalled", true)
         .expectingPropertyToBe ("error.nit\\.Task\\.context.result", { a: 3 })
         .commit ()
 
-    .should ("consume the error if onCatch is defined")
+    .should ("not throw if queue.error is deleted")
         .up (s => s.class = nit.defineTask ("MyTask")
             .onPreRun (function ()
             {
                 s.class.preRunCalled = true;
+
+                return { a: 1 };
             })
             .onPostRun (function ()
             {
                 throw new Error ("POST_RUN_ERROR");
             })
-            .onPostFinally (function ()
+            .configureComponentMethod ("run", Queue =>
             {
-                s.class.postFinallyCalled = true;
-            })
-            .onCatch (function ()
-            {
-                s.class.catchCalled = true;
+                Queue.onFailure (function ()
+                {
+                    s.class.errorCatched = true;
+                    this.error = null;
+                });
             })
         )
         .returnsInstanceOf ("tasks.MyTask.Context")
+        .expectingPropertyToBe ("result.result", { a: 1 })
         .expectingPropertyToBe ("class.preRunCalled", true)
-        .expectingPropertyToBe ("class.postFinallyCalled", true)
+        .expectingPropertyToBe ("class.errorCatched", true)
         .expectingPropertyToBe ("result.error.message", undefined)
         .commit ()
 
-    .should ("rethrow the error if thrown in finally")
+    .should ("not catch the error throw in onComplete")
         .up (s => s.class = nit.defineTask ("MyTask")
             .onPreRun (function ()
             {
@@ -154,56 +156,19 @@ test.method ("nit.Task", "run")
             {
                 throw new Error ("POST_RUN_ERROR");
             })
-            .onPreFinally (function ()
+            .configureComponentMethod ("run", Queue =>
             {
-                throw new Error ("PRE_FINALLY_ERROR");
-            })
-            .onPostFinally (function ()
-            {
-                s.class.postFinallyCalled = true;
-            })
-            .onCatch (function ()
-            {
-                s.class.catchCalled = true;
+                Queue.onComplete (function ()
+                {
+                    s.class.completeCalled = true;
+                    nit.throw ("COMPLETE_ERR");
+                });
             })
         )
-        .throws ("PRE_FINALLY_ERROR")
+        .throws ("COMPLETE_ERR")
         .expectingPropertyToBe ("class.preRunCalled", true)
-        .expectingPropertyToBe ("class.catchCalled", true)
-        .expectingPropertyToBe ("class.postFinallyCalled", undefined)
-        .expectingPropertyToBe ("error.nit\\.Task\\.context.result", { b: 1 })
-        .commit ()
-
-    .should ("rethrow the post-catch error")
-        .up (s => s.class = nit.defineTask ("MyTask")
-            .onPreRun (function ()
-            {
-                s.class.preRunCalled = true;
-
-                return { b: 1 };
-            })
-            .onPostRun (function ()
-            {
-                throw new Error ("POST_RUN_ERROR");
-            })
-            .onPostFinally (function ()
-            {
-                s.class.postFinallyCalled = true;
-            })
-            .onCatch (function ()
-            {
-                s.class.catchCalled = true;
-            })
-            .onPostCatch (function ()
-            {
-                throw new Error ("POST_CATCH_ERROR");
-            })
-        )
-        .throws ("POST_CATCH_ERROR")
-        .expectingPropertyToBe ("class.preRunCalled", true)
-        .expectingPropertyToBe ("class.catchCalled", true)
-        .expectingPropertyToBe ("class.postFinallyCalled", true)
-        .expectingPropertyToBe ("error.nit\\.Task\\.context.result", { b: 1 })
+        .expectingPropertyToBe ("class.completeCalled", true)
+        .expectingPropertyToBe ("error.nit\\.Task\\.context")
         .commit ()
 
     .should ("log the event listener error")

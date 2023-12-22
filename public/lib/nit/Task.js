@@ -6,7 +6,7 @@ module.exports = function (nit, Self)
         .k ("context")
         .categorize ("tasks")
         .defineMeta ("description", "string", "Task description unavailable.")
-        .plugin ("lifecycle-component", "run", "catch", "finally", "cancel")
+        .plugin ("lifecycle-component", "run", "cancel")
         .property ("canceled", "boolean", { enumerable: false, writer: writer })
         .do (function ()
         {
@@ -50,7 +50,7 @@ module.exports = function (nit, Self)
         {
             Subclass.defineContext ();
         })
-        .configureComponentMethods (["run", "catch", "finally"], true, function (Queue, method)
+        .configureComponentMethod ("run", true, function (Queue, method)
         {
             Queue.after (method + ".invokeHook", method + ".checkResult", function (task, ctx)
             {
@@ -58,7 +58,7 @@ module.exports = function (nit, Self)
                 this.result = undefined;
             });
         })
-        .configureComponentMethods ("cancel", function (Queue)
+        .configureComponentMethod ("cancel", function (Queue)
         {
             Queue
                 .onInit (function (task)
@@ -74,7 +74,7 @@ module.exports = function (nit, Self)
                 .onComplete (function (task) { return task; })
             ;
         })
-        .configureComponentMethods ("run", function (Queue)
+        .configureComponentMethod ("run", function (Queue)
         {
             Queue
                 .onInit (function (task)
@@ -88,36 +88,18 @@ module.exports = function (nit, Self)
                     this.args = ctx;
                 })
                 .until (function (task) { return task.canceled; })
-                .onFailure (function (task, ctx)
-                {
-                    ctx.error = this.error;
-                    this.error = undefined;
-
-                    return task.catch (ctx);
-                })
                 .onComplete (function (task, ctx)
                 {
-                    ctx.error = this.error;
-
-                    return nit.invoke.then ([task, "finally"], ctx, function (error)
+                    if ((ctx.error = this.error))
                     {
-                        ctx.error = nit.coalesce (error, ctx.error);
+                        nit.dpv (ctx.error, Self.kContext, ctx, true, false);
 
-                        if (ctx.error)
-                        {
-                            nit.dpv (ctx.error, Self.kContext, ctx, true, false);
+                        throw ctx.error;
+                    }
 
-                            throw ctx.error;
-                        }
-
-                        return ctx;
-                    });
+                    return ctx;
                 })
             ;
-        })
-        .onCatch (function (ctx)
-        {
-            throw ctx.error;
         })
     ;
 };
