@@ -112,7 +112,9 @@ test ("nit.invoke.chain ()", async () =>
     async function addOneAsync (v) { await nit.sleep (10); return v + 1; }
     async function addTwoAsync (v) { await nit.sleep (20); return v + 3; }
 
+    let o = {};
     expect (await nit.invoke.chain ([addOneAsync, addTwoAsync], 5)).toBe (8);
+    expect (await nit.invoke.chain ([[o, addOneAsync], [o, addTwoAsync]], 5)).toBe (8);
 });
 
 
@@ -152,4 +154,31 @@ test ("nit.invoke.after ()", async () =>
 
     await expect (nit.invoke.after (addOneAsyncErr, 6, afterErr)).rejects.toThrow ("ERR");
     expect (afterErr.called).toBe (true);
+});
+
+
+test ("nit.invoke.wrap ()", async () =>
+{
+    function addOne (v) { return v + 1; }
+
+    let f = nit.invoke.wrap (addOne, 9);
+    expect (f ()).toBe (10);
+    expect (f (5)).toBe (10);
+
+    let g = nit.invoke.wrap (addOne);
+    expect (g (3)).toBe (4);
+});
+
+
+test ("nit.invoke.wrap.after ()", async () =>
+{
+    function after (e, v) { return v * 10; }
+    function addOne (v) { return v + 1; }
+    function addOneErr () { nit.throw ("ERR"); }
+
+    let f = nit.invoke.wrap.after (addOne, after);
+    expect (f (3)).toBe (40);
+
+    let g = nit.invoke.wrap.after (addOneErr, after);
+    expect (() => g (3)).toThrow ("ERR");
 });

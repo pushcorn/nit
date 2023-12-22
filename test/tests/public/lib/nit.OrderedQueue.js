@@ -274,3 +274,36 @@ test.method ("nit.OrderedQueue", "run")
         .expectingPropertyToBe ("called", ["preInit", "failure", "complete"])
         .commit ()
 ;
+
+
+test.method ("nit.OrderedQueue", "run")
+    .should ("invoke the hook method")
+        .up (s => s.called = [])
+        .up (s => s.class = s.class.defineSubclass ("MyQueue")
+            .onComplete (() =>
+            {
+                s.called.push ("c1");
+            })
+            .onComplete (false, () =>
+            {
+                s.called.push ("c2");
+                nit.throw ("c2 ERR");
+            })
+            .onRun (function (nq)
+            {
+                s.called.push ("onRun");
+
+                nq.complete (nit.invoke.wrap.after ([nq, nq.onComplete], function (e)
+                {
+                    if (e)
+                    {
+                        e.checked = true;
+                    }
+                }));
+            })
+        )
+        .throws ("c2 ERR")
+        .expectingPropertyToBe ("called", ["onRun", "c2"])
+        .expectingPropertyToBe ("error.checked", true)
+        .commit ()
+;

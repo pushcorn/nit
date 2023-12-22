@@ -3965,49 +3965,42 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
-    nit.invoke.wrap = function (func, args)
-    {
-        return function ()
-        {
-            return nit.invoke (func, args);
-        };
-    };
-
-
     nit.invoke.then = function (func, args, cb)
     {
         try
         {
-            var result = nit.invoke.call (this, func, args);
+            var self = this;
+            var result = nit.invoke.call (self, func, args);
 
             if (result instanceof Promise)
             {
                 return result.then (
-                    function (result) { return cb (undefined, result); },
-                    function (e) { return cb (e); }
+                    function (result) { return cb.call (self, undefined, result); },
+                    function (e) { return cb.call (self, e); }
                 );
             }
             else
             {
-                return cb (undefined, result);
+                return cb.call (self, undefined, result);
             }
         }
         catch (e)
         {
-            return cb (e);
+            return cb.call (self, e);
         }
     };
 
 
     nit.invoke.safe = function (func, args, onError)
     {
+        var self = this;
         onError = onError || nit.log.e;
 
-        return nit.invoke.then.call (this, func, args, function (e, result)
+        return nit.invoke.then.call (self, func, args, function (e, result)
         {
             if (e)
             {
-                return onError (e);
+                return onError.call (self, e);
             }
             else
             {
@@ -4025,30 +4018,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.invoke.return = function (func, args, value)
     {
-        return nit.invoke.then.call (this, func, args, function (e, result)
+        var self = this;
+
+        return nit.invoke.then.call (self, func, args, function (e, result)
         {
             if (e)
             {
                 throw e;
             }
 
-            return nit.is.func (value) ? value (result) : value;
-        });
-    };
-
-
-    nit.invoke.after = function (func, args, after)
-    {
-        return nit.invoke.then.call (this, func, args, function (e, result)
-        {
-            result = nit.coalesce (after (e, result), result);
-
-            if (e)
-            {
-                throw e;
-            }
-
-            return result;
+            return nit.is.func (value) ? value.call (self, result) : value;
         });
     };
 
@@ -4088,11 +4067,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
         function next ()
         {
-            var item = items.shift ();
-
-            if (item)
+            if (items.length)
             {
-                return nit.invoke.return ([self, cb], item, function (r)
+                var item = items.shift ();
+
+                return nit.invoke.return ([self, cb], [item], function (r)
                 {
                     result = nit.coalesce (r, result);
 
@@ -4104,6 +4083,43 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         }
 
         return next ();
+    };
+
+
+    nit.invoke.after = function (func, args, after)
+    {
+        var self = this;
+
+        return nit.invoke.then.call (self, func, args, function (e, result)
+        {
+            return nit.invoke.return.call (self, after, [e, result], function (r)
+            {
+                if (e)
+                {
+                    throw e;
+                }
+
+                return nit.coalesce (r, result);
+            });
+        });
+    };
+
+
+    nit.invoke.wrap = function (func, args)
+    {
+        return function ()
+        {
+            return nit.invoke.call (this, func, args || arguments);
+        };
+    };
+
+
+    nit.invoke.wrap.after = function (func, after)
+    {
+        return function ()
+        {
+            return nit.invoke.after.call (this, func, arguments, after);
+        };
     };
 
 
@@ -4461,7 +4477,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                             try
                             {
-                                var result = nit.is.func (task) ? task (ctx) : task;
+                                var result = nit.is.func (task) ? task.call (self, ctx) : task;
 
                                 return checkResult (result);
                             }
@@ -7716,14 +7732,21 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 var reverse = method == "init";
 
                 cls
-                    .staticMethod (hookMethod, function (safe, cb)
-                    {
-                        var cls = this;
+                    .staticTypedMethod (hookMethod,
+                        {
+                            safe: "boolean", cb: "function"
+                        },
+                        function (safe, cb)
+                        {
+                            var cls = this;
 
-                        cls[callbackProp].push (cls.createStep (method, safe, cb));
+                            safe = nit.coalesce (safe, method == "complete");
 
-                        return cls;
-                    })
+                            cls[callbackProp].push (cls.createStep (method, safe, cb));
+
+                            return cls;
+                        }
+                    )
                     .staticMethod ("has" + ucMethod + "Callbacks", function ()
                     {
                         var cls = this;
@@ -7917,7 +7940,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 };
             }
         })
-        .method ("run", function ()
+        .lifecycleMethod ("run", function ()
         {
             var queue = this;
             var cls = queue.constructor;
@@ -7951,6 +7974,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             {
                 nq.complete (cb);
             }
+
+            nit.invoke ([queue, cls[cls.kRun]], nq);
 
             return nq.run (queue);
         })
