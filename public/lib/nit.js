@@ -4007,7 +4007,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             if (e)
             {
-                onError (e);
+                return onError (e);
             }
             else
             {
@@ -4041,7 +4041,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     {
         var self = this;
 
-        chain = nit.array (chain);
+        chain = nit.array (chain).filter (nit.is.not.empty);
 
         function next ()
         {
@@ -4050,6 +4050,33 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             if (ch)
             {
                 return nit.invoke.return (nit.is.arr (ch) ? ch : [self, ch], args, function (r)
+                {
+                    result = nit.coalesce (r, result);
+
+                    return next ();
+                });
+            }
+
+            return result;
+        }
+
+        return next ();
+    };
+
+
+    nit.invoke.each = function (items, cb, result)
+    {
+        var self = this;
+
+        items = nit.array (items);
+
+        function next ()
+        {
+            var item = items.shift ();
+
+            if (item)
+            {
+                return nit.invoke.return ([self, cb], item, function (r)
                 {
                     result = nit.coalesce (r, result);
 
@@ -5663,6 +5690,22 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return this.defineLifecycleMethod (false, name, impl, hook);
         }
         ,
+        getClassChainMethods: function (method, reverse)
+        {
+            var cls = this;
+            var methods = cls.classChain
+                .filter (function (cls) { return cls.hasOwnProperty (method); })
+                .map (function (cls) { return cls[method]; })
+            ;
+
+            if (reverse)
+            {
+                methods.reverse ();
+            }
+
+            return methods;
+        }
+        ,
         staticClassChainMethod: function (method, reverse)
         {
             var cls = this;
@@ -5701,15 +5744,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 method = method[1];
             }
 
-            var methods = cls.classChain
-                .filter (function (cls) { return cls.hasOwnProperty (method); })
-                .map (function (cls) { return cls[method]; })
-            ;
-
-            if (reverse)
-            {
-                methods.reverse ();
-            }
+            var methods = cls.getClassChainMethods (method, reverse);
 
             return nit.invoke.chain.call (target, methods, args, result);
         }
@@ -6193,12 +6228,17 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 return Object.create (sp && sp[ns] || {});
             });
         })
-        .staticMethod ("getClassChainProperty", function (property, all)
+        .staticMethod ("getClassChainProperty", function (property, all, reverse)
         {
             var cls = this;
-            var vals = nit.array (cls.classChain.map (function (cls) { return cls[property]; }), true)
+            var vals = nit.array (cls.classChain.slice ().reverse ().map (function (cls) { return cls[property]; }), true)
                 .filter (nit.is.not.empty)
             ;
+
+            if (!reverse)
+            {
+                vals.reverse ();
+            }
 
             return all ? vals : vals[0];
         })
@@ -7598,6 +7638,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     var nit_OrderedQueue = nit.defineClass ("nit.OrderedQueue")
         .staticProperty ("tasks...", "function|nit.OrderedQueue.Anchor")
         .staticProperty ("untils...", "function")
+        .staticProperty ("initCallbacks...", "function")
+        .staticProperty ("successCallbacks...", "function")
+        .staticProperty ("failureCallbacks...", "function")
+        .staticProperty ("completeCallbacks...", "function")
         .field ("[owner]", "object|function?")
         .field ("args...", "any")
         .property ("tasks...", "function|nit.OrderedQueue.Anchor")
@@ -7608,26 +7652,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .property ("result", "any")
         .property ("error", "any")
         .getter ("queue", function () { return this; })
-        .do (function (cls)
-        {
-            ["init", "success", "failure", "complete"].forEach (function (method)
-            {
-                var hook = cls.name + "." + method;
-
-                cls.staticLifecycleMethod (method, function (queue)
-                {
-                    var cls = queue.constructor;
-
-                    return cls.invokeClassChainMethod ([queue, hook], [queue.owner].concat (queue.args), true);
-                });
-            });
-        })
         .defineInnerClass ("Anchor")
+        .staticLifecycleMethod ("suppressedQueueError", null, function (owner, error) { nit.log.e (error); })
         .staticTypedMethod ("createStep",
             {
-                name: "string", silent: "boolean", task: "function"
+                name: "string", safe: "boolean", task: "function"
             },
-            function (name, silent, task)
+            function (name, safe, task)
             {
                 var cls = this;
                 var step;
@@ -7636,8 +7667,18 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 {
                     step = function (queue)
                     {
-                        return (silent ? nit.invoke.silent : nit.invoke) ([queue, task], [queue.owner].concat (queue.args));
+                        return nit.invoke.safe ([queue, task], [queue.owner].concat (queue.args), function (error)
+                        {
+                            if (!safe)
+                            {
+                                throw error;
+                            }
+
+                            return cls.suppressedQueueError.call (queue, queue.owner, error);
+                        });
                     };
+
+                    step.task = task;
                 }
                 else
                 {
@@ -7649,6 +7690,40 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 return step;
             }
         )
+        .do (function (cls)
+        {
+            ["init", "success", "failure", "complete"].forEach (function (method)
+            {
+                var ucMethod = nit.ucFirst (method);
+                var hookMethod = "on" + ucMethod;
+                var callbackProp = method + "Callbacks";
+                var reverse = method == "init";
+
+                cls
+                    .staticMethod (hookMethod, function (safe, cb)
+                    {
+                        var cls = this;
+
+                        cls[callbackProp].push (cls.createStep (method, safe, cb));
+
+                        return cls;
+                    })
+                    .staticMethod ("has" + ucMethod + "Callbacks", function ()
+                    {
+                        var cls = this;
+
+                        return !!cls.getClassChainProperty (callbackProp);
+                    })
+                    .staticMethod (method, function (queue)
+                    {
+                        var cls = queue.constructor;
+                        var callbacks = cls.getClassChainProperty (callbackProp, true, reverse);
+
+                        return nit.invoke.chain (callbacks, queue);
+                    })
+                ;
+            });
+        })
         .staticMethod ("needle", function (task)
         {
             return !(task instanceof nit_OrderedQueue.Anchor);
@@ -7679,21 +7754,21 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             return self;
         })
-        .staticMethod ("lpush", function (name, silent, task)
+        .staticMethod ("lpush", function (name, safe, task)
         {
             var self = this;
             var cls = nit.getClass (self);
 
-            self.tasks.unshift (cls.createStep (name, silent, task));
+            self.tasks.unshift (cls.createStep (name, safe, task));
 
             return self;
         })
-        .staticMethod ("push", function (name, silent, task)
+        .staticMethod ("push", function (name, safe, task)
         {
             var self = this;
             var cls = nit.getClass (self);
 
-            self.tasks.push (cls.createStep (name, silent, task));
+            self.tasks.push (cls.createStep (name, safe, task));
 
             return self;
         })
@@ -7712,13 +7787,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         })
         .staticTypedMethod ("before",
             {
-                target: "string", name: "string", silent: "boolean", task: "function"
+                target: "string", name: "string", safe: "boolean", task: "function"
             },
-            function (target, name, silent, task)
+            function (target, name, safe, task)
             {
                 var self = this;
                 var cls = nit.getClass (self);
-                var st = cls.createStep (name || target, silent, task);
+                var st = cls.createStep (name || target, safe, task);
 
                 if (!nit.insertBefore (self.tasks, st, function (s) { return s.name == target; }))
                 {
@@ -7730,13 +7805,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         )
         .staticTypedMethod ("after",
             {
-                target: "string", name: "string", silent: "boolean", task: "function"
+                target: "string", name: "string", safe: "boolean", task: "function"
             },
-            function (target, name, silent, task)
+            function (target, name, safe, task)
             {
                 var self = this;
                 var cls = nit.getClass (self);
-                var st = cls.createStep (name || target, silent, task);
+                var st = cls.createStep (name || target, safe, task);
 
                 if (!nit.insertAfter (self.tasks, st, function (s) { return s.name == target; }))
                 {
@@ -7748,13 +7823,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         )
         .staticTypedMethod ("replace",
             {
-                target: "string", silent: "boolean", task: "function"
+                target: "string", safe: "boolean", task: "function"
             },
-            function (target, silent, task)
+            function (target, safe, task)
             {
                 var self = this;
                 var cls = nit.getClass (self);
-                var st = cls.createStep (target, silent, task);
+                var st = cls.createStep (target, safe, task);
 
                 if (!nit.arrayReplace (self.tasks, st, function (s) { return s.name == target; }))
                 {
@@ -7767,6 +7842,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .staticMethod ("run", function ()
         {
             return this ({ args: arguments }).run ();
+        })
+        .onDefineSubclass (function (Subclass)
+        {
+            Subclass.tasks = this.tasks;
+            Subclass.untils = this.untils;
         })
         .do (function (cls)
         {
@@ -7782,23 +7862,44 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             return new nit.Queue.Stop (next);
         })
-        .method ("success", function (onSuccess)
+        .method ("success", function (safe, onSuccess)
         {
-            this.onSuccess = onSuccess;
+            var self = this;
+            var cls = this.constructor;
 
-            return this;
+            self.onSuccess = cls.createStep (safe, onSuccess);
+
+            return self;
         })
-        .method ("failure", function (onFailure)
+        .method ("failure", function (safe, onFailure)
         {
-            this.onFailure = onFailure;
+            var self = this;
+            var cls = this.constructor;
 
-            return this;
+            self.onFailure = cls.createStep (safe, onFailure);
+
+            return self;
         })
-        .method ("complete", function (onComplete)
+        .method ("complete", function (safe, onComplete)
         {
-            this.onComplete = onComplete;
+            var self = this;
+            var cls = this.constructor;
 
-            return this;
+            self.onComplete = cls.createStep (safe, onComplete);
+
+            return self;
+        })
+        .method ("wrap", function (funcs)
+        {
+            funcs = nit.array (arguments, true).filter (nit.is.not.empty);
+
+            if (funcs.length)
+            {
+                return function (queue)
+                {
+                    return nit.invoke.chain (funcs, queue);
+                };
+            }
         })
         .method ("run", function ()
         {
@@ -7813,13 +7914,27 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             queue.untils.unshift.apply (queue, cls.untils);
             queue.tasks.unshift.apply (queue, cls.tasks);
 
-            if (cls[cls.kInit]) { nq.lpush (cls.init); }
-            if (cls[cls.kSuccess]) { nq.success (cls.success); }
-            if (cls[cls.kFailure]) { nq.failure (cls.failure); }
-            if (cls[cls.kComplete]) { nq.complete (cls.complete); }
-            if (queue.onSuccess) { nq.success (queue.onSuccess); }
-            if (queue.onFailure) { nq.failure (queue.onFailure); }
-            if (queue.onComplete) { nq.complete (queue.onComplete); }
+            var cb;
+
+            if ((cb = queue.wrap (cls.hasInitCallbacks () ? cls.init : undefined)))
+            {
+                nq.lpush (cb);
+            }
+
+            if ((cb = queue.wrap (cls.hasSuccessCallbacks () ? cls.success : undefined, queue.onSuccess)))
+            {
+                nq.success (cb);
+            }
+
+            if ((cb = queue.wrap (cls.hasFailureCallbacks () ? cls.failure : undefined, queue.onFailure)))
+            {
+                nq.failure (cb);
+            }
+
+            if ((cb = queue.wrap (cls.hasCompleteCallbacks () ? cls.complete : undefined, queue.onComplete)))
+            {
+                nq.complete (cb);
+            }
 
             return nq.run (queue);
         })

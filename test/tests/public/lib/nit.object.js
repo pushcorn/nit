@@ -1557,19 +1557,37 @@ test ("nit.Object.getClassChainProperty ()", () =>
 
     CCA.items = ["a1", "a2"];
     CCA.opt = "optval-a";
-    CCB.items = ["b1"];
+    CCB.items = ["b1", "b2"];
 
-    expect (CCA.getClassChainProperty ("items", true)).toEqual (["a1", "a2"]);
-    expect (CCA.getClassChainProperty ("items")).toBe ("a1");
+    expect (CCA.getClassChainProperty ("items", true)).toEqual (["a2", "a1"]);
+    expect (CCA.getClassChainProperty ("items")).toBe ("a2");
 
     expect (CCA.getClassChainProperty ("opt", true)).toEqual (["optval-a"]);
     expect (CCA.getClassChainProperty ("opt")).toBe ("optval-a");
 
-    expect (CCB.getClassChainProperty ("items", true)).toEqual (["b1", "a1", "a2"]);
-    expect (CCB.getClassChainProperty ("items")).toBe ("b1");
+    expect (CCB.getClassChainProperty ("items", true)).toEqual (["b2", "b1", "a2", "a1"]);
+    expect (CCB.getClassChainProperty ("items")).toBe ("b2");
 
     expect (CCB.getClassChainProperty ("opt", true)).toEqual (["optval-a"]);
     expect (CCB.getClassChainProperty ("opt")).toBe ("optval-a");
+});
+
+
+test ("nit.Object.getClassChainMethods ()", () =>
+{
+    nit.defineClass ("A")
+        .onConstruct (() => 1)
+    ;
+
+    const B = nit.defineClass ("B", "A")
+        .onConstruct (() => 2)
+    ;
+
+    expect (B.getClassChainMethods ("nit.Object.construct").map (f => f + ""))
+        .toEqual (["() => 2", "() => 1"]);
+
+    expect (B.getClassChainMethods ("nit.Object.construct", true).map (f => f + ""))
+        .toEqual (["() => 1", "() => 2"]);
 });
 
 
@@ -1842,6 +1860,3 @@ test ("nit.Object.ConfigTypeParser ()", () =>
     expect ((new nit.Object.ConfigTypeParser).cast (a)).toEqual ({ fa: 100 });
     expect ((new nit.Object.ConfigTypeParser).cast (10)).toBeUndefined ();
 });
-
-
-

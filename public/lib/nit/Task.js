@@ -50,10 +50,6 @@ module.exports = function (nit, Self)
         {
             Subclass.defineContext ();
         })
-        .onListenerError (function (error)
-        {
-            this.error (error);
-        })
         .configureComponentMethods (["run", "catch", "finally"], true, function (Queue, method)
         {
             Queue.after (method + ".invokeHook", method + ".checkResult", function (task, ctx)

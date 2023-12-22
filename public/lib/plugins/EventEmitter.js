@@ -43,7 +43,7 @@ module.exports = function (nit, Self)
 
                     return cls[pluginMethod] (new listenerCls);
                 })
-                .lifecycleMethod ("listenerError")
+                .staticLifecycleMethod ("suppressedEmitterError", null, function (error) { nit.log.e (error); })
                 .defineInnerClass ("Listeners", function (Listeners)
                 {
                     Listeners
@@ -90,7 +90,7 @@ module.exports = function (nit, Self)
                     var cls = self.constructor;
                     var args = nit.array (arguments).slice (1);
                     var queue = nit.Queue ();
-                    var onError = self.listenerError.bind (self);
+                    var onError = cls.suppressedEmitterError.bind (self);
 
                     cls.getPlugins (category).forEach (function (plugin)
                     {

@@ -1,15 +1,23 @@
 module.exports = function (nit)
 {
     return nit.definePlugin ("MethodQueue")
+        .field ("[baseQueueName]", "string", "The name for the method queue base class.", "MethodQueue")
         .onUsedBy (function (hostClass)
         {
+            var plugin = this;
+            var methodQueueName;
+
             hostClass
+                .defineInnerClass (plugin.baseQueueName, "nit.OrderedQueue", function (cls)
+                {
+                    methodQueueName = cls.name;
+                })
                 .staticMethod ("defineMethodQueue", function (isStatic, name, builder)
                 {
                     var cls = this;
                     var queueName = nit.ucFirst (name) + "Queue";
 
-                    cls.defineInnerClass (queueName, "nit.OrderedQueue", function (qc)
+                    cls.defineInnerClass (queueName, methodQueueName, function (qc)
                     {
                         nit.invoke ([cls, builder], qc);
                     });
@@ -42,9 +50,6 @@ module.exports = function (nit)
 
                     return cls.defineInnerClass (queueName, queueSuperclass.name, function (queueSubclas)
                     {
-                        queueSubclas.tasks = queueSuperclass.tasks;
-                        queueSubclas.untils = queueSuperclass.untils;
-
                         nit.invoke (builder, queueSubclas);
                     });
                 })

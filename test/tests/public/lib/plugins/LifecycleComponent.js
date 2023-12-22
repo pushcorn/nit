@@ -88,6 +88,18 @@ test.plugin ("plugins.LifecycleComponent", "run", { hostClass: "Unwrapped", plug
         .expectingMethodToReturnValue ("host.preRun")
         .expectingPropertyToBe ("preRunCalled", true)
         .commit ()
+
+    .should ("log the error for safe queue tasks")
+        .up (s => s.configured = [])
+        .up (s => s.hostClass.configureComponentMethod ("run", Queue =>
+        {
+            Queue.before ("run.invokeHook", "run.throwError", true, () => nit.throw ("RUN_ERR"));
+        }))
+        .up (s => s.hostClass.onRun (function () { s.configured.push ("MyTask"); }))
+        .mock ("host", "error")
+        .expectingPropertyToBe ("configured", ["MyTask"])
+        .expectingPropertyToBe ("mocks.0.invocations.0.args.0", /RUN_ERR/)
+        .commit ()
 ;
 
 
@@ -145,3 +157,31 @@ test.plugin ("plugins.LifecycleComponent", "configureComponentMethod", true, { p
         .expectingPropertyToBe ("calledMethods", ["preInit", "init", "postInit"])
         .commit ()
 ;
+
+
+test.plugin ("plugins.LifecycleComponent", "defineComponentPlugin", true, { hostClass: "aaa.Api", pluginArgs: "run" })
+    .should ("define the component plugin for the subclass")
+        .up (s => s.hostClass = s.hostClass.defineSubclass ("bbb.Handler"))
+        .up (s => s.classes = nit.CLASSES)
+        .up (s => s.nit = nit)
+        .expectingPropertyToBe ("hostClass.Plugin.name", "bbb.HandlerPlugin")
+        .expectingPropertyToBe ("hostClass.superclass.Plugin.name", "aaa.ApiPlugin")
+        .expectingPropertyToBeOfType ("classes.bbb\\.HandlerPlugin", "function")
+        .expectingPropertyToBeOfType ("nit.NS.bbb.defineHandlerPlugin", "function")
+        .commit ()
+;
+
+test.plugin ("plugins.LifecycleComponent", "defineComponentPlugin", true, { hostClass: "aaa.Api", pluginArgs: "run" })
+    .should ("not register the the component plugin if category is the same as that of its parent class plugin")
+        .up (s => s.hostClass = s.hostClass.defineSubclass ("bbb.Api"))
+        .up (s => s.classes = nit.CLASSES)
+        .up (s => s.nit = nit)
+        .expectingPropertyToBe ("hostClass.Plugin.name", "aaa.ApiPlugin")
+        .expectingPropertyToBe ("hostClass.superclass.Plugin.name", "aaa.ApiPlugin")
+        .expectingPropertyToBeOfType ("classes.bbb\\.ApiPlugin", "function")
+        .expectingPropertyToBeOfType ("nit.NS.bbb.defineApiPlugin", "function")
+        .commit ()
+;
+
+
+

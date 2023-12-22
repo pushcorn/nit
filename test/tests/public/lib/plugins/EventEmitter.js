@@ -75,6 +75,22 @@ test.plugin ("plugins.EventEmitter", "emit")
         .before (s => s.host.on ("stop", s.onStop1))
         .expectingPropertyToBe ("stop1", 99)
         .commit ()
+
+    .should ("log the listener error by default")
+        .init (s => s.pluginArgs = ["stop"])
+        .before (s => s.host.on ("stop", () => nit.throw ("STOP_ERR")))
+        .mock (nit.log, "e")
+        .given ("test.PluginHost.stop", 99)
+        .expectingPropertyToBe ("mocks.0.invocations.0.args.0", /STOP_ERR/)
+        .commit ()
+
+    .should ("use the provided error handler")
+        .init (s => s.pluginArgs = ["stop"])
+        .before (s => s.hostClass.onSuppressedEmitterError (true, e => s.err = e))
+        .before (s => s.host.on ("stop", () => nit.throw ("STOP_ERR2")))
+        .given ("test.PluginHost.stop", 99)
+        .expectingPropertyToBe ("err", /STOP_ERR2/)
+        .commit ()
 ;
 
 

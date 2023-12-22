@@ -73,7 +73,7 @@ test.plugin ("plugins.MethodQueue", "subclassMethodQueue", true)
         .given ("init")
         .returnsResultOfExpr ("hostClass")
         .expectingPropertyToBe ("hostClass.name", "MyHost")
-        .expectingPropertyToBe ("hostClass.InitQueue.classChain.length", 5)
+        .expectingPropertyToBe ("hostClass.InitQueue.classChain.length", 6)
         .expectingPropertyToBe ("hostClass.InitQueue.tasks.length", 1)
         .commit ()
 ;

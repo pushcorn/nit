@@ -174,10 +174,17 @@ test.method ("nit.OrderedQueue", "run", true)
 
 test.method ("nit.OrderedQueue", "run")
     .should ("run the queue")
+        .up (s => s.called = [])
         .up (s => s.class = s.class.defineSubclass ("MyQueue")
             .onInit (function (_, value)
             {
+                s.called.push ("MyQueueInit");
                 this.args = { value };
+            })
+            .onInit (function (_, ctx)
+            {
+                s.called.push ("MyQueueInit2");
+                s.ctxValue = ctx.value;
             })
             .until (function (_, ctx)
             {
@@ -200,9 +207,24 @@ test.method ("nit.OrderedQueue", "run")
                 return ctx.value += 8;
             })
         )
+        .up (s => s.class = s.class.defineSubclass ("Subqueue")
+            .onInit (true, function (_, ctx)
+            {
+                s.called.push ("SubqueueInit");
+                s.subqueueCtxVal = ctx.value;
+                nit.throw ("SUB_ERR");
+                s.subqueueAfterErr = true;
+            })
+        )
         .up (s => s.createArgs = { args: 99 })
+        .mock (nit.log, "e")
         .returns (106)
-        .expectingPropertyToBeOfType ("object.queue", "MyQueue")
+        .expectingPropertyToBe ("mocks.0.invocations.0.args.0", /SUB_ERR/)
+        .expectingPropertyToBeOfType ("object.queue", "Subqueue")
+        .expectingPropertyToBe ("ctxValue", 99)
+        .expectingPropertyToBe ("subqueueCtxVal", 99)
+        .expectingPropertyToBe ("subqueueAfterErr")
+        .expectingPropertyToBe ("called", ["MyQueueInit", "MyQueueInit2", "SubqueueInit"])
         .commit ()
 
     .reset ()
@@ -234,7 +256,9 @@ test.method ("nit.OrderedQueue", "run")
         .before (s => s.object.after ("postInit", true, () => s.called.push ("postInitErr") && nit.throw ("POST_INIT_ERR")))
         .before (s => s.object.success (() => s.called.push ("success")))
         .before (s => s.object.complete (() => s.called.push ("complete")))
+        .mock (nit.log, "e")
         .returns (6)
+        .expectingPropertyToBe ("mocks.0.invocations.0.args.0", /POST_INIT_ERR/)
         .expectingPropertyToBe ("called", ["preInit", "init", "postInit", "postInitErr", "success", "complete"])
         .commit ()
 

@@ -133,17 +133,17 @@ test ("nit.Class.registerPlugin", () =>
     expect (A.conditions.length).toBe (2);
     expect (A.getPlugins ("conditions").length).toBe (2);
     expect (A.getPlugins ("conditions", true).length).toBe (2);
-    expect (A.getPlugins ("conditions", true)[0].val).toBe ("p2");
-    expect (A.getPlugins ("conditions", true)[1].val).toBe ("m2");
+    expect (A.getPlugins ("conditions", true)[0].val).toBe ("m2");
+    expect (A.getPlugins ("conditions", true)[1].val).toBe ("p2");
 
     expect (B.conditions.length).toBe (2);
     expect (B.getPlugins ("conditions").length).toBe (4);
     expect (B.getPlugins ("conditions", true).length).toBe (2);
-    expect (B.getPlugins ("conditions", true)[0].val).toBe ("m3");
-    expect (B.getPlugins ("conditions", true)[1].val).toBe ("p4");
+    expect (B.getPlugins ("conditions", true)[0].val).toBe ("p4");
+    expect (B.getPlugins ("conditions", true)[1].val).toBe ("m3");
 
     A.applyPlugins ("conditions", "check");
-    expect (checked).toEqual (["test.RequestPath", "test.RequestMethod"]);
+    expect (checked).toEqual (["test.RequestMethod", "test.RequestPath"]);
 });
 
 
@@ -215,14 +215,15 @@ test ("nit.Class.getPlugins", () =>
     expect (A.conditions.length).toBe (5);
     expect (A.getPlugins ("conditions").length).toBe (5);
     expect (A.getPlugins ("conditions", true).length).toBe (3);
-    expect (A.getPlugins ("conditions", true)[0].val).toBe ("p1");
-    expect (A.getPlugins ("conditions", true)[1].val).toBe ("m1");
+    expect (A.getPlugins ("conditions", true)[0].val).toBe ("ct1");
+    expect (A.getPlugins ("conditions", true)[1].val).toBe ("m2");
+    expect (A.getPlugins ("conditions", true)[2].val).toBe ("p2");
 
     expect (B.conditions.length).toBe (2);
     expect (B.getPlugins ("conditions").length).toBe (7);
     expect (B.getPlugins ("conditions", true).length).toBe (3);
-    expect (B.getPlugins ("conditions", true)[0].val).toBe ("p3");
-    expect (B.getPlugins ("conditions", true)[1].val).toBe ("m3");
+    expect (B.getPlugins ("conditions", true)[0].val).toBe ("m3");
+    expect (B.getPlugins ("conditions", true)[1].val).toBe ("p3");
     expect (B.getPlugins ("conditions", () => "p3").length).toBe (1);
 
     expect (A.lookupPlugin (RequestContentType).val).toBe ("ct1");

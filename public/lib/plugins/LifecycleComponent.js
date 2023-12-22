@@ -15,8 +15,19 @@ module.exports = function (nit, Self)
 
             hostClass
                 .plugin ("event-emitter", { prePost: plugin.prePost, listenerName: sn + "Listener" })
-                .plugin ("method-queue")
+                .plugin ("method-queue", "ComponentMethodQueue")
                 .plugin ("logger")
+                .do ("ComponentMethodQueue", function (ComponentMethodQueue)
+                {
+                    ComponentMethodQueue.onSuppressedQueueError (function (owner, error)
+                    {
+                        owner.error (error);
+                    });
+                })
+                .onSuppressedEmitterError (true, function (error)
+                {
+                    this.error (error);
+                })
                 .staticMethod ("defineComponentPlugin", function ()
                 {
                     var cls = this;
@@ -31,10 +42,15 @@ module.exports = function (nit, Self)
                         .categorize ([ns, pluginCategory].filter (nit.is.not.empty).join ("."))
                     ;
 
-                    return cls
-                        .constant ("Plugin", pluginClass)
-                        .registerPlugin (pluginClass, { instancePluginAllowed: plugin.instancePluginAllowed })
-                    ;
+                    if (!cls.Plugin || cls.Plugin.CATEGORY != pluginCategory)
+                    {
+                        cls
+                            .constant ("Plugin", pluginClass)
+                            .registerPlugin (pluginClass, { instancePluginAllowed: plugin.instancePluginAllowed })
+                        ;
+                    }
+
+                    return cls;
                 })
                 .defineComponentPlugin ()
                 .staticMethod ("addMainStepsToComponentMethodQueue", function (method, Queue)

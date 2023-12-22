@@ -114,3 +114,15 @@ test ("nit.invoke.chain ()", async () =>
 
     expect (await nit.invoke.chain ([addOneAsync, addTwoAsync], 5)).toBe (8);
 });
+
+
+test ("nit.invoke.each ()", async () =>
+{
+    function addOne (v) { return v + 1; }
+
+    expect (nit.invoke.each ([3, 4], addOne)).toBe (5);
+
+    async function addOneAsync (v) { await nit.sleep (10); return v + 1; }
+
+    expect (await nit.invoke.each ([5, 6], addOneAsync)).toBe (7);
+});
