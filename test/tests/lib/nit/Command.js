@@ -578,16 +578,12 @@ test ("nit.Command.run ()", async () =>
 });
 
 
-test ("nit.Command.catch/finally ()", async () =>
+test ("nit.Command.RunQueue.onFailure ()", async () =>
 {
     const Test = nit.defineClass ("Test", "nit.Command")
         .onRun (function ()
         {
             throw new Error ("ERR");
-        })
-        .onFinally (function ()
-        {
-            Test.finallyCalled = true;
         })
     ;
 
@@ -597,25 +593,10 @@ test ("nit.Command.catch/finally ()", async () =>
     }
     catch (e)
     {
+        Test.e = e;
     }
 
-    expect (Test.finallyCalled).toBe (true);
-
-    Test.onCatch (function ()
-    {
-        Test.catchCalled = true;
-    });
-
-    await Test ().run ();
-    expect (Test.catchCalled).toBe (true);
-
-
-    Test.onFinally (function ()
-    {
-        throw new Error ("FINALLY");
-    });
-
-    expect (async () => Test ().run ()).rejects.toThrow ("FINALLY");
+    expect (Test.e).toBeInstanceOf (Error);
 });
 
 
@@ -746,7 +727,7 @@ test ("nit.Command.exec ()", async () =>
 });
 
 
-test ("nit.Command.listenerError ()", async () =>
+test ("nit.Command.suppressedQueueError ()", async () =>
 {
     const TestListener = nit.defineClass ("commands.TestListener", "nit.Command")
         .defineInput (Input =>
