@@ -153,7 +153,6 @@ test ("nit.Class.registerPlugin - instance plugin allowed", () =>
     let checked = [];
 
     const Condition = nit.defineClass ("test.Condition")
-        .constant ("unique", true)
         .method ("usedBy", host => usedBy = host)
         .method ("check", function ()
         {
@@ -164,7 +163,7 @@ test ("nit.Class.registerPlugin - instance plugin allowed", () =>
     const RequestPath = Condition.defineSubclass ("test.RequestPath").field ("<val>");
     const RequestMethod = Condition.defineSubclass ("test.RequestMethod").field ("<val>");
     const A = nit.defineClass ("A")
-        .registerPlugin (Condition, true, { instancePluginAllowed: true })
+        .registerPlugin (Condition, false, { instancePluginAllowed: true })
     ;
 
     let a = new A;
@@ -174,21 +173,43 @@ test ("nit.Class.registerPlugin - instance plugin allowed", () =>
         .condition (new RequestPath ("p2"))
         .condition (new RequestMethod ("m2"))
         .condition.call (a, new RequestMethod ("m3"))
+        .condition.call (a, new RequestPath ("p3"))
     ;
 
     expect (usedBy).toBe (A);
-    expect (A.getPlugins ("conditions").length).toBe (2);
-    expect (a.conditions.length).toBe (1);
-    expect (A.getPlugins.call (a, "conditions", true).length).toBe (2);
-    expect (A.getPlugins.call (a, "conditions", true)[0].val).toBe ("m3");
-    expect (A.getPlugins.call (a, "conditions", true)[1].val).toBe ("p2");
+    expect (A.getPlugins ("conditions").length).toBe (4);
+    expect (a.conditions.length).toBe (2);
+    expect (A.getPlugins.call (a, "conditions", true).map (c => c.val)).toEqual (["p3", "m3"]);
+    expect (A.getPlugins.call (a, "conditions").map (c => c.val)).toEqual (["p3", "m3", "m2", "p2", "m1", "p1"]);
+    expect (A.getPlugins.call (a, "conditions", true)[0].val).toBe ("p3");
+    expect (A.getPlugins.call (a, "conditions", true)[1].val).toBe ("m3");
 
     expect (A.lookupPlugin.call (a, RequestPath)).toBeUndefined ();
     expect (A.lookupPlugin.call (a, "test.UnknownPlugin")).toBeUndefined ();
-    expect (A.lookupPlugin.call (a, RequestPath, "conditions").val).toBe ("p2");
+    expect (A.lookupPlugin.call (a, RequestPath, "conditions").val).toBe ("p3");
 
     A.applyPlugins.call (a, "conditions", "check");
-    expect (checked).toEqual (["test.RequestMethod", "m3", "test.RequestPath", "p2"]);
+    expect (checked).toEqual (
+    [
+        "test.RequestPath", "p3",
+        "test.RequestMethod", "m3",
+        "test.RequestMethod", "m2",
+        "test.RequestPath", "p2",
+        "test.RequestMethod", "m1",
+        "test.RequestPath", "p1"
+    ]);
+
+    checked = [];
+    A.applyPlugins.call (a, "conditions", "check", true);
+    expect (checked).toEqual (
+    [
+        "test.RequestPath", "p1",
+        "test.RequestMethod", "m1",
+        "test.RequestPath", "p2",
+        "test.RequestMethod", "m2",
+        "test.RequestMethod", "m3",
+        "test.RequestPath", "p3"
+    ]);
 });
 
 

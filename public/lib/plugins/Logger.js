@@ -1,13 +1,18 @@
 module.exports = function (nit, Self)
 {
     return (Self = nit.definePlugin ("Logger"))
+        .field ("[global]", "boolean", "Whether to handle the logging globally.")
+        .field ("openTag", "string?", "The template's open tag.")
+        .field ("closeTag", "string?", "The template's close tag.")
+        .field ("stackTrace", "boolean?", "Whether to append the stack trace.")
+        .field ("timestamp", "boolean?", "Whether to show the timestamp.")
         .defineInnerClass ("Logger", function (Logger)
         {
             Logger
-                .defineMeta ("openTag", "string", "%{") // The template's open tag.
-                .defineMeta ("closeTag", "string", "}") // The template's close tag.
-                .defineMeta ("stackTrace", "boolean?") // Whether to append the stack trace.
-                .defineMeta ("timestamp", "boolean?") // Whether to show the timestamp.
+                .defineMeta ("openTag", "string", "%{")
+                .defineMeta ("closeTag", "string", "}")
+                .defineMeta ("stackTrace", "boolean?")
+                .defineMeta ("timestamp", "boolean?")
                 .defineInnerClass ("Transforms")
                 .staticMethod ("transform", function (name, transform)
                 {
@@ -120,23 +125,38 @@ module.exports = function (nit, Self)
                         });
                     });
                 })
-
             ;
         })
         .onUsedBy (function (hostClass)
         {
+            var plugin = this;
+
             hostClass
                 .staticMethod ("defineLogger", function (builder)
                 {
                     return this.defineInnerClass ("Logger", Self.Logger.name, builder);
                 })
-                .defineLogger ()
+                .defineLogger (function (Logger)
+                {
+                    nit.each (plugin.toPojo (), function (v, k)
+                    {
+                        Logger.meta (k, v);
+                    });
+                })
                 .staticProperty ("logger", Self.Logger.name, function (prop, owner)
                 {
                     return new owner.Logger;
                 })
                 .do (function ()
                 {
+                    if (plugin.global)
+                    {
+                        nit.log.logger = function ()
+                        {
+                            nit.invoke ([hostClass.logger, "log"], [hostClass, "LOG"].concat (nit.array (arguments)));
+                        };
+                    }
+
                     nit.log.LEVELS.forEach (function (level)
                     {
                         hostClass.method (level, function (message) // eslint-disable-line no-unused-vars
@@ -146,6 +166,14 @@ module.exports = function (nit, Self)
 
                             logger[level].apply (logger, [host].concat (nit.array (arguments)));
                         });
+
+                        if (plugin.global)
+                        {
+                            nit.log[level] = nit.log[level[0]] = function ()
+                            {
+                                nit.invoke ([hostClass.logger, level], [hostClass].concat (nit.array (arguments)));
+                            };
+                        }
                     });
                 })
             ;

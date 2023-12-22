@@ -117,7 +117,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         ERROR_CODE_PATTERN: /^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$/,
         EXPANDABLE_ARG_PATTERN: /\.\.(([a-z][a-z0-9_$]+)(\|[a-z][a-z0-9_$]+)*)(!?)$/i,
         PPP: "$__", // private property prefix
-        IGNORED_PROPS: OBJECT.keys (OBJECT.getOwnPropertyDescriptors (OBJECT_PROTO)).concat ("global"),
+        IGNORED_PROPS: OBJECT.keys (OBJECT.getOwnPropertyDescriptors (OBJECT_PROTO)),
         IGNORED_FUNC_PROPS: OBJECT.keys (OBJECT.getOwnPropertyDescriptors (Function.prototype)).concat ("prototype"),
         IGNORED_ARRAY_PROPS: OBJECT.keys (OBJECT.getOwnPropertyDescriptors (ARR_PROTO)),
         DATE_TIME_FORMAT_OPTIONS:
@@ -7554,9 +7554,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         )
         .staticTypedMethod ("getPlugins",
             {
-                category: "string", unique: "boolean|function"
+                category: "string", unique: "boolean|function", reverse: "boolean"
             },
-            function (category, unique) // use cls.getPlugins.call (instance, category, unique, ...) to get the instance plugins.
+            function (category, unique, reverse) // use cls.getPlugins.call (instance, category, unique, ...) to get the instance plugins.
             {
                 var self = this;
                 var instance = nit.is.obj (self) ? self : undefined;
@@ -7565,7 +7565,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                 if (instance)
                 {
-                    plugins = nit.array (instance[category]).concat (plugins);
+                    plugins = nit.array (instance[category]).reverse ().concat (plugins);
                 }
 
                 var seen = {};
@@ -7587,7 +7587,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     }
                 });
 
-                return plugins;
+                return reverse ? plugins.reverse () : plugins;
             }
         )
         .staticTypedMethod ("lookupPlugin",
@@ -7613,13 +7613,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 });
             }
         )
-        .staticMethod ("applyPlugins", function (category, method)
+        .staticMethod ("applyPlugins", function (category, method, reverse)
         {
             var self = this;
             var instance = nit.is.obj (self) ? self : undefined;
             var cls = instance ? instance.constructor : self;
             var args = nit.array (arguments).slice (2);
-            var plugins = cls.getPlugins.call (self, category)
+            var plugins = cls.getPlugins.call (self, category, false, reverse)
                 .filter (function (plugin) { return plugin[method]; })
                 .map (function (plugin) { return [plugin, method]; })
             ;
