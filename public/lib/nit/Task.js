@@ -93,7 +93,7 @@ module.exports = function (nit, Self)
                 {
                     nq.complete (nit.invoke.wrap.after ([nq, nq.onComplete], function (e, r, q)
                     {
-                        let [ctx] = q.args;
+                        var ctx = q.args[0];
 
                         if ((ctx.error = nit.coalesce (e, q.error)))
                         {

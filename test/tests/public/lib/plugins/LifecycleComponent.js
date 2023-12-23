@@ -96,7 +96,7 @@ test.plugin ("plugins.LifecycleComponent", "run", { hostClass: "Unwrapped", plug
             Queue.before ("run.invokeHook", "run.throwError", true, () => nit.throw ("RUN_ERR"));
         }))
         .up (s => s.hostClass.onRun (function () { s.configured.push ("MyTask"); }))
-        .mock ("host", "error")
+        .mock (nit.log, "e")
         .expectingPropertyToBe ("configured", ["MyTask"])
         .expectingPropertyToBe ("mocks.0.invocations.0.args.0", /RUN_ERR/)
         .commit ()

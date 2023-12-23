@@ -17,17 +17,6 @@ module.exports = function (nit, Self)
                 .plugin ("event-emitter", { prePost: plugin.prePost, listenerName: sn + "Listener" })
                 .plugin ("method-queue", "ComponentMethodQueue")
                 .plugin ("logger")
-                .do ("ComponentMethodQueue", function (ComponentMethodQueue)
-                {
-                    ComponentMethodQueue.onSuppressedQueueError (function (owner, error)
-                    {
-                        owner.error (error);
-                    });
-                })
-                .onSuppressedEmitterError (true, function (error)
-                {
-                    this.error (error);
-                })
                 .staticMethod ("defineComponentPlugin", function ()
                 {
                     var cls = this;

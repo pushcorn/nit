@@ -107,6 +107,7 @@ test ("nit.invoke.chain ()", async () =>
 
     let a;
     expect (nit.invoke.chain (a = [addOne, addTwo], 5)).toBe (7);
+    expect (nit.invoke.chain (a = [addOne, addTwo], 5, 100)).toBe (100);
     expect (a).toEqual ([addOne, addTwo]);
 
     async function addOneAsync (v) { await nit.sleep (10); return v + 1; }
@@ -115,6 +116,7 @@ test ("nit.invoke.chain ()", async () =>
     let o = {};
     expect (await nit.invoke.chain ([addOneAsync, addTwoAsync], 5)).toBe (8);
     expect (await nit.invoke.chain ([[o, addOneAsync], [o, addTwoAsync]], 5)).toBe (8);
+    expect (await nit.invoke.chain ([[o, addOneAsync], [o, addTwoAsync]], 5, 20)).toBe (20);
 });
 
 
@@ -123,10 +125,12 @@ test ("nit.invoke.each ()", async () =>
     function addOne (v) { return v + 1; }
 
     expect (nit.invoke.each ([3, 4], addOne)).toBe (5);
+    expect (nit.invoke.each ([3, 4], addOne, 10)).toBe (10);
 
     async function addOneAsync (v) { await nit.sleep (10); return v + 1; }
 
     expect (await nit.invoke.each ([5, 6], addOneAsync)).toBe (7);
+    expect (await nit.invoke.each ([5, 6], addOneAsync, 100)).toBe (100);
 });
 
 

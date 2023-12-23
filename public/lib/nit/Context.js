@@ -2,6 +2,15 @@ module.exports = function (nit, Self)
 {
     return (Self = nit.defineClass ("nit.Context"))
         .m ("error.service_not_registered", "The service '%{type}' was not registered.")
+        .registerPlugin ("nit.ServiceProvider", { instancePluginAllowed: true })
+        .plugin ("event-emitter", "destroy")
+        .defineInnerClass ("ServiceEntry", function (ServiceEntry)
+        {
+            ServiceEntry
+                .field ("<service>", "object")
+                .field ("[destroy]", "function")
+            ;
+        })
         .staticMethod ("new", function ()
         {
             var cls = this;
@@ -24,6 +33,7 @@ module.exports = function (nit, Self)
 
             return nit.assign (nit.new (cls, pargs.concat (opts)), data);
         })
+        .staticLifecycleMethod ("suppressedContextError", null, function (error) { nit.log.e (error); })
         .property ("objectRegistry", "object",
         {
             enumerable: false,
@@ -78,32 +88,36 @@ module.exports = function (nit, Self)
                 }
             }
         })
-        .method ("registerServiceProvider", function (service, provider)
+        .method ("registerService", function (service, destroy)
         {
-            var self = this;
-
-            nit.memoize.dpg (self.serviceRegistry, service, true, true, function ()
-            {
-                return provider (self);
-            });
-
-            return self;
-        })
-        .method ("registerService", function (service)
-        {
-            this.serviceRegistry[service.constructor.name] = service;
+            this.serviceRegistry[service.constructor.name] = new Self.ServiceEntry (service, destroy);
 
             return this;
         })
         .method ("lookupService", function (serviceType, optional)
         {
-            serviceType = nit.lookupClass (serviceType, !optional);
+            if (!(serviceType = nit.lookupClass (serviceType, !optional)))
+            {
+                return;
+            }
 
-            var service = nit.find (this.serviceRegistry, function (s) { return s instanceof serviceType; });
+            var serviceName = serviceType.name;
+            var self = this;
+            var cls = self.constructor;
+            var service = nit.find.result (self.serviceRegistry, function (s) { return s.service instanceof serviceType ? s.service : undefined; });
+            var provider;
+
+            if (!service
+                && (provider = nit.find (cls.getPlugins.call (self, "serviceproviders"), function (sp) { return sp.provides (serviceName); })))
+            {
+                service = provider.create (serviceName, self);
+
+                self.registerService (service, provider.destroy.bind (provider));
+            }
 
             if (!service && !optional)
             {
-                this.throw ("error.service_not_registered", { type: serviceType.name });
+                self.throw ("error.service_not_registered", { type: serviceName });
             }
 
             return service;
@@ -156,6 +170,18 @@ module.exports = function (nit, Self)
             });
 
             return self;
+        })
+        .method ("destroy", function ()
+        {
+            var self = this;
+            var cls = self.constructor;
+            var onError = cls.suppressedContextError.bind (self);
+            var emit = { destroy: self.emit.bind (self, "destroy", self) };
+
+            return nit.invoke.each (nit.values (self.serviceRegistry).concat (emit), function (entry)
+            {
+                return nit.invoke.safe ([entry, entry.destroy], [entry.service, self], onError);
+            });
         })
         .field ("parent", Self.name, "The parent context.",
         {

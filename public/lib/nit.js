@@ -4035,6 +4035,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.invoke.chain = function (chain, args, result)
     {
         var self = this;
+        var res;
 
         chain = nit.array (chain).filter (nit.is.not.empty);
 
@@ -4046,13 +4047,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             {
                 return nit.invoke.return (nit.is.arr (ch) ? ch : [self, ch], args, function (r)
                 {
-                    result = nit.coalesce (r, result);
+                    res = nit.coalesce (r, res);
 
                     return next ();
                 });
             }
 
-            return result;
+            return nit.coalesce (result, res);
         }
 
         return next ();
@@ -4062,6 +4063,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.invoke.each = function (items, cb, result)
     {
         var self = this;
+        var res;
 
         items = nit.array (items);
 
@@ -4073,13 +4075,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                 return nit.invoke.return ([self, cb], [item], function (r)
                 {
-                    result = nit.coalesce (r, result);
+                    res = nit.coalesce (r, res);
 
                     return next ();
                 });
             }
 
-            return result;
+            return nit.coalesce (result, res);
         }
 
         return next ();
