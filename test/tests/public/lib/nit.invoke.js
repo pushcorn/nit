@@ -172,13 +172,38 @@ test ("nit.invoke.wrap ()", async () =>
 
 test ("nit.invoke.wrap.after ()", async () =>
 {
-    function after (e, v) { return v * 10; }
+    function after (e, v, ov)
+    {
+        after.ov = ov;
+        return v * 10;
+    }
+
     function addOne (v) { return v + 1; }
     function addOneErr () { nit.throw ("ERR"); }
 
     let f = nit.invoke.wrap.after (addOne, after);
     expect (f (3)).toBe (40);
+    expect (after.ov).toBe (3);
 
     let g = nit.invoke.wrap.after (addOneErr, after);
-    expect (() => g (3)).toThrow ("ERR");
+    expect (() => g (10)).toThrow ("ERR");
+    expect (after.ov).toBe (10);
+});
+
+
+test ("nit.invoke.wrap.before ()", async () =>
+{
+    function before (args) { args[1] = 10; }
+    function multiply (a, b) { return a * b; }
+    async function multiplyAsync (a, b) { await nit.sleep (10); return a * b; }
+    function multiplyErr () { nit.throw ("ERR"); }
+
+    let f = nit.invoke.wrap.before (multiply, before);
+    expect (f (3, 4)).toBe (30);
+
+    f = nit.invoke.wrap.before (multiplyAsync, before);
+    expect (await f (4, 5)).toBe (40);
+
+    let g = nit.invoke.wrap.after (multiplyErr, before);
+    expect (() => g (3, 4)).toThrow ("ERR");
 });

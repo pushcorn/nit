@@ -88,16 +88,20 @@ module.exports = function (nit, Self)
                     this.args = ctx;
                 })
                 .until (function (task) { return task.canceled; })
-                .onComplete (function (task, ctx)
+                .onComplete (function (task, ctx) { return ctx; })
+                .onRun (function (nq)
                 {
-                    if ((ctx.error = this.error))
+                    nq.complete (nit.invoke.wrap.after ([nq, nq.onComplete], function (e, r, q)
                     {
-                        nit.dpv (ctx.error, Self.kContext, ctx, true, false);
+                        let [ctx] = q.args;
 
-                        throw ctx.error;
-                    }
+                        if ((ctx.error = nit.coalesce (e, q.error)))
+                        {
+                            nit.dpv (ctx.error, Self.kContext, ctx, true, false);
 
-                    return ctx;
+                            throw ctx.error;
+                        }
+                    }));
                 })
             ;
         })

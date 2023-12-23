@@ -585,6 +585,15 @@ test ("nit.Command.RunQueue.onFailure ()", async () =>
         {
             throw new Error ("ERR");
         })
+        .configureComponentMethod ("run", Queue =>
+        {
+            Queue
+                .onComplete (false, () =>
+                {
+                    nit.throw ("COMP_ERR");
+                })
+            ;
+        })
     ;
 
     try
@@ -596,7 +605,8 @@ test ("nit.Command.RunQueue.onFailure ()", async () =>
         Test.e = e;
     }
 
-    expect (Test.e).toBeInstanceOf (Error);
+    expect (Test.e.message).toMatch (/COMP_ERR/);
+    expect (Test.e["nit.Command.context"]).toBeInstanceOf (Test.Context);
 });
 
 
@@ -724,30 +734,4 @@ test ("nit.Command.exec ()", async () =>
     await TestExec.exec ("test-exec def");
 
     expect (TestExec.calledWith).toBe ("def");
-});
-
-
-test ("nit.Command.suppressedQueueError ()", async () =>
-{
-    const TestListener = nit.defineClass ("commands.TestListener", "nit.Command")
-        .defineInput (Input =>
-        {
-            Input
-                .option ("<file>", "file")
-            ;
-        })
-        .on ("run", function ()
-        {
-            throw new Error ("LISTENER_ERR");
-        })
-        .onRun (({ input }) => TestListener.calledWith = input.file)
-    ;
-
-    let cmd = new TestListener;
-    let mock = test.mock (cmd, "error");
-
-    await cmd.run ("abc");
-
-    expect (TestListener.calledWith).toBe ("abc");
-    expect (mock.invocations[0].args[0].message).toBe ("LISTENER_ERR");
 });

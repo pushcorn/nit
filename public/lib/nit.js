@@ -4090,9 +4090,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     {
         var self = this;
 
+        args = nit.array (args);
+
         return nit.invoke.then.call (self, func, args, function (e, result)
         {
-            return nit.invoke.return.call (self, after, [e, result], function (r)
+            return nit.invoke.return.call (self, after, [e, result].concat (args), function (r)
             {
                 if (e)
                 {
@@ -4119,6 +4121,21 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         return function ()
         {
             return nit.invoke.after.call (this, func, arguments, after);
+        };
+    };
+
+
+    nit.invoke.wrap.before = function (func, before)
+    {
+        return function ()
+        {
+            var self = this;
+            var args = nit.array (arguments);
+
+            return nit.invoke.then.call (self, before, [args], function ()
+            {
+                return nit.invoke.call (self, func, args);
+            });
         };
     };
 
@@ -7729,7 +7746,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 var ucMethod = nit.ucFirst (method);
                 var hookMethod = "on" + ucMethod;
                 var callbackProp = method + "Callbacks";
-                var reverse = method == "init";
+                var isInit = method == "init";
 
                 cls
                     .staticTypedMethod (hookMethod,
@@ -7740,7 +7757,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         {
                             var cls = this;
 
-                            safe = nit.coalesce (safe, method == "complete");
+                            safe = nit.coalesce (safe, !isInit);
 
                             cls[callbackProp].push (cls.createStep (method, safe, cb));
 
@@ -7756,7 +7773,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     .staticMethod (method, function (queue)
                     {
                         var cls = queue.constructor;
-                        var callbacks = cls.getClassChainProperty (callbackProp, true, reverse);
+                        var callbacks = cls.getClassChainProperty (callbackProp, true, isInit);
 
                         return nit.invoke.chain (callbacks, queue);
                     })

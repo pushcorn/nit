@@ -227,7 +227,7 @@ test.method ("nit.OrderedQueue", "run")
         .expectingPropertyToBe ("called", ["MyQueueInit", "MyQueueInit2", "SubqueueInit"])
         .commit ()
 
-    .reset ()
+    .should ("suppress the error thrown in onFailure")
         .up (s => s.class = s.class.defineSubclass ("MyQueue")
             .push ("step1", function ()
             {
@@ -240,7 +240,8 @@ test.method ("nit.OrderedQueue", "run")
                 throw this.error;
             })
         )
-        .throws ("ERR")
+        .mock (nit.log, "e")
+        .returns ()
         .expectingPropertyToBe ("object.catched", true)
         .commit ()
 ;
