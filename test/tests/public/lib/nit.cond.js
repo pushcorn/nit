@@ -1,8 +1,8 @@
-test ("nit.needle ()", () =>
+test ("nit.cond ()", () =>
 {
     function check (v, tv, res)
     {
-        expect (nit.needle (v) (tv)).toBe (res);
+        expect (nit.cond (v) (tv)).toBe (res);
     }
 
     const A = nit.defineClass ("A")
@@ -14,7 +14,7 @@ test ("nit.needle ()", () =>
     check (3, 3, true);
     check (3, 9, false);
     check (function (v) { return v > 10; }, 9, false);
-    check (function () { return "yes"; }, 100, true);
+    check (function () { return "yes"; }, 100, "yes");
     check (/^ab.cd/, "ab.cdef", true);
     check (/^ab.cd/, "cdef", false);
     check ({ a: 1 }, { a: 1, b: 2 }, true);

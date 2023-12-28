@@ -149,7 +149,7 @@ module.exports = function (nit, Self)
 
             if (filter)
             {
-                return nit.find (reg, nit.needle (filter));
+                return nit.find (reg, nit.cond (filter));
             }
             else
             {

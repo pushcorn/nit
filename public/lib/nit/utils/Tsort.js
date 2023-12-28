@@ -13,7 +13,7 @@ module.exports = function (nit, Self)
 
         .method ("getNode", function (owner)
         {
-            return nit.find (this.nodes, "owner", owner);
+            return nit.find (this.nodes, { owner: owner });
         })
         .method ("add", function (owner, dependencies)
         {

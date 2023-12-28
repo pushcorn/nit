@@ -31,7 +31,7 @@ module.exports = function (nit)
                     {
                         var cls = isStatic ? this : this.constructor;
 
-                        return cls[queueName] (this, { args: arguments }).run ();
+                        return cls[queueName] (this, { args: nit.array (arguments) }).run ();
                     });
                 })
                 .staticMethod ("staticMethodQueue", function (name, builder)
@@ -48,9 +48,9 @@ module.exports = function (nit)
                     var queueName = nit.ucFirst (name) + "Queue";
                     var queueSuperclass = cls.superclass[queueName];
 
-                    return cls.defineInnerClass (queueName, queueSuperclass.name, function (queueSubclas)
+                    return cls.defineInnerClass (queueName, queueSuperclass.name, function (queueSubclass)
                     {
-                        nit.invoke (builder, queueSubclas);
+                        nit.invoke (builder, queueSubclass);
                     });
                 })
             ;

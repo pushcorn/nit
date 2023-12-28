@@ -1752,11 +1752,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     // Array utils
     // -----------------------
 
-    nit.needle = function (test)
+    nit.cond = function (test)
     {
         if (nit.is.func (test))
         {
-            return function (v) { return !!test (v); };
+            return test;
         }
         else
         if (test instanceof RegExp)
@@ -1829,7 +1829,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             return single ? undefined : removed;
         }
 
-        needle = nit.needle (needle);
+        needle = nit.cond (needle);
 
         for (var i = 0; i < arr.length; ++i)
         {
@@ -1855,7 +1855,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.arrayReplace = function (arr, replacement, needle)
     {
-        needle = nit.needle (needle);
+        needle = nit.cond (needle);
 
         for (var i = 0; i < arr.length; ++i)
         {
@@ -1936,7 +1936,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.insertBefore = function (array, item, needle)
     {
-        needle = nit.needle (needle);
+        needle = nit.cond (needle);
 
         for (var i = 0; i < array.length; ++i)
         {
@@ -1954,7 +1954,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.insertAfter = function (array, item, needle)
     {
-        needle = nit.needle (needle);
+        needle = nit.cond (needle);
 
         for (var i = array.length - 1; i >= 0; --i)
         {
@@ -2609,25 +2609,9 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.dpv (nit.each, "SKIP", {});
 
 
-    nit.find = function (o, needle) // or find (o, k, v)
+    nit.find = function (o, needle)
     {
-        var args  = ARRAY (arguments);
-
-        if (args.length == 3)
-        {
-            var k = args[1];
-            var v = args[2];
-
-            needle = function (item)
-            {
-                return nit.get (item, k) === v;
-            };
-        }
-        else
-        if (!nit.is.func (needle))
-        {
-            needle = nit.needle (needle);
-        }
+        needle = nit.cond (needle);
 
         var kvs = nit.each (o, function (v, k)
         {
@@ -2656,6 +2640,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.find.result = function (o, needle, check)
     {
         check = check || nit.is.not.empty;
+        needle = nit.cond (needle);
 
         return nit.find (o, function (v, k)
         {
@@ -5156,18 +5141,22 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 cast: function (owner, value, parser)
                 {
                     var prop = this;
-                    var caster = prop.caster;
 
-                    caster = nit.is.str (caster) ? nit.Object.TYPE_CASTERS[caster] : caster;
-
-                    if (!caster && prop.class)
+                    if (!nit.is.undef (value))
                     {
-                        caster = prop.class[nit.Object.kCaster];
-                    }
+                        var caster = prop.caster;
 
-                    if (caster)
-                    {
-                        value = caster.call (owner, value, prop, parser);
+                        caster = nit.is.str (caster) ? nit.Object.TYPE_CASTERS[caster] : caster;
+
+                        if (!caster && prop.class)
+                        {
+                            caster = prop.class[nit.Object.kCaster];
+                        }
+
+                        if (caster)
+                        {
+                            value = caster.call (owner, value, prop, parser);
+                        }
                     }
 
                     return Property.cast (prop, owner, value, parser);
@@ -6113,6 +6102,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             nit.assign (ConfigTypeParser.prototype,
             {
+                order: 500,
                 supports: function (type)
                 {
                     return type == "config";
@@ -7684,6 +7674,235 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     {
         return nit.lookupClass (name) || nit.defineClass (name);
     };
+
+
+    var nit_CallChain = nit.defineClass ("nit.CallChain")
+        .k ("context")
+        .constant ("DONE", function (ctx) { return ctx.chain.done; })
+        .constant ("STOP", function (ctx) { return ctx.chain.stopped; })
+        .constant ("ERROR", function (ctx) { return !!ctx.error; })
+        .defineInnerClass ("Context", function (Context)
+        {
+            Context
+                .field ("[args...]", "any")
+                .field ("chain", "nit.CallChain")
+                .property ("result", "any")
+                .property ("error", "any")
+                .lifecycleMethod ("suppressedError", null, function (e) { nit.log.e (e); })
+            ;
+        })
+        .defineInnerClass ("Anchor", function (Anchor)
+        {
+            Anchor.field ("<name>", "string");
+        })
+        .defineInnerClass ("Call", function (Call)
+        {
+            Call
+                .field ("<name>", "string")
+                .field ("<func>", "function")
+                .field ("[safe]", "boolean")
+                .method ("invoke", function (ctx)
+                {
+                    var call = this;
+                    var cls = call.constructor;
+
+                    ctx = ctx || new cls.outerClass.Context;
+
+                    return nit.invoke.then ([ctx, call.func], [ctx.chain && ctx.chain.owner].concat (ctx.args), function (error, result)
+                    {
+                        if (error)
+                        {
+                            if (call.safe)
+                            {
+                                ctx.suppressedError (error);
+                            }
+                            else
+                            {
+                                throw error;
+                            }
+                        }
+
+                        return result;
+                    });
+                })
+            ;
+        })
+        .defineInnerClass ("Link", function (Link)
+        {
+            Link
+                .field ("<target>", "nit.CallChain")
+                .field ("[condition]", "function", { caster: nit.cond })
+                .method ("applicableTo", function (ctx)
+                {
+                    return this.condition ? this.condition (ctx) : true;
+                })
+            ;
+        })
+        .field ("[calls...]", "nit.CallChain.Call|nit.CallChain.Anchor") // DO NOT CHANGE the type order
+        .field ("untils...", "function")
+        .field ("links...", "nit.CallChain.Link")
+        .field ("name", "string", "The chain name.", "chain")
+        .field ("safe", "boolean")
+        .property ("owner", "any")
+        .property ("stopped", "boolean")
+        .property ("done", "boolean")
+
+        .staticMethod ("isCall", function (call)
+        {
+            return call instanceof nit_CallChain.Call;
+        })
+        .typedMethod ("createCall",
+            {
+                name: "string", func: "function", safe: "boolean"
+            },
+            function (name, func, safe)
+            {
+                var chain = this;
+                var cls = this.constructor;
+
+                return new cls[func ? "Call" : "Anchor"] (name, func, safe || chain.safe);
+            }
+        )
+        .typedMethod ("before",
+            {
+                target: "string", name: "string", func: "function", safe: "boolean", call: "nit.CallChain.Call"
+            },
+            function (target, name, func, safe, call)
+            {
+                var self = this;
+
+                target = target || (call && call.name) || "before";
+                call = call || self.createCall (name || target, func, safe);
+
+                if (!nit.insertBefore (self.calls, call, { name: target }))
+                {
+                    self.calls.unshift (call);
+                }
+
+                return self;
+            }
+        )
+        .typedMethod ("after",
+            {
+                target: "string", name: "string", func: "function", safe: "boolean", call: "nit.CallChain.Call"
+            },
+            function (target, name, func, safe, call)
+            {
+                var self = this;
+
+                target = target || (call && call.name) || "after";
+                call = call || self.createCall (name || target, func, safe);
+
+                if (!nit.insertAfter (self.calls, call, { name: target }))
+                {
+                    self.calls.push (call);
+                }
+
+                return self;
+            }
+        )
+        .typedMethod ("replace",
+            {
+                target: "string", func: "function", safe: "boolean", call: "nit.CallChain.Call"
+            },
+            function (target, func, safe, call)
+            {
+                var self = this;
+
+                target = target || (call && call.name);
+                call = call || self.createCall (target, func, safe);
+
+                if (!nit.arrayReplace (self.calls, call, { name: target }))
+                {
+                    self.calls.push (call);
+                }
+
+                return self;
+            }
+        )
+        .method ("do", function (func, safe)
+        {
+            return this.after ("do", func, safe);
+        })
+        .method ("anchor", function (name)
+        {
+            return this.after (name);
+        })
+        .method ("link", function (target, condition)
+        {
+            var self = this;
+
+            self.links.push ({ target: target, condition: condition || nit_CallChain.DONE });
+
+            return self;
+        })
+        .method ("until", function (condition)
+        {
+            var self = this;
+
+            self.untils.push (nit.cond (condition));
+
+            return self;
+        })
+        .method ("next", function ()
+        {
+            var len, next;
+            var self = this;
+            var calls = self.calls;
+
+            do
+            {
+                len = calls.length;
+                next = nit.arrayRemove (calls, nit_CallChain.isCall, true);
+            }
+            while (next === undefined && len != calls.length);
+
+            return next;
+        })
+        .method ("fork", function (owner)
+        {
+            return nit.assign (new this.constructor (this.toPojo ()), { owner: owner });
+        })
+        .method ("invoke", function (ctx)
+        {
+            var self = this;
+            var cls = self.constructor;
+            var next;
+
+            ctx = ctx instanceof nit_CallChain.Context ? ctx : nit.new (cls.Context, arguments);
+            ctx.chain = self;
+
+            function invoke (error, result)
+            {
+                ctx.result = nit.coalesce (result, ctx.result);
+                ctx.error = nit.coalesce (error, ctx.error);
+                self.done = !self.calls.some (nit_CallChain.isCall);
+                self.stopped = self.untils.some (function (u) { return u (ctx); });
+
+                var link = nit.find (self.links, function (l) { return l.applicableTo (ctx); });
+
+                if (!link && !self.stopped)
+                {
+                    if (error)
+                    {
+                        throw nit.dpv (error, nit_CallChain.kContext, ctx, true, false);
+                    }
+
+                    if ((next = self.next ()))
+                    {
+                        return nit.invoke.then ([next, "invoke"], ctx, invoke);
+                    }
+                }
+
+                return self.calls.splice (0) && (link || ctx);
+            }
+
+            return nit.invoke.return (invoke, [], function (result)
+            {
+                return result instanceof nit_CallChain.Link ? result.target.invoke (ctx) : ctx;
+            });
+        })
+    ;
 
 
     var nit_OrderedQueue = nit.defineClass ("nit.OrderedQueue")

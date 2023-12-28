@@ -749,8 +749,8 @@ test ("nit.ComponentDescriptor", async () =>
 
     let apis = nit.listComponents ("apis");
 
-    let cd3 = nit.find (apis, "name", "pkga:hello");
-    let cd4 = nit.find (apis, "name", "pkga:world");
+    let cd3 = nit.find (apis, { name: "pkga:hello" });
+    let cd4 = nit.find (apis, { name: "pkga:world" });
 
     expect (cd4.compareTo (cd3)).toBe (1);
     expect (cd4.compareTo (cd1)).toBe (1);

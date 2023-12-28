@@ -1203,7 +1203,7 @@ test ("nit.Object.buildParam ()", async () =>
     nit.User.property ("orgIds...", "integer");
     nit.User.property ("patterns...", "string", "*");
 
-    let field = nit.find (nit.User.getProperties (), "name", "orgIds");
+    let field = nit.find (nit.User.getProperties (), { name: "orgIds" });
     let user = Object.create (nit.User.prototype);
 
     expect (nit.Object.buildParam (user, field, {})).toEqual ([]);
@@ -1212,13 +1212,13 @@ test ("nit.Object.buildParam ()", async () =>
     user = Object.create (nit.User.prototype);
     expect (nit.Object.buildParam (user, field, { orgIds: 3 })).toEqual ([3]);
 
-    field = nit.find (nit.User.getProperties (), "name", "patterns");
+    field = nit.find (nit.User.getProperties (), { name: "patterns" });
     expect (nit.Object.buildParam (user, field, {})).toEqual (["*"]);
 
     nit.User.property ("info", "string");
 
     nit.config ("nit.User.info", { "": { tpl: "email: {{email}}" } });
-    field = nit.find (nit.User.getProperties (), "name", "info");
+    field = nit.find (nit.User.getProperties (), { name: "info" });
     nit.config ("email", "a@b.com");
     expect (nit.Object.buildParam (user, field, {})).toBe ("email: a@b.com");
 
