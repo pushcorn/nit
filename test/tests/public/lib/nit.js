@@ -23,16 +23,6 @@ test ("nit.lookupClass ()", () =>
 });
 
 
-test ("nit.configureInitQueue ()", () =>
-{
-    let q;
-
-    nit.configureInitQueue (queue => q = queue);
-
-    expect (q).toBeInstanceOf (nit.OrderedQueue);
-});
-
-
 test ("nit sets up CJS env in browser env.", async () =>
 {
     jest.resetModules ();
@@ -204,11 +194,12 @@ test ("check the READY flag", async () =>
     expect (global.module).toBeInstanceOf (Object);
 
     await nit.sleep (15);
-    expect (nit.READY).toBe (true);
+    expect (nit.READY).toBe (false);
     expect (results).toEqual ([1]);
 
     await nit.sleep (20);
     expect (results).toEqual ([1, 2]);
+    expect (nit.READY).toBe (true);
 
     delete global.module;
     delete global.document;

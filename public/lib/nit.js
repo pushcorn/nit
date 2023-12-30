@@ -4094,11 +4094,20 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
-    nit.invoke.wrap = function (func, args)
+    nit.invoke.wrap = function (func, before, after)
     {
         return function ()
         {
-            return nit.invoke.call (this, func, args || arguments);
+            var self = this;
+            var args = nit.array (arguments);
+
+            return nit.invoke.return.call (self, before, [args], function ()
+            {
+                return nit.invoke.then.call (self, func, args, function (e, r)
+                {
+                    return nit.invoke.call (self, after, [e, r]);
+                });
+            });
         };
     };
 
@@ -5456,9 +5465,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     .k (name)
                     .staticTypedMethod (hookMethod,
                         {
-                            hook: "function",
-                            overwrite: "boolean",
-                            order: "string"
+                            hook: "function", overwrite: "boolean", order: "string"
                         },
                         function (hook, overwrite, order)
                         {
@@ -7745,6 +7752,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .field ("safe", "boolean")
         .property ("owner", "any")
         .property ("stopped", "boolean")
+        .property ("running", "boolean")
         .property ("done", "boolean")
 
         .staticMethod ("isCall", function (call)
@@ -7863,6 +7871,10 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             return nit.assign (new this.constructor (this.toPojo ()), { owner: owner });
         })
+        .method ("result", function ()
+        {
+            return nit.invoke.return ([this, "invoke"], arguments, function (ctx) { return ctx.result; });
+        })
         .method ("invoke", function (ctx)
         {
             var self = this;
@@ -7871,6 +7883,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             ctx = ctx instanceof nit_CallChain.Context ? ctx : nit.new (cls.Context, arguments);
             ctx.chain = self;
+            self.running = true;
 
             function invoke (error, result)
             {
@@ -7899,6 +7912,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
             return nit.invoke.return (invoke, [], function (result)
             {
+                self.running = false;
+
                 return result instanceof nit_CallChain.Link ? result.target.invoke (ctx) : ctx;
             });
         })
@@ -8890,76 +8905,49 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
 
     // --------------------------------------------
-    var INIT_QUEUE = nit.OrderedQueue ()
-        .anchors ("preInit", "init", "postInit")
+    var INIT_CHAIN = nit.CallChain ("preInit", "init", "postInit", "ready")
         .after ("init", function () { return nit.app.init (); })
-        .complete (function ()
-        {
-            READY = true;
-
-            return nit.ready ();
-        })
     ;
 
-    var READY_QUEUE = nit.Queue ();
-
-
-    function wrapInitTask (task)
+    function addInitTask (name, task)
     {
-        return nit.invoke.wrap (nit.ns.invoke, task);
-    }
+        INIT_CHAIN.after (name, nit.ns.invoke.bind (null, task));
 
+        return nit;
+    }
 
     nit.dpvs (nit,
     {
-        configureInitQueue: function (configure)
-        {
-            configure (INIT_QUEUE);
-
-            return nit;
-        }
-        ,
         preInit: function (task)
         {
-            INIT_QUEUE.after ("preInit", wrapInitTask (task));
-
-            return nit;
+            return addInitTask ("preInit", task);
         }
         ,
         postInit: function (task)
         {
-            INIT_QUEUE.after ("postInit", wrapInitTask (task));
-
-            return nit;
+            return addInitTask ("postInit", task);
         }
         ,
         init: function (task)
         {
+            return addInitTask ("init", task);
+        }
+        ,
+        ready: function (task)
+        {
             if (task)
             {
-                INIT_QUEUE.after ("init", wrapInitTask (task));
-
-                return nit;
+                return addInitTask ("ready", task);
             }
             else
             {
-                return INIT_QUEUE.run ();
+                return nit.invoke.return ([INIT_CHAIN, "invoke"], [], function () { READY = true; return nit; });
             }
-        }
-        ,
-        ready: function ()
-        {
-            nit.array (arguments).forEach (function (task)
-            {
-                READY_QUEUE.push (wrapInitTask (task));
-            });
-
-            return READY ? READY_QUEUE.run (function () { return nit; }) : nit;
         }
 
     }, true);
 
-    nit.invoke ([global.document, "addEventListener"], ["DOMContentLoaded", nit.invoke.wrap (nit.init)]);
+    nit.invoke ([global.document, "addEventListener"], ["DOMContentLoaded", nit.ready.bind (nit, null)]);
 }
 ,
 /* eslint-disable */

@@ -214,7 +214,7 @@ test.method ("nit.CallChain", "fork")
 
 
 test.method ("nit.CallChain", "invoke")
-    .should ("run the class chain")
+    .should ("run the call chain")
         .before (s => s.object.do ((_, v) => v * 2))
         .before (s => s.object.do ((_, v) => v * 3))
         .before (s => s.object.do ((_, v) => v * 4))
@@ -266,6 +266,17 @@ test.method ("nit.CallChain", "invoke")
         .expectingPropertyToBe ("result.result", 10)
         .expectingPropertyToBe ("object.stopped", true)
         .expectingPropertyToBe ("object.done", false)
+        .commit ()
+;
+
+
+test.method ("nit.CallChain", "result")
+    .should ("run the call chain and return the result")
+        .before (s => s.object.do ((_, v) => v * 2))
+        .before (s => s.object.do ((_, v) => v * 3))
+        .before (s => s.object.do ((_, v) => v * 4))
+        .given (5)
+        .returns (20)
         .commit ()
 ;
 
