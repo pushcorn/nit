@@ -165,57 +165,25 @@ test ("nit.invoke.wrap ()", async () =>
 {
     async function addOne (v) { return v + 1; }
 
-    let f = nit.invoke.wrap (addOne, null, (e, r) => r * 10);
+    let f = nit.invoke.wrap (addOne, async (next, v) => (await next (v)) * 10);
     expect (await f (3)).toBe (40);
 
     async function throwErr (v) { nit.throw ("ERR" + v); }
 
-    let g = nit.invoke.wrap (throwErr, (args) => args[0] = 5, function (e)
+    let g = nit.invoke.wrap (throwErr, function (next, v)
     {
-        if (e)
-        {
-            throw e;
-        }
+        return next (v);
     });
 
-    await expect (() => g (3)).rejects.toThrow ("ERR5");
+    await expect (() => g (3)).rejects.toThrow ("ERR3");
 
     const A = nit.defineClass ("A");
 
-    A
-        .staticLifecycleMethod ("addOne", null, v => v + 1)
-        .staticLifecycleMethod ("addTwo", null, v => v + 2)
-        .onAddOne (true, nit.invoke.wrap (A[A.kAddOne], null, (e, r) => r * 10))
-        .onAddTwo (true, nit.do (A[A.kAddTwo], function (orig)
-        {
-            return function (v)
-            {
-                var db = {};
-                v = v * 2;
-
-                return nit.invoke.then ([this, orig], v, function (e, r)
-                {
-                    if (e)
-                    {
-                        return nit.invoke.return ([db, "rollback"], null, function ()
-                        {
-                            throw e;
-                        });
-                    }
-                    else
-                    {
-                        return nit.invoke.return ([db, "commit"], null, function ()
-                        {
-                            return r;
-                        });
-                    }
-                });
-            };
-        }))
+    A.staticLifecycleMethod ("addOne", null, v => v + 1)
+        .onAddOne ("wrap", (next, v) => next (v) * 10)
     ;
 
     expect (A.addOne (3)).toBe (40);
-    expect (A.addTwo (5)).toBe (12);
 });
 
 

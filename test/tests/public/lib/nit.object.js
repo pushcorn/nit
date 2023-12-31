@@ -434,7 +434,7 @@ test ("nit.Object.staticLifecycleMethod ()", () =>
         .staticLifecycleMethod ("run")
         .onRun (() => E.called.push (1))
         .onRun (() => E.called.push (2))
-        .onRun ("before", () => E.called.push (3))
+        .onRun ("prepend", () => E.called.push (3))
     ;
 
     E.run ();

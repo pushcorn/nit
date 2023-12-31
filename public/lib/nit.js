@@ -4094,20 +4094,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
-    nit.invoke.wrap = function (func, before, after)
+    nit.invoke.wrap = function (func, wrapper)
     {
         return function ()
         {
-            var self = this;
             var args = nit.array (arguments);
 
-            return nit.invoke.return.call (self, before, [args], function ()
-            {
-                return nit.invoke.then.call (self, func, args, function (e, r)
-                {
-                    return nit.invoke.call (self, after, [e, r]);
-                });
-            });
+            return nit.invoke.call (this, wrapper, [func].concat (args));
         };
     };
 
@@ -5465,22 +5458,25 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     .k (name)
                     .staticTypedMethod (hookMethod,
                         {
-                            hook: "function", overwrite: "boolean", order: "string"
+                            hook: "function", overwrite: "boolean", mode: "string" /* if not overwite: append (default), prepend, wrap */
                         },
-                        function (hook, overwrite, order)
+                        function (hook, overwrite, mode)
                         {
                             var cls = this;
+                            var orig = cls[key];
 
                             if (!overwrite && cls.hasOwnProperty (key) && cls[key] != errorHook)
                             {
-                                var hooks = order == "before" ? [hook, cls[key]] : [cls[key], hook];
-
-                                hook = function ()
+                                if (mode == "wrap")
                                 {
-                                    return nit.invoke.chain.call (this, hooks, arguments);
-                                };
+                                    hook = nit.dpv (nit.invoke.wrap (cls[key], hook), "wrapped", orig);
+                                }
+                                else
+                                {
+                                    var hooks = mode == "prepend" ? [hook, orig] : [orig, hook];
 
-                                hook.hooks = hooks;
+                                    hook = nit.dpv (function () { return nit.invoke.chain.call (this, hooks, arguments); }, "hooks", hooks);
+                                }
                             }
 
                             return this.staticMethod (key, hook);
