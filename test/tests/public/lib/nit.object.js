@@ -1566,6 +1566,7 @@ test ("nit.Object.getClassChainProperty ()", () =>
     expect (CCA.getClassChainProperty ("opt")).toBe ("optval-a");
 
     expect (CCB.getClassChainProperty ("items", true)).toEqual (["b2", "b1", "a2", "a1"]);
+    expect (CCB.getClassChainProperty ("items", true, true)).toEqual (["a1", "a2", "b1", "b2"]);
     expect (CCB.getClassChainProperty ("items")).toBe ("b2");
 
     expect (CCB.getClassChainProperty ("opt", true)).toEqual (["optval-a"]);
