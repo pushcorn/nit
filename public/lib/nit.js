@@ -7681,9 +7681,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     var nit_CallChain = nit.defineClass ("nit.CallChain")
         .k ("context")
-        .constant ("DONE", function (ctx) { return ctx.chain.done; })
-        .constant ("STOP", function (ctx) { return ctx.chain.stopped; })
-        .constant ("ERROR", function (ctx) { return !!ctx.error; })
+        .constant ("DONE", function () { return this.chain.done; })
+        .constant ("ERROR", function () { return !!this.error; })
+        .defineInnerClass ("Stop", function (Stop)
+        {
+            Stop.field ("[result]", "any");
+        })
         .defineInnerClass ("Context", function (Context)
         {
             Context
@@ -7691,7 +7694,15 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 .field ("chain", "nit.CallChain")
                 .property ("result", "any")
                 .property ("error", "any")
+                .delegate ("owner", "chain.owner")
                 .lifecycleMethod ("suppressedError", null, function (e) { nit.log.e (e); })
+                .method ("stop", function (result)
+                {
+                    var ctx = this;
+
+                    ctx.result = nit.coalesce (result, ctx.result);
+                    ctx.chain.done = true;
+                })
             ;
         })
         .defineInnerClass ("Anchor", function (Anchor)
@@ -7711,7 +7722,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                     ctx = ctx || new cls.outerClass.Context;
 
-                    return nit.invoke.then ([ctx, call.func], [ctx.chain && ctx.chain.owner].concat (ctx.args), function (error, result)
+                    return nit.invoke.then ([ctx, call.func], [ctx.owner].concat (ctx.args), function (error, result)
                     {
                         if (error)
                         {
@@ -7737,7 +7748,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 .field ("[condition]", "function", { caster: nit.cond })
                 .method ("applicableTo", function (ctx)
                 {
-                    return this.condition ? this.condition (ctx) : true;
+                    return this.condition ? this.condition.call (ctx, [ctx.owner].concat (ctx.args)) : true;
                 })
             ;
         })
@@ -7747,7 +7758,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .field ("name", "string", "The chain name.", "chain")
         .field ("safe", "boolean")
         .property ("owner", "any")
-        .property ("stopped", "boolean")
         .property ("running", "boolean")
         .property ("done", "boolean")
 
@@ -7775,7 +7785,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             {
                 var self = this;
 
-                target = target || (call && call.name) || "before";
+                target = target || (call && call.name) || self.name;
                 call = call || self.createCall (name || target, func, safe);
 
                 if (!nit.insertBefore (self.calls, call, { name: target }))
@@ -7794,7 +7804,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             {
                 var self = this;
 
-                target = target || (call && call.name) || "after";
+                target = target || (call && call.name) || self.name;
                 call = call || self.createCall (name || target, func, safe);
 
                 if (!nit.insertAfter (self.calls, call, { name: target }))
@@ -7813,7 +7823,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             {
                 var self = this;
 
-                target = target || (call && call.name);
+                target = target || (call && call.name) || self.name;
                 call = call || self.createCall (target, func, safe);
 
                 if (!nit.arrayReplace (self.calls, call, { name: target }))
@@ -7875,29 +7885,37 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             var self = this;
             var cls = self.constructor;
-            var next;
+            var chainError;
 
-            ctx = ctx instanceof nit_CallChain.Context ? ctx : nit.new (cls.Context, arguments);
+            ctx = ctx instanceof cls.Context ? ctx : nit.new (cls.Context, { args: arguments });
             ctx.chain = self;
             self.running = true;
+
+            function isStopped (until)
+            {
+                return until.apply (ctx, [self.owner].concat (ctx.args));
+            }
 
             function invoke (error, result)
             {
                 ctx.result = nit.coalesce (result, ctx.result);
                 ctx.error = nit.coalesce (error, ctx.error);
-                self.done = !self.calls.some (nit_CallChain.isCall);
-                self.stopped = self.untils.some (function (u) { return u (ctx); });
+
+                var stopped = self.untils.some (isStopped);
+                var next;
+
+                self.done = self.done || stopped || !(next = self.next ());
 
                 var link = nit.find (self.links, function (l) { return l.applicableTo (ctx); });
 
-                if (!link && !self.stopped)
+                if (!link)
                 {
-                    if (error)
+                    if ((chainError = error))
                     {
-                        throw nit.dpv (error, nit_CallChain.kContext, ctx, true, false);
+                        ctx.error = nit.dpv (error, cls.kContext, ctx, true, false);
                     }
-
-                    if ((next = self.next ()))
+                    else
+                    if (next)
                     {
                         return nit.invoke.then ([next, "invoke"], ctx, invoke);
                     }
@@ -7910,7 +7928,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             {
                 self.running = false;
 
-                return result instanceof nit_CallChain.Link ? result.target.invoke (ctx) : ctx;
+                if (chainError)
+                {
+                    throw chainError;
+                }
+
+                return result instanceof cls.Link ? result.target.invoke (ctx) : ctx;
             });
         })
     ;

@@ -63,9 +63,9 @@ test.method ("nit.Task", "run")
 
                 return { a: 1 };
             })
-            .configureComponentMethod ("run", Queue =>
+            .configureComponentMethod ("run", Method =>
             {
-                Queue.onComplete ((task, ctx) =>
+                Method.afterComplete ((task, ctx) =>
                 {
                     s.class.onCompleteCalled = true;
 
@@ -99,9 +99,9 @@ test.method ("nit.Task", "run")
 
                 return { a: 1 };
             })
-            .configureComponentMethod ("run", Queue =>
+            .configureComponentMethod ("run", Method =>
             {
-                Queue.onComplete ((task, ctx) =>
+                Method.afterComplete ((task, ctx) =>
                 {
                     s.class.onCompleteCalled = true;
 
@@ -116,7 +116,7 @@ test.method ("nit.Task", "run")
         .expectingPropertyToBe ("error.nit\\.Task\\.context.result", { a: 3 })
         .commit ()
 
-    .should ("not throw if queue.error is deleted")
+    .should ("not throw if ctx.error is deleted")
         .up (s => s.class = nit.defineTask ("MyTask")
             .onPreRun (function ()
             {
@@ -128,9 +128,9 @@ test.method ("nit.Task", "run")
             {
                 throw new Error ("POST_RUN_ERROR");
             })
-            .configureComponentMethod ("run", Queue =>
+            .configureComponentMethod ("run", Method =>
             {
-                Queue.onFailure (function ()
+                Method.beforeFailure (function ()
                 {
                     s.class.errorCatched = true;
                     this.error = null;
@@ -156,9 +156,9 @@ test.method ("nit.Task", "run")
             {
                 throw new Error ("POST_RUN_ERROR");
             })
-            .configureComponentMethod ("run", Queue =>
+            .configureComponentMethod ("run", Method =>
             {
-                Queue.onComplete (function ()
+                Method.afterComplete (function ()
                 {
                     s.class.completeCalled = true;
                     nit.throw ("COMPLETE_ERR");

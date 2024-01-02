@@ -578,19 +578,19 @@ test ("nit.Command.run ()", async () =>
 });
 
 
-test ("nit.Command.RunQueue.onFailure ()", async () =>
+test ("nit.Command.configureComponentMethod ()", async () =>
 {
     const Test = nit.defineClass ("Test", "nit.Command")
         .onRun (function ()
         {
             throw new Error ("ERR");
         })
-        .configureComponentMethod ("run", Queue =>
+        .configureComponentMethod ("run", Method =>
         {
-            Queue
-                .onComplete (false, () =>
+            Method
+                .afterComplete ((o, ctx) =>
                 {
-                    nit.throw ("COMP_ERR");
+                    ctx.error = nit.error ("COMP_ERR");
                 })
             ;
         })

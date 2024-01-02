@@ -112,3 +112,17 @@ test.plugin ("call-chains", "link", true)
         .expectingPropertyToBe ("rollbacked", undefined)
         .commit ()
 ;
+
+
+test.plugin ("call-chains", "until", true)
+    .should ("add an until condition to the first chain")
+        .up (s => s.hostClass
+            .addChain ("run")
+            .addChain ("failure", true)
+            .addChain ("success", true)
+            .addChain ("complete")
+        )
+        .given (nit.CallChain.ERROR)
+        .expectingPropertyToBe ("hostClass.chains.run.untils.length", 1)
+        .commit ()
+;

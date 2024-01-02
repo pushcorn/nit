@@ -17,9 +17,9 @@ module.exports = function (nit, Self)
                 })
                 .property ("startResult", "Promise", { writer: writer, enumerable: false })
                 .property ("stopResult", "Promise", { writer: writer, enumerable: false })
-                .configureComponentMethods ("start", function (Queue)
+                .configureComponentMethods ("start", function (Method)
                 {
-                    Queue
+                    Method.chains.start
                         .after ("preStart", "preStart.returnIfStarted", function (server)
                         {
                             if (server.state == "stopping")
@@ -29,7 +29,7 @@ module.exports = function (nit, Self)
 
                             if (server.state == "starting" || server.state == "started")
                             {
-                                return this.stop (server.startResult);
+                                this.stop (server.startResult);
                             }
                         })
                         .replace ("start.invokeHook", function (server)
@@ -60,9 +60,9 @@ module.exports = function (nit, Self)
                         })
                     ;
                 })
-                .configureComponentMethods ("stop", function (Queue)
+                .configureComponentMethod ("stop", function (Method)
                 {
-                    Queue
+                    Method.chains.stop
                         .after ("preStop", "preStop.returnIfStopped", function (server)
                         {
                             if (server.state == "starting")
@@ -72,7 +72,7 @@ module.exports = function (nit, Self)
 
                             if (server.state == "stopping" || server.state == "stopped")
                             {
-                                return this.stop (server.stopResult);
+                                this.stop (server.stopResult);
                             }
                         })
                         .replace ("stop.invokeHook", function (server)

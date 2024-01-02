@@ -7,6 +7,10 @@ module.exports = function (nit, Self)
         .field ("wrapped", "boolean", "Wrap the main method with the pre- and post- methods.", true)
         .field ("instancePluginAllowed", "boolean", "Allow instance level plugins.")
         .field ("pluginName", "string", "The plugin name.")
+        .staticMethod ("addAnchors", function (chain)
+        {
+            chain.before ("before").after ("after");
+        })
         .onUsedBy (function (hostClass)
         {
             var plugin = this;
@@ -15,7 +19,7 @@ module.exports = function (nit, Self)
 
             hostClass
                 .plugin ("event-emitter", { prePost: plugin.prePost, listenerName: sn + "Listener" })
-                .plugin ("method-queue", "ComponentMethodQueue")
+                .plugin ("chained-method")
                 .plugin ("logger")
                 .staticMethod ("defineComponentPlugin", function ()
                 {
@@ -42,17 +46,17 @@ module.exports = function (nit, Self)
                     return cls;
                 })
                 .defineComponentPlugin ()
-                .staticMethod ("addMainStepsToComponentMethodQueue", function (method, Queue)
+                .staticMethod ("addCallsToComponentMethod", function (method, chain)
                 {
-                    Queue
-                        .step (method + ".invokeHook", function (comp)
+                    chain
+                        .after (method + ".invokeHook", function (comp)
                         {
                             var cls = comp.constructor;
                             var kHook = cls["k" + nit.ucFirst (method)];
 
                             return nit.invoke ([comp, cls[kHook]], this.args);
                         })
-                        .step (method + ".applyPlugins", function (comp)
+                        .after (method + ".applyPlugins", function (comp)
                         {
                             var q = this;
                             var cls = comp.constructor;
@@ -74,45 +78,57 @@ module.exports = function (nit, Self)
 
                             return nit.invoke.chain (chain);
                         })
-                        .step (method + ".emitEvent", function (comp)
+                        .after (method + ".emitEvent", function (comp)
                         {
                             return nit.invoke.silent ([comp, "emit"], [method, comp].concat (this.args));
                         })
                     ;
                 })
-                .staticMethod ("buildComponentMethodQueue", function (Queue, method, wrapped)
+                .staticMethod ("buildComponentMethod", function (Method, method, wrapped)
                 {
                     var cls = this;
                     var ucMethod = nit.ucFirst (method);
                     var preMethod = "pre" + ucMethod;
                     var postMethod = "post" + ucMethod;
+                    var chain = Method.chains[method];
 
-                    Queue.anchors ("preAll");
+                    chain.calls = [];
+                    chain.after ("before");
 
                     if (wrapped && prePost)
                     {
-                        Queue.anchors (preMethod);
+                        chain.after (preMethod);
 
                         cls
                             .staticLifecycleMethod (preMethod)
-                            .addMainStepsToComponentMethodQueue (preMethod, Queue)
+                            .addCallsToComponentMethod (preMethod, chain)
                         ;
                     }
 
-                    Queue.anchors (method);
-                    cls.addMainStepsToComponentMethodQueue (method, Queue);
+                    chain.after (method);
+                    cls.addCallsToComponentMethod (method, chain);
 
                     if (wrapped && prePost)
                     {
-                        Queue.anchors (postMethod);
+                        chain.after (postMethod);
 
                         cls
                             .staticLifecycleMethod (postMethod)
-                            .addMainStepsToComponentMethodQueue (postMethod, Queue)
+                            .addCallsToComponentMethod (postMethod, chain)
                         ;
                     }
 
-                    Queue.anchors ("postAll");
+                    chain.after ("after");
+
+                    Method
+                        .addChain ("failure", true, Self.addAnchors)
+                        .addChain ("success", true, Self.addAnchors)
+                        .addChain ("complete", true, Self.addAnchors)
+                        .link (method, "failure", nit.CallChain.ERROR)
+                        .link (method, "success")
+                        .link ("failure", "complete")
+                        .link ("success", "complete")
+                    ;
                 })
                 .staticMethod ("configureComponentMethod", function ()
                 {
@@ -123,7 +139,7 @@ module.exports = function (nit, Self)
                         methods: "string|array", prePost: "boolean", configurator: "function"
                     }
                     ,
-                    function (methods, prePost, configurator /* (Queue, method, mainMethod) */)
+                    function (methods, prePost, configurator /* (Method, method, mainMethod) */)
                     {
                         var cls = this;
 
@@ -140,14 +156,14 @@ module.exports = function (nit, Self)
 
                             ms.forEach (function (m)
                             {
-                                var Queue = cls[nit.ucFirst (m)+ "Queue"] || cls[ucMethod + "Queue"];
+                                var Method = cls[nit.ucFirst (m)+ "ChainedMethod"] || cls[ucMethod + "ChainedMethod"];
 
-                                if (!Queue)
+                                if (!Method)
                                 {
                                     Self.throw ("error.component_method_not_defined", { method: method });
                                 }
 
-                                nit.invoke ([cls, configurator], [Queue, m, method]);
+                                nit.invoke ([cls, configurator], [Method, m, method]);
                             });
                         });
 
@@ -186,16 +202,16 @@ module.exports = function (nit, Self)
                                 {
                                     [preMethod, postMethod].forEach (function (method)
                                     {
-                                        cls.methodQueue (method, function (Queue)
+                                        cls.chainedMethod (method, function (Method)
                                         {
-                                            cls.buildComponentMethodQueue (Queue, method);
+                                            cls.buildComponentMethod (Method, method);
                                         });
                                     });
                                 }
                             })
-                            .methodQueue (method, function (Queue)
+                            .chainedMethod (method, function (Method)
                             {
-                                cls.buildComponentMethodQueue (Queue, method, wrapped);
+                                cls.buildComponentMethod (Method, method, wrapped);
                             })
                         ;
                     }

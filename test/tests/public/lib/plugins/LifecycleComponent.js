@@ -91,9 +91,9 @@ test.plugin ("plugins.LifecycleComponent", "run", { hostClass: "Unwrapped", plug
 
     .should ("log the error for safe queue tasks")
         .up (s => s.configured = [])
-        .up (s => s.hostClass.configureComponentMethod ("run", Queue =>
+        .up (s => s.hostClass.configureComponentMethod ("run", Method =>
         {
-            Queue.before ("run.invokeHook", "run.throwError", true, () => nit.throw ("RUN_ERR"));
+            Method.beforeRun ("run.invokeHook", "run.throwError", true, () => nit.throw ("RUN_ERR"));
         }))
         .up (s => s.hostClass.onRun (function () { s.configured.push ("MyTask"); }))
         .mock (nit.log, "e")

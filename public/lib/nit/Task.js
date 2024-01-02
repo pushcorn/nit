@@ -50,34 +50,39 @@ module.exports = function (nit, Self)
         {
             Subclass.defineContext ();
         })
-        .configureComponentMethod ("run", true, function (Queue, method)
+        .configureComponentMethod ("run", true, function (Method, method)
         {
-            Queue.after (method + ".invokeHook", method + ".checkResult", function (task, ctx)
+            Method.chains.run.after (method + ".invokeHook", method + ".checkResult", function (task, ctx)
             {
                 ctx.result = nit.coalesce (this.result, ctx.result);
                 this.result = undefined;
             });
         })
-        .configureComponentMethod ("cancel", function (Queue)
+        .configureComponentMethod ("cancel", function (Method)
         {
-            Queue
-                .onInit (function (task)
+            Method
+                .until (function (task) { return task.canceled; })
+                .beforeCancel ("init", function (task)
                 {
-                    var canceled = task.canceled;
-
-                    task.canceled = writer.value (true);
-
                     this.args = task;
-                    this.canceled = canceled;
+                    this.canceled = true;
                 })
-                .until (function () { return this.canceled; })
-                .onComplete (function (task) { return task; })
+                .afterComplete (function (task)
+                {
+                    if (this.canceled)
+                    {
+                        task.canceled = writer.value (true);
+                    }
+
+                    return task;
+                })
             ;
         })
-        .configureComponentMethod ("run", function (Queue)
+        .configureComponentMethod ("run", function (Method)
         {
-            Queue
-                .onInit (function (task)
+            Method
+                .until (function (task) { return task.canceled; })
+                .beforeRun ("init", function (task)
                 {
                     var cls = task.constructor;
                     var ctx = this.args[0];
@@ -87,21 +92,16 @@ module.exports = function (nit, Self)
 
                     this.args = ctx;
                 })
-                .until (function (task) { return task.canceled; })
-                .onComplete (function (task, ctx) { return ctx; })
-                .onRun (function (nq)
+                .afterComplete ("setErrorContext", function (task, ctx)
                 {
-                    nq.complete (nit.invoke.wrap.after ([nq, nq.onComplete], function (e, r, q)
+                    if ((ctx.error = nit.coalesce (this.error, ctx.error)))
                     {
-                        var ctx = q.args[0];
+                        nit.dpv (ctx.error, Self.kContext, ctx, true, false);
 
-                        if ((ctx.error = nit.coalesce (e, q.error)))
-                        {
-                            nit.dpv (ctx.error, Self.kContext, ctx, true, false);
+                        this.error = ctx.error;
+                    }
 
-                            throw ctx.error;
-                        }
-                    }));
+                    return ctx;
                 })
             ;
         })

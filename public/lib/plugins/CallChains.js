@@ -27,7 +27,10 @@ module.exports = function (nit)
                         })
                         .defineInnerClass ("Context", "nit.CallChain.Context", function (Context)
                         {
-                            Context.field ("chains", Chains.name);
+                            Context
+                                .field ("chains", Chains.name)
+                                .delegate ("owner", "chains.owner")
+                            ;
                         })
                         .staticProperty ("links...", Chains.Link.name)
                         .staticMethod ("link", function ()
@@ -36,6 +39,7 @@ module.exports = function (nit)
 
                             return this;
                         })
+                        .field ("owner", "any")
                         .method ("fork", function (owner)
                         {
                             var self = this;
@@ -50,6 +54,8 @@ module.exports = function (nit)
                                 }
                             });
 
+                            chains.owner = owner;
+
                             return chains;
                         })
                         .method ("invoke", function (ctx)
@@ -57,7 +63,7 @@ module.exports = function (nit)
                             var self = this;
                             var cls = self.constructor;
 
-                            ctx = ctx instanceof cls.Context ? ctx : nit.new (cls.Context, arguments);
+                            ctx = ctx instanceof cls.Context ? ctx : nit.new (cls.Context, { args: arguments });
                             ctx.chains = self;
 
                             cls.links.forEach (function (l) { l.apply (self); });
@@ -68,9 +74,20 @@ module.exports = function (nit)
                 })
                 .onDefineSubclass (function (Subclass)
                 {
-                    Subclass.chains = this.chains.fork ();
+                    Subclass.defineInnerClass ("Chains", this.Chains.name);
+                    Subclass.staticProperty ("chains", Subclass.Chains.name, { defval: {} });
+                    Subclass.Chains.links = this.Chains.links;
+                    Subclass.chains = this.chains.fork ().toPojo ();
                 })
-                .staticProperty ("chains", hostClass.name + ".Chains", function () { return {}; })
+                .staticProperty ("chains", hostClass.name + ".Chains", { defval: {} })
+                .staticMethod ("until", function (condition)
+                {
+                    var cls = this;
+
+                    cls.chains[cls.Chains.entry].until (condition);
+
+                    return cls;
+                })
                 .staticMethod ("link", function ()
                 {
                     var cls = this;
@@ -116,7 +133,7 @@ module.exports = function (nit)
                         });
                     });
 
-                    return cls.staticLifecycleMethod (chainName); // hook: (ctx) => {}
+                    return cls;
                 })
                 .staticMethod ("invoke", function ()
                 {
