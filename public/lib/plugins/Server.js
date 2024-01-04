@@ -17,10 +17,10 @@ module.exports = function (nit, Self)
                 })
                 .property ("startResult", "Promise", { writer: writer, enumerable: false })
                 .property ("stopResult", "Promise", { writer: writer, enumerable: false })
-                .configureComponentMethods ("start", function (Method)
+                .configureComponentMethod ("start", function (Method)
                 {
-                    Method.chains.start
-                        .after ("preStart", "preStart.returnIfStarted", function (server)
+                    Method
+                        .after ("preStart", "preStart.stopIfStarted", function (server)
                         {
                             if (server.state == "stopping")
                             {
@@ -29,7 +29,7 @@ module.exports = function (nit, Self)
 
                             if (server.state == "starting" || server.state == "started")
                             {
-                                this.stop (server.startResult);
+                                this.stop ();
                             }
                         })
                         .replace ("start.invokeHook", function (server)
@@ -38,6 +38,7 @@ module.exports = function (nit, Self)
                             var cls = server.constructor;
 
                             server.state = writer.value ("starting");
+                            server.stopResult = writer.value ();
                             server.startResult = writer.value (def.promise);
 
                             nit.invoke.then ([server, cls[cls.kStart]], this.args, function (e)
@@ -58,12 +59,26 @@ module.exports = function (nit, Self)
 
                             return def.promise;
                         })
+                        .afterComplete ("returnServer", function (server)
+                        {
+                            switch (server.state)
+                            {
+                                case "starting":
+                                    return server.startResult;
+
+                                case "started":
+                                    return server;
+
+                                default:
+                                    return this.result = null;
+                            }
+                        })
                     ;
                 })
                 .configureComponentMethod ("stop", function (Method)
                 {
-                    Method.chains.stop
-                        .after ("preStop", "preStop.returnIfStopped", function (server)
+                    Method
+                        .after ("preStop", "preStop.stopIfStopped", function (server)
                         {
                             if (server.state == "starting")
                             {
@@ -72,7 +87,7 @@ module.exports = function (nit, Self)
 
                             if (server.state == "stopping" || server.state == "stopped")
                             {
-                                this.stop (server.stopResult);
+                                this.stop ();
                             }
                         })
                         .replace ("stop.invokeHook", function (server)
@@ -81,6 +96,7 @@ module.exports = function (nit, Self)
                             var cls = server.constructor;
 
                             server.state = writer.value ("stopping");
+                            server.startResult = writer.value ();
                             server.stopResult = writer.value (def.promise);
 
                             nit.invoke.then ([server, cls[cls.kStop]], this.args, function (e)
@@ -100,6 +116,20 @@ module.exports = function (nit, Self)
                             });
 
                             return def.promise;
+                        })
+                        .afterComplete ("returnServer", function (server)
+                        {
+                            switch (server.state)
+                            {
+                                case "stopping":
+                                    return server.stopResult;
+
+                                case "stopped":
+                                    return server;
+
+                                default:
+                                    return this.result = null;
+                            }
                         })
                     ;
                 })

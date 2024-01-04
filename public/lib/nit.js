@@ -7683,10 +7683,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .k ("context")
         .constant ("DONE", function () { return this.chain.done; })
         .constant ("ERROR", function () { return !!this.error; })
-        .defineInnerClass ("Stop", function (Stop)
-        {
-            Stop.field ("[result]", "any");
-        })
         .defineInnerClass ("Context", function (Context)
         {
             Context

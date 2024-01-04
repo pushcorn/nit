@@ -39,7 +39,7 @@ test.method ("nit.utils.Notifier", "stop")
 
 test.method ("nit.utils.Notifier", "notify")
     .should ("resolve the notification")
-    .up (s => s.createArgs = 100)
+    .up (s => s.createArgs = 10000)
     .before (s => { s.object.listen (); })
     .returnsInstanceOf ("nit.utils.Notifier")
     .expectingPropertyToBe ("object.timer.status", "canceled")

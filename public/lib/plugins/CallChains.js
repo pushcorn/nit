@@ -80,14 +80,6 @@ module.exports = function (nit)
                     Subclass.chains = this.chains.fork ().toPojo ();
                 })
                 .staticProperty ("chains", hostClass.name + ".Chains", { defval: {} })
-                .staticMethod ("until", function (condition)
-                {
-                    var cls = this;
-
-                    cls.chains[cls.Chains.entry].until (condition);
-
-                    return cls;
-                })
                 .staticMethod ("link", function ()
                 {
                     var cls = this;
@@ -111,7 +103,7 @@ module.exports = function (nit)
                         .field (chainName, "nit.CallChain", "The " + chainName + " chain.", chain)
                     ;
 
-                    ["before", "after"].forEach (function (order)
+                    ["before", "after", "replace"].forEach (function (order)
                     {
                         var method = order + ucName;
 
@@ -141,6 +133,18 @@ module.exports = function (nit)
                 })
                 .do (function ()
                 {
+                    ["until", "before", "after", "replace"].forEach (function (method)
+                    {
+                        hostClass.staticMethod (method, function ()
+                        {
+                            var cls = this;
+
+                            nit.invoke ([cls.chains[cls.Chains.entry], method], arguments);
+
+                            return cls;
+                        });
+                    });
+
                     plugin.names.forEach (function (name) { hostClass.addChain (name); });
                 })
             ;

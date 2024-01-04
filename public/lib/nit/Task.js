@@ -82,7 +82,7 @@ module.exports = function (nit, Self)
         {
             Method
                 .until (function (task) { return task.canceled; })
-                .beforeRun ("init", function (task)
+                .beforeRun ("initArgs", function (task)
                 {
                     var cls = task.constructor;
                     var ctx = this.args[0];

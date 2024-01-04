@@ -22,11 +22,6 @@ module.exports = function (nit, Self)
                 })
                 .staticMethod ("handleGlobalLogging", function (hostClass)
                 {
-                    nit.log.logger = function ()
-                    {
-                        nit.invoke ([hostClass.logger, "log"], [hostClass, "LOG"].concat (nit.array (arguments)));
-                    };
-
                     nit.log.LEVELS.forEach (function (level)
                     {
                         nit.log[level] = nit.log[level[0]] = function ()
@@ -34,6 +29,8 @@ module.exports = function (nit, Self)
                             nit.invoke ([hostClass.logger, level], [hostClass].concat (nit.array (arguments)));
                         };
                     });
+
+                    return this;
                 })
                 .transform ("nit", nit)
                 .onDefineSubclass (function (Subclass)
