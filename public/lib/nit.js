@@ -7657,13 +7657,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 });
             }
         )
-        .staticMethod ("applyPlugins", function (category, method, reverse)
+        .staticMethod ("applyPlugins", function (category, method)
         {
             var self = this;
             var instance = nit.is.obj (self) ? self : undefined;
             var cls = instance ? instance.constructor : self;
             var args = nit.array (arguments).slice (2);
-            var plugins = cls.getPlugins.call (self, category, false, reverse)
+            var plugins = cls.getPlugins.call (self, category, false)
                 .filter (function (plugin) { return plugin[method]; })
                 .map (function (plugin) { return [plugin, method]; })
             ;

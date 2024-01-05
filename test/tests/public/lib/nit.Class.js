@@ -198,18 +198,6 @@ test ("nit.Class.registerPlugin - instance plugin allowed", () =>
         "test.RequestMethod", "m1",
         "test.RequestPath", "p1"
     ]);
-
-    checked = [];
-    A.applyPlugins.call (a, "conditions", "check", true);
-    expect (checked).toEqual (
-    [
-        "test.RequestPath", "p1",
-        "test.RequestMethod", "m1",
-        "test.RequestPath", "p2",
-        "test.RequestMethod", "m2",
-        "test.RequestMethod", "m3",
-        "test.RequestPath", "p3"
-    ]);
 });
 
 
