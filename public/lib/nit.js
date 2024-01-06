@@ -7617,7 +7617,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 plugins = plugins.filter (function (p)
                 {
                     var pluginCls = p.constructor;
-                    var uniq = pluginCls.unique || unique;
+                    var uniq = nit.coalesce (unique, pluginCls.unique);
 
                     if (uniq)
                     {

@@ -2,7 +2,7 @@ module.exports = function (nit, Self)
 {
     return (Self = nit.defineClass ("nit.Context"))
         .m ("error.service_not_registered", "The service '%{type}' was not registered.")
-        .registerPlugin ("nit.ServiceProvider", { instancePluginAllowed: true })
+        .registerPlugin ("nit.ServiceProvider", true, true)
         .plugin ("event-emitter", "destroy")
         .defineInnerClass ("ServiceEntry", function (ServiceEntry)
         {
@@ -103,21 +103,30 @@ module.exports = function (nit, Self)
 
             var serviceName = serviceType.name;
             var self = this;
-            var cls = self.constructor;
+            var parent = self.parent;
             var service = nit.find.result (self.serviceRegistry, function (s) { return s.service instanceof serviceType ? s.service : undefined; });
             var provider;
 
             if (!service
-                && (provider = nit.find (cls.getPlugins.call (self, "serviceproviders"), function (sp) { return sp.provides (serviceName); })))
+                && !(provider = self.lookupServiceProvider (serviceType))
+                && parent)
             {
-                service = provider.create (serviceName, self);
-
-                self.registerService (service, provider.destroy.bind (provider));
+                provider = parent.lookupServiceProvider (serviceType);
             }
 
-            if (!service && !optional)
+            if (!service)
             {
-                self.throw ("error.service_not_registered", { type: serviceName });
+                if (provider)
+                {
+                    service = provider.create (serviceName, self);
+
+                    self.registerService (service, provider.destroy.bind (provider));
+                }
+                else
+                if (!optional)
+                {
+                    self.throw ("error.service_not_registered", { type: serviceName });
+                }
             }
 
             return service;

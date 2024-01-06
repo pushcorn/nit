@@ -180,7 +180,9 @@ test ("nit.Class.registerPlugin - instance plugin allowed", () =>
     expect (A.getPlugins ("conditions").length).toBe (4);
     expect (a.conditions.length).toBe (2);
     expect (A.getPlugins.call (a, "conditions", true).map (c => c.val)).toEqual (["p3", "m3"]);
+    expect (A.getPlugins.call (a, "conditions", true, true).map (c => c.val)).toEqual (["m3", "p3"]);
     expect (A.getPlugins.call (a, "conditions").map (c => c.val)).toEqual (["p3", "m3", "m2", "p2", "m1", "p1"]);
+    expect (A.getPlugins.call (a, "conditions", false, true).map (c => c.val)).toEqual (["p1", "m1", "p2", "m2", "m3", "p3"]);
     expect (A.getPlugins.call (a, "conditions", true)[0].val).toBe ("p3");
     expect (A.getPlugins.call (a, "conditions", true)[1].val).toBe ("m3");
 

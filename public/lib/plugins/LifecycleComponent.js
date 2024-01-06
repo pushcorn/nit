@@ -9,7 +9,7 @@ module.exports = function (nit, Self)
         .field ("pluginName", "string", "The plugin name.")
         .staticMethod ("addAnchors", function (chain)
         {
-            chain.before ("before").after ("after");
+            return chain.before ("before").after ("after");
         })
         .onUsedBy (function (hostClass)
         {
@@ -87,6 +87,7 @@ module.exports = function (nit, Self)
                 .staticMethod ("buildComponentMethod", function (Method, method, wrapped)
                 {
                     var cls = this;
+                    var eventEmitter = cls.lookupPlugin ("event-emitter");
                     var ucMethod = nit.ucFirst (method);
                     var preMethod = "pre" + ucMethod;
                     var postMethod = "post" + ucMethod;
@@ -120,10 +121,20 @@ module.exports = function (nit, Self)
 
                     chain.after ("after");
 
+                    ["failure", "success", "complete"].forEach (function (cn)
+                    {
+                        var m = method + nit.ucFirst (cn);
+
+                        cls.lifecycleMethod (m);
+                        cls.Plugin.lifecycleMethod (m);
+                        eventEmitter.addEvent (cls, m, false);
+
+                        Method.addChain (cn, true);
+                        cls.addCallsToComponentMethod (m, Method.chains[cn]);
+                        Self.addAnchors (Method.chains[cn]);
+                    });
+
                     Method
-                        .addChain ("failure", true, Self.addAnchors)
-                        .addChain ("success", true, Self.addAnchors)
-                        .addChain ("complete", true, Self.addAnchors)
                         .link (method, "failure", nit.CallChain.ERROR)
                         .link (method, "success")
                         .link ("failure", "complete")

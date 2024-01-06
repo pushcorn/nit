@@ -657,6 +657,14 @@ test ("nit.Command.defineContext ()", async () =>
     Add.Input = null;
     ctx = new Add.Context;
     expect (ctx.input).toBeUndefined ();
+
+    nit.defineClass ("MyDb");
+    const MyDbProvider = nit.defineServiceProvider ("MyDb").provides ("MyDb");
+    expect (ctx.lookupServiceProvider ("MyDb")).toBeUndefined ();
+
+    ctx.command = new Add;
+    Add.serviceprovider ("my-db");
+    expect (ctx.lookupServiceProvider ("MyDb")).toBeInstanceOf (MyDbProvider);
 });
 
 

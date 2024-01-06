@@ -143,12 +143,12 @@ module.exports = function (nit, Self)
                 })
             ;
         })
-        .method ("addEvent", function (hostClass, event)
+        .method ("addEvent", function (hostClass, event, prePost)
         {
             var plugin = this;
             var events = [event];
 
-            if (plugin.prePost)
+            if (nit.coalesce (prePost, plugin.prePost))
             {
                 var pce = nit.pascalCase (event);
 
@@ -160,6 +160,8 @@ module.exports = function (nit, Self)
                 plugin.events.push (event);
                 plugin.configureEvent (hostClass, event);
             });
+
+            return plugin;
         })
         .method ("configureEvent", function (hostClass, event)
         {
