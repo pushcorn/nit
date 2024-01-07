@@ -58,7 +58,7 @@ module.exports = function (nit, Self)
                         })
                         .after (method + ".applyPlugins", function (comp)
                         {
-                            var q = this;
+                            var ctx = this;
                             var cls = comp.constructor;
                             var chain = cls.classChain
                                 .filter (function (cls) { return cls.Plugin; })
@@ -71,7 +71,7 @@ module.exports = function (nit, Self)
                                 {
                                     return function ()
                                     {
-                                        return nit.invoke.return ([plugin.instancePluginAllowed ? comp : cls, cls.applyPlugins], [category, method, comp].concat (q.args));
+                                        return nit.invoke.return ([plugin.instancePluginAllowed ? comp : cls, cls.applyPlugins], [category, method, comp].concat (ctx.args));
                                     };
                                 })
                             ;

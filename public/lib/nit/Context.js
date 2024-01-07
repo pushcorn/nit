@@ -104,19 +104,14 @@ module.exports = function (nit, Self)
             var serviceName = serviceType.name;
             var self = this;
             var parent = self.parent;
-            var service = nit.find.result (self.serviceRegistry, function (s) { return s.service instanceof serviceType ? s.service : undefined; });
             var provider;
-
-            if (!service
-                && !(provider = self.lookupServiceProvider (serviceType))
-                && parent)
-            {
-                provider = parent.lookupServiceProvider (serviceType);
-            }
+            var service = parent
+                ? parent.lookupService (serviceType, true)
+                : nit.find.result (self.serviceRegistry, function (s) { return s.service instanceof serviceType ? s.service : undefined; });
 
             if (!service)
             {
-                if (provider)
+                if ((provider = self.lookupServiceProvider (serviceType)))
                 {
                     service = provider.create (serviceName, self);
 

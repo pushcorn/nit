@@ -27,6 +27,7 @@ test ("nit.test.strategies.Plugin", async () =>
         })
     ;
 
+    MyPlugin.defineSubclass ("plugins.AnotherPlugin");
 
     let st = new nit.test.strategies.Plugin ("plugins.MyPlugin", "addOne", true, { pluginArgs: 2 });
     expect (st.description).toBe ("Plugin: plugins.MyPlugin => Host.addOne ()");
@@ -71,6 +72,16 @@ test ("nit.test.strategies.Plugin", async () =>
 
     MyHost = nit.defineClass ("test.MyHost");
     st = new nit.test.strategies.Plugin ("my-plugin", "addTwo", { addPlugin: "instance", pluginArgs: 2, registerPlugin: true, hostClass: MyHost });
+    await st.testInit ();
+    await st.testUp ();
+    expect (st.test (3)).toBe (7);
+    expect (MyHost.pluginRegistered).toBe (true);
+    expect (st.host.myplugins.length).toBe (1);
+
+    // pluginMethod
+    MyHost = nit.defineClass ("test.MyHost");
+    MyHost.registerPlugin (MyPlugin.name, true, true);
+    st = new nit.test.strategies.Plugin ("another-plugin", "addTwo", { pluginMethod: "myplugin", addPlugin: "instance", pluginArgs: 2, hostClass: MyHost });
     await st.testInit ();
     await st.testUp ();
     expect (st.test (3)).toBe (7);

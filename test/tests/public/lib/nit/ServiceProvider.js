@@ -35,8 +35,15 @@ test.method ("nit.ServiceProvider", "create")
         .expectingPropertyToBe ("result.created", true)
         .commit ()
 
-    .should ("return undefined if the type was not supported")
+    .should ("throw if the provided types were not set")
         .up (s => s.class = s.class.defineSubclass ("DbProvider"))
+        .throws ("error.no_provided_types")
+        .commit ()
+
+    .should ("return undefined if the type was not supported")
+        .up (() => nit.defineClass ("Srv"))
+        .up (s => s.class = s.class.defineSubclass ("DbProvider").provides ("test.Db"))
+        .given ("Srv")
         .returns ()
         .commit ()
 ;
@@ -58,10 +65,30 @@ test.method ("nit.ServiceProvider", "destroy")
 ;
 
 
+test.method ("nit.ServiceProvider", "createProviderForObject", true)
+    .should ("create a local provider for the specified object")
+        .up (s => s.MyDb = nit.defineClass ("MyDb"))
+        .up (s => s.args = new s.MyDb)
+        .returnsInstanceOf ("MyDbProvider")
+        .expectingMethodToReturnValue ("result.create", null, s => s.args[0])
+        .commit ()
+;
+
+
+test.method ("nit.ServiceProvider", "createProviderForClass", true)
+    .should ("create a local provider for the specified class")
+        .up (s => s.MyDb = nit.defineClass ("MyDb"))
+        .up (s => s.args = s.MyDb)
+        .returnsInstanceOf ("MyDbProvider")
+        .expectingMethodToReturnValueOfType ("result.create", null, "MyDb")
+        .commit ()
+;
+
+
 test.plugin ("nit.ServiceProvider", "lookupServiceProvider", { registerPlugin: true, instancePluginAllowed: true })
     .should ("throw if no provider was registered for the service type")
         .up (s => s.MyDb = nit.defineClass ("MyDb"))
-        .up (s => s.DbProvider = nit.defineServiceProvider ("test.serviceproviders.MyDb"))
+        .up (s => s.DbProvider = nit.defineServiceProvider ("test.serviceproviders.MyDb").provides ("MyDb2"))
         .up (s => s.hostClass.serviceprovider ("test:my-db"))
         .given ("MyDb", true)
         .throws ("error.service_provider_not_registered")

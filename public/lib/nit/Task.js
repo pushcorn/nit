@@ -87,7 +87,7 @@ module.exports = function (nit, Self)
                     var cls = task.constructor;
                     var ctx = this.args[0];
 
-                    ctx = ctx instanceof Self.Context ? ctx : cls.Context.new (ctx);
+                    ctx = ctx instanceof cls.Context ? ctx : cls.Context.new (ctx);
                     ctx.task = task;
 
                     this.args = ctx;
@@ -101,7 +101,7 @@ module.exports = function (nit, Self)
                         this.error = ctx.error;
                     }
 
-                    return ctx;
+                    return ctx.destroy ();
                 })
             ;
         })

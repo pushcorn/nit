@@ -7871,7 +7871,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         })
         .method ("fork", function (owner)
         {
-            return nit.assign (new this.constructor (this.toPojo ()), { owner: owner });
+            return nit.assign (new this.constructor (this.toPojo (true)), { owner: owner });
         })
         .method ("result", function ()
         {
@@ -7892,6 +7892,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 return until.apply (ctx, [self.owner].concat (ctx.args));
             }
 
+            function applicableLink (link)
+            {
+                return link.applicableTo (ctx);
+            }
+
             function invoke (error, result)
             {
                 ctx.result = nit.coalesce (result, ctx.result);
@@ -7902,7 +7907,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
                 self.done = self.done || stopped || !(next = self.next ());
 
-                var link = nit.find (self.links, function (l) { return l.applicableTo (ctx); });
+                var link = nit.find (self.links, applicableLink);
 
                 if (!link)
                 {

@@ -1,8 +1,24 @@
-module.exports = function (nit)
+module.exports = function (nit, Self)
 {
-    return nit.definePlugin ("nit.ServiceProvider")
+    return (Self = nit.definePlugin ("nit.ServiceProvider"))
+        .m ("error.no_provided_types", "The provided types were not set.")
         .defineMeta ("providedTypes...", "string")
         .categorize ("serviceproviders")
+        .staticMethod ("createProviderForObject", function (obj, onDestroy)
+        {
+            var cls = obj.constructor;
+            var providerClass = Self.defineSubclass (cls.name + "Provider", true)
+                .provides (cls.name)
+                .onCreate (function () { return obj; })
+                .onDestroy (onDestroy)
+            ;
+
+            return new providerClass;
+        })
+        .staticMethod ("createProviderForClass", function (cls, onDestroy)
+        {
+            return this.createProviderForObject (nit.new (cls), onDestroy);
+        })
         .staticMethod ("provides", function ()
         {
             this.providedTypes = nit.array (arguments);
@@ -11,7 +27,15 @@ module.exports = function (nit)
         })
         .method ("provides", function (type)
         {
-            return !!~this.constructor.providedTypes.indexOf (type);
+            var self = this;
+            var types = self.constructor.providedTypes;
+
+            if (!types.length)
+            {
+                self.throw ("error.no_provided_types");
+            }
+
+            return !!~types.indexOf (type);
         })
         .lifecycleMethod ("create", null, function (type)
         {
@@ -22,7 +46,7 @@ module.exports = function (nit)
                 return nit.new (type, this.toPojo ());
             }
         })
-        .lifecycleMethod ("destroy", true) // (service)
+        .lifecycleMethod ("destroy") // (service)
         .onRegisteredBy (function (hostClass)
         {
             hostClass

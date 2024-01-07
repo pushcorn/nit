@@ -44,15 +44,17 @@ module.exports = function (nit)
                         {
                             var self = this;
                             var cls = self.constructor;
-                            var chains = new cls (self.toPojo ());
+                            var params = {};
 
                             cls.fields.forEach (function (f)
                             {
                                 if (f.type == "nit.CallChain")
                                 {
-                                    chains[f.name].owner = owner;
+                                    params[f.name] = self[f.name].fork (owner);
                                 }
                             });
+
+                            var chains = new cls (params);
 
                             chains.owner = owner;
 
@@ -77,7 +79,7 @@ module.exports = function (nit)
                     Subclass.defineInnerClass ("Chains", this.Chains.name);
                     Subclass.staticProperty ("chains", Subclass.Chains.name, { defval: {} });
                     Subclass.Chains.links = this.Chains.links;
-                    Subclass.chains = this.chains.fork ().toPojo ();
+                    Subclass.chains = this.chains.fork ().toPojo (true);
                 })
                 .staticProperty ("chains", hostClass.name + ".Chains", { defval: {} })
                 .staticMethod ("link", function ()
