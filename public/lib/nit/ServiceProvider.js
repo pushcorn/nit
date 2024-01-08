@@ -2,8 +2,27 @@ module.exports = function (nit, Self)
 {
     return (Self = nit.definePlugin ("nit.ServiceProvider"))
         .m ("error.no_provided_types", "The provided types were not set.")
-        .defineMeta ("providedTypes...", "string")
+        .defineMeta ("providedTypes...", "function")
         .categorize ("serviceproviders")
+        .defineCaster (function (obj)
+        {
+            obj = nit.Object.TYPE_CASTERS.component.apply (this, arguments);
+
+            if (!(obj instanceof Self))
+            {
+                if (nit.is.func (obj))
+                {
+                    obj = Self.createProviderForClass (obj);
+                }
+                else
+                if (nit.is.obj (obj))
+                {
+                    obj = Self.createProviderForObject (obj);
+                }
+            }
+
+            return obj;
+        })
         .staticMethod ("createProviderForObject", function (obj, onDestroy)
         {
             var cls = obj.constructor;
@@ -21,7 +40,10 @@ module.exports = function (nit, Self)
         })
         .staticMethod ("provides", function ()
         {
-            this.providedTypes = nit.array (arguments);
+            this.providedTypes = nit.array (arguments)
+                .map (function (t) { return nit.lookupClass (t); })
+                .filter (nit.is.not.undef)
+            ;
 
             return this;
         })
@@ -35,7 +57,10 @@ module.exports = function (nit, Self)
                 self.throw ("error.no_provided_types");
             }
 
-            return !!~types.indexOf (type);
+            type = nit.lookupClass (type, true);
+
+            return types.some (function (t) { return nit.is.subclassOf (t, type, true); })
+            ;
         })
         .lifecycleMethod ("create", null, function (type)
         {

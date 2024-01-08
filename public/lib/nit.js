@@ -7506,6 +7506,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 unique = nit.coalesce (unique, pluginCls.unique);
 
                 var pn = pluginCls.name;
+                var caster = pluginCls[nit.Object.kCaster] ? undefined : "component";
 
                 function onLink (plugin)
                 {
@@ -7523,7 +7524,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     {
                         enumerable: false,
                         configurable: true,
-                        caster: "component",
+                        caster: caster,
                         onLink: onLink
                     });
                 }
@@ -7531,7 +7532,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 return cls
                     .staticProperty (category + "...", pn, undefined, true, false,
                     {
-                        caster: "component",
+                        caster: caster,
                         onLink: onLink
                     })
                     .staticMethod (method, function (pluginName)

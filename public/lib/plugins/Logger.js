@@ -61,7 +61,7 @@ module.exports = function (nit, Self)
                 {
                     var self = this;
                     var cls = self.constructor;
-                    var prefix = "[" + level.toUpperCase () + "] " + (level == "debug" ? "(" + nit.getClass (host).name + ") " : "");
+                    var prefix = "[" + level.toUpperCase () + "] " + ((level == "debug" || level == "error") ? "(" + nit.getClass (host).name + ") " : "");
 
                     prefix = nit.invoke ([self, cls[cls.kFormatLevel]], nit.array (arguments).concat (prefix), prefix);
 
