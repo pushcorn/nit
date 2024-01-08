@@ -9,6 +9,7 @@ module.exports = function (nit, Self)
         .onUsedBy (function (hostClass)
         {
             hostClass
+                .k ("stopIfStarted", "stopIfStopped", "returnServer")
                 .plugin ("lifecycle-component", "start", "stop")
                 .property ("state", "string", "stopped",
                 {
@@ -20,7 +21,7 @@ module.exports = function (nit, Self)
                 .configureComponentMethod ("start", function (Method)
                 {
                     Method
-                        .after ("preStart", "preStart.stopIfStarted", function (server)
+                        .after ("preStart", hostClass.kStopIfStarted, function (server)
                         {
                             if (server.state == "stopping")
                             {
@@ -59,7 +60,7 @@ module.exports = function (nit, Self)
 
                             return def.promise;
                         })
-                        .afterComplete ("returnServer", function (server)
+                        .afterComplete (hostClass.kReturnServer, function (server)
                         {
                             switch (server.state)
                             {
@@ -78,7 +79,7 @@ module.exports = function (nit, Self)
                 .configureComponentMethod ("stop", function (Method)
                 {
                     Method
-                        .after ("preStop", "preStop.stopIfStopped", function (server)
+                        .after ("preStop", hostClass.kStopIfStopped, function (server)
                         {
                             if (server.state == "starting")
                             {
@@ -117,7 +118,7 @@ module.exports = function (nit, Self)
 
                             return def.promise;
                         })
-                        .afterComplete ("returnServer", function (server)
+                        .afterComplete (hostClass.kReturnServer, function (server)
                         {
                             switch (server.state)
                             {

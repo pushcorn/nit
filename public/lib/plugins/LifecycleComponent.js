@@ -121,7 +121,7 @@ module.exports = function (nit, Self)
 
                     chain.after ("after");
 
-                    ["failure", "success", "complete"].forEach (function (cn)
+                    ["success", "failure", "complete"].forEach (function (cn)
                     {
                         var m = method + nit.ucFirst (cn);
 

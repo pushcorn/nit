@@ -3,7 +3,7 @@ module.exports = function (nit, Self)
     var writer = new nit.Object.Property.Writer;
 
     return (Self = nit.defineClass ("nit.Task"))
-        .k ("context")
+        .k ("context", "initContext", "destroyContext", "initCancelArgs")
         .categorize ("tasks")
         .defineMeta ("description", "string", "Task description unavailable.")
         .plugin ("lifecycle-component", "run", "cancel")
@@ -62,7 +62,7 @@ module.exports = function (nit, Self)
         {
             Method
                 .until (function (task) { return task.canceled; })
-                .beforeCancel ("init", function (task)
+                .before (Self.kInitCancelArgs, function (task)
                 {
                     this.args = task;
                     this.canceled = true;
@@ -82,7 +82,7 @@ module.exports = function (nit, Self)
         {
             Method
                 .until (function (task) { return task.canceled; })
-                .beforeRun ("initArgs", function (task)
+                .beforeRun (Self.kInitContext, function (task)
                 {
                     var cls = task.constructor;
                     var ctx = this.args[0];
@@ -92,7 +92,7 @@ module.exports = function (nit, Self)
 
                     this.args = ctx;
                 })
-                .afterComplete ("setErrorContext", function (task, ctx)
+                .afterComplete (Self.kDestroyContext, function (task, ctx)
                 {
                     if ((ctx.error = nit.coalesce (this.error, ctx.error)))
                     {
