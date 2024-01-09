@@ -1,10 +1,11 @@
 module.exports = function (nit, Self)
 {
     return (Self = nit.defineClass ("nit.WorkflowStep"))
-        .k ("config", "constantFields")
+        .k ("config", "constantFields", "initContext", "catchError", "destroyContext")
         .use ("nit.Workflow")
         .use ("nit.WorkflowField")
         .categorize ("workflowsteps")
+        .plugin ("lifecycle-component", "run", { prePost: true })
         .staticMethod ("field", function (spec, type, description, defval) // eslint-disable-line no-unused-vars
         {
             var cls = this;
@@ -106,55 +107,62 @@ module.exports = function (nit, Self)
 
             return step;
         })
-        .lifecycleMethod ("run", true, function (ctx) // The hook method should return the output value.
+        .configureComponentMethod ("run", function (Method)
         {
-            var self = this;
-            var cls = self.constructor;
-
-            ctx = cls.Context.new (ctx instanceof Self.Workflow.Context ? { parent: ctx, input: ctx.output } : ctx);
-            ctx.output = nit.coalesce (ctx.output, ctx.input);
-
-            var step = ctx.owner = self.evaluate (ctx);
-
-            nit.assign (ctx, nit.clone (self.vars));
-
-            return nit.Queue ()
-                .stopOn (function ()
+            Method
+                .until (function (self, ctx) { return ctx && ctx.canceled; })
+                .before (Self.kInitContext, function (self)
                 {
-                    return ctx.canceled;
-                })
-                .push (function ()
-                {
-                    if (step.condition)
+                    var cls = self.constructor;
+                    var ctx = this.args[0];
+
+                    ctx = cls.Context.new (ctx instanceof Self.Workflow.Context ? { parent: ctx, input: ctx.output } : ctx);
+                    ctx.output = nit.coalesce (ctx.output, ctx.input);
+
+                    var step = this.owner = ctx.owner = self.evaluate (ctx);
+
+                    nit.assign (ctx, nit.clone (self.vars));
+
+                    this.args = ctx;
+
+                    if (!step.condition)
                     {
-                        return cls[cls.kRun].call (step, ctx);
+                        this.stop ();
                     }
                 })
-                .failure (function (c)
+                .beforeFailure (Self.kCatchError, function (self, ctx)
                 {
-                    ctx.error = c.error;
+                    ctx.error = this.error;
 
-                    if (step.catch)
+                    if (self.catch)
                     {
-                        return step.catch.run (ctx);
-                    }
-                    else
-                    {
-                        throw nit.dpv (ctx.error, Self.Workflow.kContext, ctx, true, false);
+                        this.error = null;
+
+                        return nit.invoke.return (
+                            function () { return self.catch.run (ctx); },
+                            [],
+                            function (res) { ctx.error = null; return res; }
+                        );
                     }
                 })
-                .complete (function (c)
+                .afterComplete (Self.kDestroyContext, function (self, ctx)
                 {
-                    ctx.updateOutput (c.result);
+                    ctx.updateOutput (this.result);
 
-                    if (step.exportAs)
+                    if (self.exportAs)
                     {
-                        ctx.parent[step.exportAs] = ctx.output;
+                        ctx.parent[self.exportAs] = ctx.output;
                     }
 
-                    return ctx;
+                    if ((ctx.error = nit.coalesce (this.error, ctx.error)))
+                    {
+                        nit.dpv (ctx.error, Self.Workflow.kContext, ctx, true, false);
+
+                        this.error = ctx.error;
+                    }
+
+                    return ctx.destroy ();
                 })
-                .run ()
             ;
         })
     ;
