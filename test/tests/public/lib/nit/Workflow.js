@@ -161,7 +161,7 @@ test.method ("nit.Workflow.Subcontext", "new", true)
         .after (s => s.result.parent = null)
         .expectingPropertyToBe ("result.input", 3)
         .expectingPropertyToBe ("result.custom",{ a: 1 })
-        .expectingPropertyToBe ("parent.listeners.nit\\.Workflow\\.Context\\.cancel.length", 0)
+        .expectingPropertyToBe ("parent.listeners.nit\\.Context\\.cancel.length", 0)
         .commit ()
 
     .should ("create a default parent context if not provided")

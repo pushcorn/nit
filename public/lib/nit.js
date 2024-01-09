@@ -4529,7 +4529,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.sequential = function ()
     {
-        return nit.Queue.apply (null, nit.array (arguments, true)).run ();
+        return nit.invoke.chain (nit.array (arguments, true));
     };
 
 
@@ -4971,22 +4971,16 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             Property.validate = function (prop, owner, value, ctx) // validate constraints
             {
                 var vals = nit.is.arr (value) ? value : [value];
-                var q = nit.Queue ();
 
-                nit.each (vals, function (value)
+                return nit.invoke.each (vals, function (value)
                 {
                     ctx = ctx || prop.createValidationContext (owner, value);
 
-                    q.push (nit.each (prop.constraints, function (cons)
+                    return nit.invoke.each (prop.constraints, function (cons)
                     {
-                        return function ()
-                        {
-                            return cons.validate (ctx);
-                        };
-                    }));
-                });
-
-                return q.run (function () { return value; });
+                        return cons.validate (ctx);
+                    });
+                }, value);
             };
 
 
@@ -6614,7 +6608,6 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .staticMethod ("buildConstructorParams", function (obj, args) // could return a promise
         {
             var cls = this;
-            var validProps = cls.propertyMap;
             var pargProps = cls.pargs.slice ();
             var arrayParg = cls.pargs.find (function (p) { return p.array; });
             var params = nit.argsToObj (nit.array (args).filter (nit.is.not.undef));
@@ -6684,18 +6677,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             nit.argsToObj.cleanup (params);
             nit.dpv (obj, cls.kRawConstructorParams, nit.clone.shallow (params), true, false);
 
-            var queue = nit.Queue ();
-
-            // use a queue to build params so async objects will be resolved sequentially
-            nit.each.obj (validProps, function (p)
+            return nit.invoke.each (cls.properties, function (p)
             {
-                queue.push (function ()
-                {
-                    return cls.buildParam (obj, p, params);
-                });
-            });
+                return cls.buildParam (obj, p, params);
 
-            return queue.run (function () { return params; });
+            }, params);
         })
         .staticMethod ("constructorParamsToArgs", function (params)
         {
@@ -7469,19 +7455,13 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         .staticMethod ("validateObject", function (obj, ctx)
         {
             var cls = this;
-            var queue = nit.Queue ();
 
             ctx = ctx || new nit.Constraint.ValidationContext ({ owner: obj });
 
-            nit.each (cls.getChecks (), function (check)
+            return nit.invoke.each (cls.getChecks (), function (check)
             {
-                queue.push (function ()
-                {
-                    return check.validate (ctx);
-                });
+                return check.validate (ctx);
             });
-
-            return queue.run ();
         })
         .staticMethod ("constructObject", function (obj, args)
         {
@@ -8492,18 +8472,11 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             {
                                 if (field.array)
                                 {
-                                    return nit.Queue ()
-                                        .push (function ()
-                                        {
-                                            ctx.keyPath.push (k);
-
-                                            return field.class.validate (vv, ctx);
-                                        })
-                                        .complete (function ()
-                                        {
-                                            ctx.keyPath.pop ();
-                                        })
-                                    ;
+                                    return nit.invoke.after (
+                                        function () { return ctx.keyPath.push (k) && field.class.validate (vv, ctx); },
+                                        undefined,
+                                        function () { ctx.keyPath.pop (); }
+                                    );
                                 }
                                 else
                                 {
@@ -8512,45 +8485,37 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             };
                         });
 
-                        return !validations.length ? undefined : nit.Queue ()
-                            .push (function ()
-                            {
-                                ctx.keyPath.push (field.name);
-                            })
-                            .push (validations)
-                            .complete (function ()
-                            {
-                                ctx.keyPath.pop ();
-                            })
-                        ;
+                        return !validations.length ? undefined : nit.invoke.after (
+                            function () { return nit.invoke.chain ([function () { ctx.keyPath.push (field.name); }].concat (validations)); },
+                            undefined,
+                            function () { ctx.keyPath.pop (); }
+                        );
                     }
                 }))
                 .push (function ()
                 {
-                    return nit.Queue ()
-                        .push (function ()
+                    return nit.invoke.safe (
+                        function ()
                         {
                             ctx.field = undefined;
                             ctx.value = undefined;
                             ctx.entity = entity;
 
                             return nit.Class.validateObject.call (cls, entity, ctx);
-                        })
-                        .failure (function (qc)
+                        },
+                        undefined,
+                        function (error)
                         {
-                            ctx.addViolation (qc.error);
-                        })
-                        .run ()
-                    ;
+                            ctx.addViolation (error);
+                        }
+                    );
                 })
                 .complete (function ()
                 {
-                    return nit.Queue ()
-                        .push (function ()
-                        {
-                            return cls.postValidate (entity, ctx);
-                        })
-                        .complete (function ()
+                    return nit.invoke.after (
+                        function () { return cls.postValidate (entity, ctx); },
+                        undefined,
+                        function ()
                         {
                             cls.lock (entity);
 
@@ -8560,9 +8525,8 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             }
 
                             return entity;
-                        })
-                        .run ()
-                    ;
+                        }
+                    );
                 })
                 .run ()
             ;

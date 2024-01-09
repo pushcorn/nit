@@ -82,7 +82,7 @@ module.exports = function (nit, Self)
         {
             Method
                 .until (function (task) { return task.canceled; })
-                .beforeRun (Self.kInitContext, function (task)
+                .before (Self.kInitContext, function (task)
                 {
                     var cls = task.constructor;
                     var ctx = this.args[0];

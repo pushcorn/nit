@@ -1,14 +1,16 @@
 module.exports = function (nit, Self, global)
 {
     return (Self = nit.defineClass ("nit.Workflow"))
-        .k ("context")
+        .k ("context", "initContext", "runWorkflow", "destroyContext")
         .m ("error.subroutine_not_defined", "The subroutine '%{name}' was not defined.")
         .m ("error.workflow_not_found", "The workflow '%{name}' was not found.")
         .use ("nit.WorkflowField")
-        .plugin ("event-emitter", "complete")
+        .plugin ("lifecycle-component", "run", { prePost: true })
         .categorize ("workflows")
-        .do (function ()
+        .do (function (cls)
         {
+            cls.lookupPlugin ("event-emitter").addEvent (cls, "complete");
+
             nit.runWorkflow = function ()
             {
                 var args = nit.array (arguments);
@@ -281,7 +283,10 @@ module.exports = function (nit, Self, global)
         .defineInnerClass ("Context", "nit.Context", function (Context)
         {
             Context
-                .plugin ("event-emitter", "cancel")
+                .do (function (cls)
+                {
+                    cls.lookupPlugin ("event-emitter").addEvent (cls, "cancel");
+                })
                 .defineMeta ("globalSource", "string", "global") // The global variable name of that will be used as the source of Context.$.
                 .staticMethod ("defineRuntimeClass", function ()
                 {
@@ -523,42 +528,38 @@ module.exports = function (nit, Self, global)
 
             return s;
         })
-        .method ("run", function (ctx)
+        .configureComponentMethod ("run", function (Method)
         {
-            var self = this;
-
-            ctx = ctx instanceof Self.Context ? ctx : self.contextClass.new (ctx);
-            ctx.workflow = self;
-            ctx.options = ctx.output = ctx.input;
-
-            nit.assign (ctx, nit.clone (self.vars));
-
-            return nit.Queue ()
-                .push (function ()
+            Method
+                .before (Self.kInitContext, function (self)
                 {
-                    return Self.run (ctx, self);
-                })
-                .complete (function ()
-                {
-                    return nit.Queue ()
-                        .push (function ()
-                        {
-                            return self.emit ("complete", self);
-                        })
-                        .complete (function ()
-                        {
-                            if (self.silent)
-                            {
-                                ctx.output = undefined;
-                            }
+                    var ctx = this.args[0];
 
-                            return ctx;
-                        })
-                        .run ()
-                    ;
+                    ctx = ctx instanceof Self.Context ? ctx : self.contextClass.new (ctx);
+                    ctx.workflow = self;
+                    ctx.options = ctx.output = ctx.input;
+
+                    nit.assign (ctx, nit.clone (self.vars));
+
+                    this.args = ctx;
                 })
-                .run ()
+                .afterComplete (Self.kDestroyContext, function (self, ctx)
+                {
+                    return nit.invoke.return (function () { return self.emit ("complete", [self].concat (this.args)); }, [], function ()
+                    {
+                        if (self.silent)
+                        {
+                            ctx.output = undefined;
+                        }
+
+                        return ctx.destroy ();
+                    });
+                })
             ;
+        })
+        .onRun (function (ctx)
+        {
+            return Self.run (ctx, ctx.workflow);
         })
     ;
 };

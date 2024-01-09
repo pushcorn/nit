@@ -202,14 +202,7 @@ module.exports = function (nit, Self)
                 ;
             }
 
-            return nit.Queue ()
-                .push (next)
-                .complete (function ()
-                {
-                    return ctx;
-                })
-                .run ()
-            ;
+            return nit.invoke.return (next, undefined, ctx);
         })
     ;
 };

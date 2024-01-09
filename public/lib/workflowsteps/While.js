@@ -82,14 +82,6 @@ module.exports = function (nit, Self)
             }
 
             return next ();
-            // return nit.Queue ()
-                // .push (next)
-                // .complete (function ()
-                // {
-                    // return ctx;
-                // })
-                // .run ()
-            // ;
         })
     ;
 };
