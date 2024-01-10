@@ -6,14 +6,8 @@ module.exports = function (nit, Self)
         .use ("nit.WorkflowField")
         .categorize ("workflowsteps")
         .plugin ("lifecycle-component", "run", { prePost: true })
-        .staticMethod ("field", function (spec, type, description, defval) // eslint-disable-line no-unused-vars
-        {
-            var cls = this;
-
-            nit.new (Self.WorkflowField, arguments).bind (cls.prototype);
-
-            return cls.validatePropertyDeclarations ();
-        })
+        .do (Self.WorkflowField.applyToClass)
+        .registerPlugin ("nit.ServiceProvider", true, true)
         .getter ("type", function ()
         {
             return this.constructor.name;

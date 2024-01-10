@@ -3,6 +3,17 @@ module.exports = function (nit, Self)
     return (Self = nit.Field.defineSubclass ("nit.WorkflowField"))
         .k ("evaluator", "defaultEvaluator", "set")
         .use ("nit.Workflow")
+        .staticMethod ("applyToClass", function (cls)
+        {
+            return cls.staticMethod ("field", function (spec, type, description, defval) // eslint-disable-line no-unused-vars
+            {
+                var cls = this;
+
+                nit.new (Self, arguments).bind (cls.prototype);
+
+                return cls.validatePropertyDeclarations ();
+            });
+        })
         .onPostConstruct (function ()
         {
             var field = this;

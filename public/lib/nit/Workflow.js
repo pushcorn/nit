@@ -6,6 +6,7 @@ module.exports = function (nit, Self, global)
         .m ("error.workflow_not_found", "The workflow '%{name}' was not found.")
         .use ("nit.WorkflowField")
         .plugin ("lifecycle-component", "run", { prePost: true })
+        .registerPlugin ("nit.ServiceProvider", true, true)
         .categorize ("workflows")
         .do (function (cls)
         {
@@ -115,14 +116,6 @@ module.exports = function (nit, Self, global)
         .staticMethod ("exprToFunc", function (expr)
         {
             return Self.isExpr (expr) ? nit.expr (expr.slice (2, -1)) : function () { return expr; };
-        })
-        .staticMethod ("field", function (spec, type, description, defval) // eslint-disable-line no-unused-vars
-        {
-            var cls = this;
-
-            nit.new (Self.WorkflowField, arguments).bind (cls.prototype);
-
-            return cls.validatePropertyDeclarations ();
         })
         .defineInnerClass ("Evaluator", "nit.Class", "evaluators", function (Evaluator)
         {
@@ -333,6 +326,10 @@ module.exports = function (nit, Self, global)
 
                     return self.emit ("cancel", self, reason);
                 })
+                .onLookupServiceProvider (function (type)
+                {
+                    return this.workflow.lookupServiceProvider (type);
+                })
             ;
         })
         .defineInnerClass ("Subcontext", Self.Context.name, function (Subcontext)
@@ -365,6 +362,12 @@ module.exports = function (nit, Self, global)
                 .getter ("workflow", "parent.workflow", false)
                 .getter ("options", "parent.options", false)
                 .getter ("$", false, false, function () { return this.parent.$; })
+                .memo (Subcontext.kParentCancelListener, true, false, function ()
+                {
+                    var self = this;
+
+                    return function () { return self.cancel (Self.CANCEL_REASONS.ParentCancellation); };
+                })
                 .onConstruct (function (parent)
                 {
                     if (!parent)
@@ -372,11 +375,9 @@ module.exports = function (nit, Self, global)
                         this.parent = new Self.Context;
                     }
                 })
-                .memo (Subcontext.kParentCancelListener, true, false, function ()
+                .onLookupServiceProvider (function (type)
                 {
-                    var self = this;
-
-                    return function () { return self.cancel (Self.CANCEL_REASONS.ParentCancellation); };
+                    return nit.invoke ([this.owner, "lookupServiceProvider"], type);
                 })
             ;
         })
@@ -384,6 +385,8 @@ module.exports = function (nit, Self, global)
         {
             Subroutine
                 .defineInnerClass ("Input", Self.Input.name)
+                .registerPlugin ("nit.ServiceProvider", true, true)
+                .do (Self.WorkflowField.applyToClass)
                 .field ("<name>", "string", "The name of the subroutine.")
                 .field ("<steps...>", "nit.WorkflowStep", "The steps to run.")
                 .field ("options...", Self.Option.name, "The subroutine options.")
@@ -417,6 +420,7 @@ module.exports = function (nit, Self, global)
                 })
             ;
         })
+        .do (Self.WorkflowField.applyToClass)
         .field ("[description]", "string", "The description about the workflow.", function (prop, owner)
         {
             return nit.kababCase (owner.constructor.simpleName)

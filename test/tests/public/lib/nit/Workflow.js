@@ -153,6 +153,19 @@ test.method ("nit.Workflow.Context", "uncancel")
 ;
 
 
+test.method ("nit.Workflow.Context", "lookupServiceProvider")
+    .should ("return the service provider from the workflow")
+        .up (s => s.MyDb = nit.defineClass ("MyDb"))
+        .up (s => s.MyFlow = nit.defineWorkflow ("test.workflows.MyFlow")
+            .serviceprovider (s.MyDb)
+        )
+        .up (s => s.createArgs = { workflow: new s.MyFlow })
+        .before (s => s.args = "MyDb")
+        .returnsInstanceOf ("MyDbProvider")
+        .commit ()
+;
+
+
 test.method ("nit.Workflow.Subcontext", "new", true)
     .should ("create an instance of subcontext")
         .up (s => s.args = [new nit.Workflow.Context, { input: 3, custom: { a: 1 } }])
@@ -207,6 +220,18 @@ test.method ("nit.Workflow.Subcontext", "cancel")
         .commit ()
 ;
 
+
+test.method ("nit.Workflow.Subcontext", "lookupServiceProvider")
+    .should ("return the service provider from the owner")
+        .up (s => s.MyDb = nit.defineClass ("MyDb"))
+        .up (s => s.MyStep = nit.defineWorkflowStep ("test.workflowstepss.MyStep")
+            .serviceprovider (s.MyDb)
+        )
+        .up (s => s.createArgs = { owner: new s.MyStep })
+        .before (s => s.args = "MyDb")
+        .returnsInstanceOf ("MyDbProvider")
+        .commit ()
+;
 
 
 test.object ("nit.Workflow.Subroutine", true, "inputClass")
