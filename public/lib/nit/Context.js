@@ -113,7 +113,7 @@ module.exports = function (nit, Self)
             {
                 if ((provider = self.lookupServiceProvider (serviceType)))
                 {
-                    service = provider.create (serviceName, self);
+                    service = provider.create (serviceName);
 
                     self.registerService (service, provider.destroy.bind (provider));
                 }
@@ -184,7 +184,7 @@ module.exports = function (nit, Self)
 
             return nit.invoke.each (nit.values (self.serviceRegistry).concat (emit), function (entry)
             {
-                return nit.invoke.safe ([entry, entry.destroy], [entry.service, self], onError);
+                return nit.invoke.safe ([entry, entry.destroy], entry.service, onError);
             });
         })
         .field ("parent", Self.name, "The parent context.",

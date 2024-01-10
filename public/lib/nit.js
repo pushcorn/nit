@@ -8485,11 +8485,14 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             };
                         });
 
-                        return !validations.length ? undefined : nit.invoke.after (
-                            function () { return nit.invoke.chain ([function () { ctx.keyPath.push (field.name); }].concat (validations)); },
-                            undefined,
-                            function () { ctx.keyPath.pop (); }
-                        );
+                        return !validations.length ? undefined : function ()
+                        {
+                            return nit.invoke.after (
+                                function () { return nit.invoke.chain ([function () { ctx.keyPath.push (field.name); }].concat (validations)); },
+                                undefined,
+                                function () { ctx.keyPath.pop (); }
+                            );
+                        };
                     }
                 }))
                 .push (function ()
