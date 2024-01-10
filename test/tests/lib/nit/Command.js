@@ -209,6 +209,10 @@ test ("nit.Command.Input", () =>
                 .option ("boolOpt", "boolean")
                 .option ("paramB")
                 .option ("paramE", "boolean|integer", "The mixed type.")
+                .option ("values...", "any", "The values.", { kvp: true })
+                .option ("notKvp", "object", "Non-kvp values.", { kvp: true })
+                .option ("arrVals...", "any", "Array of vlaues.", { kvp: false })
+                .option ("headers...", "any", "The headers.", { kvp: ":" })
             ;
         })
     ;
@@ -243,6 +247,17 @@ test ("nit.Command.Input", () =>
     expect (() => Api.Input.option ("<sc2>", "ApiSubcommand")).toThrow (/only one/i);
     expect (() => Api.Input.option ("[parg]", "string")).toThrow (/positional option.*not allowed/i);
     expect (Api.Input.option ("parg", "string")).toBe (Api.Input);
+
+    let input = new Input (
+    {
+        values: ["a = 2", "b = 3", "= c > 4", "= d < 5"],
+        headers: ["X-Server: nit", "X-Response-Time: 1"]
+    });
+
+    expect (input.values.kvp).toEqual ({ a: 2, b: 3, "": ["c > 4", "d < 5"] });
+    expect (input.notKvp.kvp).toBeUndefined ();
+    expect (input.arrVals.kvp).toBeUndefined ();
+    expect (input.headers.kvp).toEqual ({ "X-Server": "nit", "X-Response-Time": 1 });
 });
 
 

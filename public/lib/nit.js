@@ -1980,8 +1980,24 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 if (nit.is.str (p))
                 {
                     var ps = nit.kvSplit (p, delimiter);
+                    var k = nit.trim (ps[0]);
+                    var v = nit.toVal (nit.trim (ps[1]));
 
-                    a[nit.trim (ps[0])] = nit.toVal (nit.trim (ps[1]));
+                    if (k in a)
+                    {
+                        if (nit.is.arr (a[k]))
+                        {
+                            a[k].push (v);
+                        }
+                        else
+                        {
+                            a[k] = [a[k], v];
+                        }
+                    }
+                    else
+                    {
+                        a[k] = v;
+                    }
                 }
                 else
                 {
