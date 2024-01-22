@@ -1,6 +1,14 @@
 const no_path = require ("path");
 
 
+test ("nit.shutdown ()", async () =>
+{
+    const nit = await test.reloadNit ();
+
+    expect (nit.shutdown ()).toBe (nit);
+});
+
+
 test ("nit.resetRequireCache ()", async () =>
 {
     let path = no_path.join (test.pathForProject ("project-a"), "lib/Work");

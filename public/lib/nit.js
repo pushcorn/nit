@@ -5452,16 +5452,22 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 var cls = this;
                 var key = cls.name + "." + name;
                 var hookMethod = "on" + nit.ucFirst (name);
-                var errorHook;
+                var defaultHook;
 
                 if (hook === true) // The callback should be provided, otherwise throw an error when invoked.
                 {
-                    errorHook = hook = function ()
+                    defaultHook = hook = function ()
                     {
                         var self = this;
 
                         self.throw ("error.lifecycle_hook_not_implemented", { method: name, class: isStatic ? self.name : self.constructor.name });
                     };
+                }
+                else
+                if (hook === false)  // The callback will be overwritten by the future hook.
+                {
+                    defaultHook = hook = impl;
+                    impl = undefined;
                 }
 
                 return cls
@@ -5475,7 +5481,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                             var cls = this;
                             var orig = cls[key];
 
-                            if (!overwrite && cls.hasOwnProperty (key) && cls[key] != errorHook)
+                            if (!overwrite && cls.hasOwnProperty (key) && cls[key] != defaultHook)
                             {
                                 if (mode == "wrap")
                                 {

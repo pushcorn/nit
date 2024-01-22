@@ -831,6 +831,7 @@ test ("nit.test.Strategy.commit ()", async () =>
     const Mock = _nit.test.Strategy.Mock;
 
     let queue = _nit.Queue ();
+    let lastValues = [];
 
     const Expect = _nit.defineClass ("Expect", "nit.test.Mock")
         .field ("result", "any")
@@ -928,6 +929,7 @@ test ("nit.test.Strategy.commit ()", async () =>
 
     let propertyStrategy = new PropertyStrategy (new A ("AAA"), "name", { description: "Test property." })
         .should ("pass") // expect 0
+            .init (s => lastValues.push (s.last))
             .given (1, 2, 3)
             .mock (nit, "noop")
             .before (nit.noop)
@@ -940,6 +942,7 @@ test ("nit.test.Strategy.commit ()", async () =>
             .commit ()
 
         .should ("pass 2")
+            .init (s => lastValues.push (s.last))
             .before (async function ()
             {
                 await nit.sleep (10);
@@ -950,6 +953,7 @@ test ("nit.test.Strategy.commit ()", async () =>
             .commit ()
 
         .should ("pass 3")
+            .init (s => lastValues.push (s.last))
             .project ("project-a")
             .before (async function ()
             {
@@ -961,6 +965,7 @@ test ("nit.test.Strategy.commit ()", async () =>
             .commit ()
 
         .should ("pass 4")  // expect 1
+            .init (s => lastValues.push (s.last))
             .application ("", test.pathForProject ("project-c"))
             .before (function ()
             {
@@ -971,6 +976,7 @@ test ("nit.test.Strategy.commit ()", async () =>
             .commit ()
 
         .should ("pass 5")  // expect 2
+            .init (s => lastValues.push (s.last))
             .chdir (test.pathForProject ("project-a"))
             .only ()
             .spy (A.prototype, "nameLength")
@@ -1005,10 +1011,12 @@ test ("nit.test.Strategy.commit ()", async () =>
             .commit ()
 
         .should ("pass 6") // expect 3
+            .init (s => lastValues.push (s.last))
             .returnsResultOfExpr ("object.property")
             .commit ()
 
         .should ("pass 7") // expect 4
+            .init (s => lastValues.push (s.last))
             .returnsResultOfExpr ("object.name")
             .commit ()
     ;
@@ -1041,6 +1049,7 @@ test ("nit.test.Strategy.commit ()", async () =>
     itMock.restore ();
     expectMock.restore ();
 
+    expect (lastValues).toEqual ([false, false, false, false, false, false, true]);
     expect (itMock.errors[0].code).toBe ("error.failed2");
     expect (itMock.errors[1].code).toBe ("error.failed3");
     expect (itMock.errors[2].message).toBe ("error method!");
