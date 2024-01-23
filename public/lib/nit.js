@@ -109,7 +109,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         CLASSES: {},
         CLASS_NAME_PATTERN: /^([a-zA-Z][a-zA-Z0-9]*\.)*([A-Z][a-z0-9]*)+$/,
         CLASS_REF_PATTERN: /^@([a-zA-Z][a-zA-Z0-9]*\.)*([A-Z][a-z0-9]*)+$/,
-        CONFIG_REF_PATTERN: /^@@([a-z][a-z0-9]*\.)*([a-z][a-z0-9]*)+$/i,
+        CONFIG_REF_PATTERN: /^@@([a-z][a-z0-9]*)(\.[a-z0-9]+)*$/i,
         CLASS_TAG: "@class",
         CONFIG_TAG: "@config",
         COMPONENT_DESCRIPTORS: {},
@@ -1262,7 +1262,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
 
     nit.get.escape = function (path)
     {
-        return path.replace (/\./g, "\\.");
+        return path.replace (/\./g, DOT_TOKEN).replace (DOT_TOKEN_RE, "\\.");
     };
 
 
