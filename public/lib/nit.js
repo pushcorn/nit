@@ -4991,6 +4991,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                 return nit.invoke.each (vals, function (value)
                 {
                     ctx = ctx || prop.createValidationContext (owner, value);
+                    ctx.value = value;
 
                     return nit.invoke.each (prop.constraints, function (cons)
                     {

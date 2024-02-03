@@ -199,7 +199,7 @@ test ("nit.Command.Option", () =>
 });
 
 
-test ("nit.Command.Input", () =>
+test ("nit.Command.Input", async () =>
 {
     const Test = nit.defineClass ("Test", "nit.Command")
         .defineInput (function (Input)
@@ -253,6 +253,8 @@ test ("nit.Command.Input", () =>
         values: ["a = 2", "b = 3", "= c > 4", "= d < 5"],
         headers: ["X-Server: nit", "X-Response-Time: 1"]
     });
+
+    await Input.validate (input);
 
     expect (input.values.kvp).toEqual ({ a: 2, b: 3, "": ["c > 4", "d < 5"] });
     expect (input.notKvp.kvp).toBeUndefined ();
@@ -576,6 +578,11 @@ test ("nit.Command.run ()", async () =>
     ctx = Test.Context.forInput ({ va: 11 });
     await Test ().run (ctx);
     expect (ctx.input.va).toBe (11);
+
+    ctx = new Test.Context;
+    ctx.input = { va: 13 };
+    await Test ().run (ctx);
+    expect (ctx.input.va).toBe (13);
 
     const TestOutput = nit.defineClass ("TestOutput")
         .field ("val", "integer")
