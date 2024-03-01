@@ -1,3 +1,22 @@
+test ("nit.test.Strategy.addSetupFilesForPackage ()", async () =>
+{
+    const Strategy = nit.test.Strategy;
+    const Project = Strategy.Project;
+
+    let proj = new Project ("project-a", true);
+
+    proj.begin ();
+    Strategy.addSetupFilesForPackage ("package-a");
+
+    expect (global.PROJECT_A_PACKAGE_A_SETUP_LOADED).toBe (true);
+    expect (global.PROJECT_A_PACKAGE_A_SETUP_LOCAL_LOADED).toBe (true);
+    expect (Strategy.additionalAssetPaths).toEqual ([nit.path.join (proj.root.path, "packages/package-a/test")]);
+
+    Strategy.additionalAssetPaths = [];
+    proj.end ();
+});
+
+
 test ("nit.test.Strategy.Expector", async () =>
 {
     const STRATEGY = {};

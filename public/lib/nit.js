@@ -455,11 +455,12 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.funcArgNames = function (func)
     {
         var me = nit.funcArgNames;
+        var len = func.length;
 
         func = (func + "").replace (me.STRIP_PATTERN, "");
         func = func.split (")", 1)[0].split ("(", 2).pop ().trim ();
 
-        return func ? func.split (me.DELIMITER_PATTERN) : [];
+        return func ? func.split (me.DELIMITER_PATTERN).slice (0, len) : [];
     };
 
 

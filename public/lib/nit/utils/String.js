@@ -18,5 +18,17 @@ module.exports = function (nit)
 
             return hash;
         })
+        .staticMethod ("slugify", function (str)
+        {
+            return nit.trim (str)
+                .normalize ("NFKD")
+                .toLowerCase ()
+                .trim ()
+                .replace (/[_\s]/g, "-")
+                .replace (/[^\w-]+/g, "")
+                .replace (/-{2,}/g, "-")
+                .replace (/-$/g, "")
+            ;
+        })
     ;
 };
