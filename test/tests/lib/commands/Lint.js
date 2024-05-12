@@ -14,8 +14,8 @@ test ("commands.Lint", async () =>
     nit.config ("nit.lint.EsLint.options.cwd", dir.path);
     expect ((await Lint ().run ()).output).toMatch (/Missing semicolon/);
 
-    let rc = nit.new ("nit.File", dir.join (".eslintrc.json"));
-    rc.write (nit.toJson ({ env: { node: true }, rules: { semi: "warn" } }));
+    let rc = nit.new ("nit.File", dir.join ("eslint.config.mjs"));
+    rc.write ("export default " + nit.toJson ({ rules: { semi: "warn" } }));
 
     nit.config ("nit.lint.EsLint.options", {});
     process.chdir (dir.path);

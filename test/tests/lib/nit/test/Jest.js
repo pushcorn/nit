@@ -27,7 +27,8 @@ test ("nit.test.Jest", async () =>
         detectOpenHandles: false,
         forceExit: false,
         runInBand: false,
-        maxWorkers: ""
+        maxWorkers: "",
+        coveragePathIgnorePatterns: ["node_modules", "resources"]
     });
 
     expect (res[1]).toEqual (["."]);

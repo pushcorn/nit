@@ -1,5 +1,3 @@
-/* eslint-disable  no-template-curly-in-string */
-
 nit.requireAll ("nit.Workflow", "nit.Task");
 
 

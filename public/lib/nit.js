@@ -362,7 +362,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             var c = Math.max (~~lines, 1);
 
-            filter = function (l, i) // eslint-disable-line no-unused-vars
+            filter = function (l, i)
             {
                 return i >= c;
             };
@@ -1328,7 +1328,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         {
             date: "integer|string|Date", timezone: "string", keepOffset: "boolean", formatOptions: "object"
         },
-        function (date, timezone, keepOffset, formatOptions) // eslint-disable-line no-unused-vars
+        function (date, timezone, keepOffset, formatOptions)
         {
             date = date || new Date ();
 
@@ -4371,7 +4371,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                     };
                 }
                 ,
-                run: function (onSuccess, onFailure, onComplete, ctx) // eslint-disable-line no-unused-vars
+                run: function (onSuccess, onFailure, onComplete, ctx)
                 {
                     var self  = this;
                     var cfg = nit.typedArgsToObj (arguments,
@@ -5202,7 +5202,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
             {
                 prop: "string|boolean", cb: "function"
             },
-            function (prop, cb) // eslint-disable-line no-unused-vars
+            function (prop, cb)
             {
                 var self = this;
 
@@ -5352,7 +5352,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
                         {
                             name: "string", superclass: "string", builder: "function"
                         },
-                        function (name, superclass, builder) // eslint-disable-line no-unused-vars
+                        function (name, superclass, builder)
                         {
                             return this.defineInnerClass (prefix + name, superclass || innerClass.name, builder);
                         }
@@ -7235,7 +7235,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         })
         .memo ("choiceMap", function ()
         {
-            return this.choiceValues.reduce (function (a, c) { return (a[c] = true) && a; }, {});
+            return this.choiceValues.reduce (function (a, c) { return (a[c] = true) && a; }, {}); // eslint-disable-line no-constant-binary-expression
         })
         .onValidate (function (ctx)
         {

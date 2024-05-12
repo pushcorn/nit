@@ -11,7 +11,7 @@ do
 done
 
 export NIT_HOME=$(dirname $(cd $(dirname "$SOURCE") && pwd -P))
-NODE_ARGS=("--experimental-vm-modules" "--preserve-symlinks" "--trace-deprecation" "$NIT_HOME" "$@")
+NODE_ARGS=("--experimental-vm-modules" "--no-warnings=ExperimentalWarning" "--preserve-symlinks" "--trace-deprecation" "$NIT_HOME" "$@")
 
 if [ -t 1 ]; then
     while true

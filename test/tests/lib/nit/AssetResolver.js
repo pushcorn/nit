@@ -32,8 +32,8 @@ test.method ("nit.AssetResolver", "resolve")
 
     .should ("try to resolve the asset under the specified subdirectories")
         .up (s => s.createArgs = "resources")
-        .given ("eslint/eslintrc.json")
-        .returns (nit.path.join (nit.HOME, "resources/eslint/eslintrc.json"))
+        .given ("eslint/eslint.config.mjs")
+        .returns (nit.path.join (nit.HOME, "resources/eslint/eslint.config.mjs"))
         .expectingPropertyToBe ("object.roots.0", /^\/.*\/resources$/)
         .commit ()
 ;

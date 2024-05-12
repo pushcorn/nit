@@ -18,7 +18,7 @@ module.exports = function (nit, Self)
                     {
                         name: "string", superclass: "string", builder: "function"
                     },
-                    function (name, superclass, builder) // eslint-disable-line no-unused-vars
+                    function (name, superclass, builder)
                     {
                         return this.defineInnerClass (name, superclass || this.Task.name, builder);
                     }
