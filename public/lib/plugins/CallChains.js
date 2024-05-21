@@ -1,79 +1,80 @@
-module.exports = function (nit)
+module.exports = function (nit, Self)
 {
-    return nit.definePlugin ("CallChains")
+    return (Self = nit.definePlugin ("CallChains"))
         .field ("[names...]", "string", "The chains to be created.")
+        .defineInnerClass ("Chains", function (Chains)
+        {
+            Chains
+                .defineMeta ("entry", "string")
+                .defineInnerClass ("Link", function (Link)
+                {
+                    Link
+                        .field ("<from>", "string")
+                        .field ("<to>", "string")
+                        .field ("[condition]", "function")
+                        .method ("apply", function (chains)
+                        {
+                            var self = this;
+
+                            chains[self.from].link (chains[self.to], self.condition);
+                        })
+                    ;
+                })
+                .defineInnerClass ("Context", "nit.CallChain.Context", function (Context)
+                {
+                    Context
+                        .field ("chains", Chains.name)
+                        .delegate ("owner", "chains.owner")
+                    ;
+                })
+                .staticProperty ("links...", Chains.Link.name)
+                .staticMethod ("link", function ()
+                {
+                    this.links.push (nit.new (Chains.Link, arguments));
+
+                    return this;
+                })
+                .field ("owner", "any")
+                .method ("fork", function (owner)
+                {
+                    var self = this;
+                    var cls = self.constructor;
+                    var params = {};
+
+                    cls.fields.forEach (function (f)
+                    {
+                        if (f.type == "nit.CallChain")
+                        {
+                            params[f.name] = self[f.name].fork (owner);
+                        }
+                    });
+
+                    var chains = new cls (params);
+
+                    chains.owner = owner;
+
+                    return chains;
+                })
+                .method ("invoke", function (ctx)
+                {
+                    var self = this;
+                    var cls = self.constructor;
+
+                    ctx = ctx instanceof cls.Context ? ctx : nit.new (cls.Context, { args: arguments });
+                    ctx.chains = self;
+
+                    cls.links.forEach (function (l) { l.apply (self); });
+
+                    return self[cls.entry].invoke (ctx);
+                })
+            ;
+        })
         .onUsedBy (function (hostClass)
         {
             var plugin = this;
 
             hostClass
-                .defineInnerClass ("Chains", function (Chains)
-                {
-                    Chains
-                        .defineMeta ("entry", "string")
-                        .defineInnerClass ("Link", function (Link)
-                        {
-                            Link
-                                .field ("<from>", "string")
-                                .field ("<to>", "string")
-                                .field ("[condition]", "function")
-                                .method ("apply", function (chains)
-                                {
-                                    var self = this;
-
-                                    chains[self.from].link (chains[self.to], self.condition);
-                                })
-                            ;
-                        })
-                        .defineInnerClass ("Context", "nit.CallChain.Context", function (Context)
-                        {
-                            Context
-                                .field ("chains", Chains.name)
-                                .delegate ("owner", "chains.owner")
-                            ;
-                        })
-                        .staticProperty ("links...", Chains.Link.name)
-                        .staticMethod ("link", function ()
-                        {
-                            this.links.push (nit.new (Chains.Link, arguments));
-
-                            return this;
-                        })
-                        .field ("owner", "any")
-                        .method ("fork", function (owner)
-                        {
-                            var self = this;
-                            var cls = self.constructor;
-                            var params = {};
-
-                            cls.fields.forEach (function (f)
-                            {
-                                if (f.type == "nit.CallChain")
-                                {
-                                    params[f.name] = self[f.name].fork (owner);
-                                }
-                            });
-
-                            var chains = new cls (params);
-
-                            chains.owner = owner;
-
-                            return chains;
-                        })
-                        .method ("invoke", function (ctx)
-                        {
-                            var self = this;
-                            var cls = self.constructor;
-
-                            ctx = ctx instanceof cls.Context ? ctx : nit.new (cls.Context, { args: arguments });
-                            ctx.chains = self;
-
-                            cls.links.forEach (function (l) { l.apply (self); });
-
-                            return self[cls.entry].invoke (ctx);
-                        })
-                    ;
-                })
+                .defineInnerClass ("Chains", Self.Chains.name)
                 .onDefineSubclass (function (Subclass)
                 {
                     Subclass.defineInnerClass ("Chains", this.Chains.name);

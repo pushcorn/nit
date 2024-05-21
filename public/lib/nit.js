@@ -845,7 +845,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     nit.is.async      = function (v) { return nit.is (v, "AsyncFunction"); };
     nit.is.undef      = function (v) { return v === null || v === undefined; };
     nit.is.buffer     = function (v) { return typeof Buffer !== "undefined" && v instanceof Buffer; };
-    nit.is.arrayish   = function (v) { return v && v != ARR_PROTO && !nit.is.buffer (v) && (v instanceof Array || v instanceof TYPED_ARRAY || nit.is (v, "arguments") || (typeof v == "object" && typeof v.hasOwnProperty == "function" && v.hasOwnProperty ("length"))); };
+    nit.is.arrayish   = function (v) { return v && typeof v != "function" && v != ARR_PROTO && !nit.is.buffer (v) && (v instanceof Array || v instanceof TYPED_ARRAY || nit.is (v, "arguments") || (typeof v == "object" && typeof v.hasOwnProperty == "function" && v.hasOwnProperty ("length"))); };
     nit.is.errorish   = function (v) { return !!(v && typeof v == "object" && (v instanceof Error || "message" in v && "stack" in v)); };
     nit.is.symbol     = function (v) { return nit.is (v, "symbol"); };
     nit.is.typedArray = function (v) { return v instanceof TYPED_ARRAY; };
@@ -8177,6 +8177,23 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
     };
 
 
+    nit.findComponent = function (name, category)
+    {
+        var cn = nit.ComponentDescriptor.normalizeName (name);
+
+        return nit.find (nit.COMPONENT_DESCRIPTORS, function (d)
+            {
+                return (!category || category == d.category)
+                    && (d.name == cn || d.className == name);
+            })
+            || nit.find (nit.listComponents (category), function (d)
+            {
+                return d.name == cn || d.className == name;
+            })
+        ;
+    };
+
+
     nit.listComponents = function (category, returnNames)
     {
         var components = nit.each (OBJECT.keys (nit.CLASSES), function (className)
@@ -8229,13 +8246,7 @@ function (nit, global, Promise, subscript, undefined) // eslint-disable-line no-
         superclass = nit.lookupClass (superclass);
         category = nit.trim (category);
 
-        var nn = nit.ComponentDescriptor.normalizeName (name);
-
-        var component = nit.find (nit.listComponents (category), function (c)
-        {
-            return c.name == nn || c.className == name;
-        });
-
+        var component = nit.findComponent (name, category);
         var cls = nit.lookupClass (component ? component.className : name);
 
         if (!cls)
